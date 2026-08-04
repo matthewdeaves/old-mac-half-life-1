@@ -13,12 +13,7 @@ claim a host first, then run them there. The repo is at `~/oldmac` on both minis
 ```sh
 scripts/pick-build-host.sh --status            # who is free
 HOST=$(scripts/pick-build-host.sh --acquire LABEL)
-ssh $HOST 'cd oldmac && scripts/reset-vendor-trees.sh' # REQUIRED FIRST, see below
-ssh $HOST 'cd oldmac && scripts/build-lion.sh'         # x86_64 slice
-ssh $HOST 'cd oldmac && scripts/build-ppc-panther.sh'  # ppc750 slice
-ssh $HOST 'cd oldmac && scripts/build-ppc-tiger.sh'    # ppc7400 slice
-ssh $HOST 'cd oldmac && scripts/make-universal.sh'     # fuse to dist/universal
-ssh $HOST 'cd oldmac && scripts/make-app.sh dist/universal dist/universal-app/Half-Life.app'
+ssh $HOST 'cd oldmac && scripts/build-all.sh'  # THE WHOLE BUILD. Use this.
 scripts/pick-build-host.sh --release $HOST
 
 scripts/make-dmg.sh [version-label]      # Tiger G4 ONLY, see the hard rules
@@ -29,12 +24,21 @@ python3 tests/test-repo.py               # repo invariants, runs on this box
 tests/test-artifact.sh                   # checks a built artifact
 ```
 
-**`reset-vendor-trees.sh` is not optional and nothing calls it for you.** The
-drivers patch a tree that already exists, and the patch scripts are
-marker-guarded, so a file holding a SUPERSEDED fix reports "already patched" and
-is skipped. Withdrawing a fix from the repo does not withdraw it from a build
-host, and every check in `build-verification.md` looks at the OUTPUT, so none of
-them can see it. This is the only thing that clears it. Issue #39.
+`build-all.sh` runs `fetch-sources.sh`, the three slice drivers,
+`make-universal.sh` and `make-app.sh`, in that order, checking each exit code.
+**Do not run those steps chained by hand.** A pipeline returns its LAST command's
+status, so `driver.sh 2>&1 | tail -25 && next.sh` reads `tail`'s status, and
+`tail` always succeeds. That has already happened here: all three drivers
+correctly refused to build a tree at the wrong pin, and the run still finished
+saying "done".
+
+To change engine, menu or game code: commit it on the `oldmac` branch of that
+fork, push, bump the pin in `scripts/build-pins.sh`, `scp` that file to the mini,
+then `build-all.sh`. If a submodule changed, **the recorded commit must move**;
+editing `.gitmodules` is not enough. `docs/adr/0012`
+
+`OLDMAC_KEEP_BUILD=1` skips the clean for a fast fix-compile loop. It poisons the
+`BUILD-STAMP` so the result cannot be fused. Never use it for anything shippable.
 
 `lipo` and `strings` checks belong on **this** box, never on Lion.
 **All build output lives under `~/oldmac/dist/`**, never at the repo root and never
@@ -84,13 +88,24 @@ on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
 ## Lion build-box traps
 
 - Git there is Xcode 4's 1.7, which has no `git -C`. Use `( cd DIR && git ... )`.
-- Its OpenSSL cannot do TLS 1.2. Modern git/curl/OpenSSL under `~/local` do
-  reach GitHub, but clone from `vendor/hlsdk-portable-mirror.git` anyway.
+  Modern git, curl, OpenSSL and **ssh** live under `~/local`; the scripts prefer
+  them silently. Lion's own OpenSSL cannot do TLS 1.2 and its OpenSSH is 5.6,
+  which has no ed25519 and can only sign `ssh-rsa` under SHA-1, which GitHub
+  stopped accepting in 2022.
+- **All six forks are private.** Each mini has its own key at
+  `~/.ssh/id_ed25519_github`, wired in by `core.sshCommand` plus an
+  `url."git@github.com:".insteadOf` rewrite, so `build-pins.sh` can keep naming
+  plain https URLs. Without that a fetch fails with "could not read Username".
+- **No `pkill` on 10.7, 10.4 or 10.3 at all.** Kill by PID out of `ps`.
 - `--disable-altivec` is an ENGINE option. It breaks hlsdk's configure.
 - hlsdk assumes darwin means clang, so it hands gcc a `-Wl,--no-undefined`
   flag that Apple's ld rejects.
 - Lion's `strings` cannot read a modern x86_64 Mach-O and reports zero matches,
-  which looks exactly like a missing patch. Verify strings on the dev box.
+  which looks exactly like a missing fix. Verify strings on the dev box.
+- Panther's `lipo` cannot name the x86_64 slice and prints
+  `cputype (16777223) cpusubtype (-2147483645)`. That is a correct fat binary.
+- This dev box runs zsh, where an **unquoted `$var` does not word-split**. Use an
+  array. A `git rm $LIST` silently became one long pathspec that matched nothing.
 
 ## Working method: measure, and refute when it earns it
 
@@ -119,8 +134,10 @@ inferred. A partial result from a killed agent is a lead, never a finding.
 - **Payload sits at the `valve/` level**, not the rodir root, or the engine's
   pre-flight check misses it. `.claude/rules/shipped-layout.md`, `docs/adr/0006`
 - **We ship code, not content.** No Valve assets, no mod author's content, ever.
-- **Never PR or push to upstream repos.** Changes live as `scripts/patch-*.py`
-  and `patches/vendor/*.diff`; vendored trees stay re-clonable.
+- **Never PR or push to upstream repos.** Changes are commits on the `oldmac`
+  branch of **our own fork** of each, pinned in `scripts/build-pins.sh`. The only
+  patch scripts left are the five applied to each mod's own source tree, which is
+  not ours to fork. `docs/adr/0012`
 - **Build the release DMG only on a Tiger G4**, never the G3 or Lion, `-format
   UDZO`; md5 every binary, `hdiutil verify` is not enough. `docs/adr/0005`
 - Before a release run `python3 tests/test-repo.py` and `tests/test-artifact.sh`.
@@ -139,4 +156,7 @@ inferred. A partial result from a killed agent is a lead, never a finding.
 - `docs/adr/`: 0001 CPU-capability slices, 0002 pinned vendoring, 0003 split
   trees, 0004 SDL2, 0005 Lion builds and Tiger packaging, 0006 code not content,
   0007 launcher, 0008 mod dylibs, 0009 mod installer, 0010 report-app floors,
-  0011 per-mod sources + installer TLS
+  0011 per-mod sources + installer TLS, **0012 the port is commits on our own
+  forks** (supersedes the patching half of 0002)
+- `docs/port/PPC-PORT-NOTES.md`: the move onto mainline, including two
+  diagnoses that were made, measured and retracted
