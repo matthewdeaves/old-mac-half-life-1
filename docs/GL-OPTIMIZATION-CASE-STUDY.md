@@ -173,8 +173,6 @@ The ordering tracks how fillrate-starved each part is: the Rage 128 and the
 integrated GMA 950 gain most; the discrete Radeons (more fill headroom, more
 CPU/geometry bound at these settings) gain least, down to just +3 % on the
 Quicksilver's Radeon 9000. No machine regressed and
-lighting was verified unchanged on the G3 and G4 by screenshot A/B. The patcher
-[removed]
-mainline tree (the only source difference, a `for( i` vs `for( int i` loop
-header, is sidestepped by anchoring on the line above it) - so it is wired into
-all three shipping build scripts.
+lighting was verified unchanged on the G3 and G4 by screenshot A/B. The change is
+arch-neutral and lives in one commit on our engine branch, so every slice builds
+from it and it cannot be present on one architecture and missing on another.

@@ -1,19 +1,13 @@
 blank_issues_enabled: true
 contact_links:
-  - name: The PowerPC engine this build uses
-[removed]
-    about: >-
-[removed]
-      built from, and a separate release that also covers Mac OS 9 / Classic.
-      Report engine bugs that are not specific to this packaging there.
   - name: Xash3D FWGS upstream
     url: https://github.com/FWGS/xash3d-fwgs
     about: >-
-      For behaviour that also happens in Xash3D on an ordinary modern machine,
-      and so is not about old Macs.
-  - name: The mod content collection
-[removed]
+      Every slice here is built from our own branch of Xash3D FWGS. For
+      behaviour that also happens in Xash3D on an ordinary modern machine, and
+      so is not about old Macs, report it upstream rather than here.
+  - name: Half-Life SDK upstream
+    url: https://github.com/FWGS/hlsdk-portable
     about: >-
-[removed]
-      project rebuilds the game code for it and distributes no content, so
-      questions about the content itself belong there.
+      The game code, and the source of every mod we rebuild. For a bug in a mod
+      that is not specific to running it on an old Mac, this is the place.

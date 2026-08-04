@@ -27,12 +27,10 @@ is the only name the engine actually consults for a mod
 
 - `scripts/build-mod.sh:365-366` produces `server.dylib` and `client.dylib`, each
   fat.
-- The engine has to accept the plain name. Half of that already existed, in
-[removed]
-  `COM_GetGameDllPathFromGameInfo()` when the suffixed server dylib misses.
-  `scripts/patch-gamedll-plain-name.py` ports that to the mainline tree and adds
-  the missing client-side equivalent to both trees, because `CL_Init()` called
-  `Host_Error` on the first failure with no retry at all.
+- The engine has to accept the plain name, on both sides. `SV_InitGame()` retries
+  `COM_GetGameDllPathFromGameInfo()` when the suffixed server dylib misses, and
+  `CL_Init()` gets the mirror-image fallback, because it called `Host_Error` on
+  the first failure with no retry at all. One commit on our engine branch.
 - Both are strictly fallbacks. The arch-suffixed name is tried first and wins if
   present, so the existing `valve/` layout keeps working untouched
   (`patch-gamedll-plain-name.py:26-28`).

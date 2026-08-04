@@ -298,9 +298,7 @@ Not covered: 32-bit-only Intel Macs (Core Solo / Core Duo), which would need an
 i386 slice, and 64-bit Intel on 10.6, which has no libc++. There is no native
 Apple Silicon slice; an Apple Silicon Mac runs the Intel one through Rosetta 2.
 
-This is a Mac OS X / macOS build and is NOT for Mac OS 9 / Classic. For Classic,
-[removed]
-[removed]
+This is a Mac OS X / macOS build and is NOT for Mac OS 9 / Classic.
 
 YOU NEED YOUR OWN COPY OF HALF-LIFE
 -----------------------------------

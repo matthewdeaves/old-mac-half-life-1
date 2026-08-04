@@ -39,10 +39,12 @@ instead, because the engine also accepts the **plain** name from the mod's own
 `liblist.gam`:
 
 - **server**: `SV_InitGame()` (`engine/server/sv_init.c`) tries the suffixed name,
-[removed]
-  PPC fork (commit `c9b012c7`); `patch-gamedll-plain-name.py` ports it to mainline.
-- **client**: `CL_Init()` had no retry at all - it called `Host_Error` on the first
-  failure. The same patch adds the mirror-image fallback to both trees.
+  then retries `COM_GetGameDllPathFromGameInfo()`.
+- **client**: `CL_Init()` had no retry at all, it called `Host_Error` on the first
+  failure, so it gets the mirror-image fallback.
+
+Both are one commit on our engine branch, `mods: load game code from
+liblist.gam's plain name as well as the suffixed one`.
 
 So `lipo`-ing the two slices into `dlls/bshift.dylib` gives one file that loads on
 G3, G4, G5 and Intel - and it is the exact filename existing Mac mod releases use,
@@ -101,8 +103,8 @@ process logs `FS_AddGameHierarchy( gearbox )` and brings up video.
 
 ## Big-endian: mostly upstream's problem now
 
-[removed]
-now largely obsolete: **FWGS master has absorbed the endian work**. Save/restore
+**FWGS master has absorbed the endian work**, so the game code is built from
+mainline for every slice, PowerPC included. Save/restore
 swaps centrally in `CSave::BufferData()` via a new `typesize` parameter rather
 than at every call site, and `dlls/nodes.cpp` /
 `dlls/nodes_compat.h` are fully handled. All 25 mod branches carry it.

@@ -17,8 +17,8 @@
  *                  passes those only on the G3 and Panther profiles, so on any other
  *                  machine a leftover video.cfg is the mode the engine starts in.
  *                  vid_highdpi is not a cvar in either engine we build.
-[removed]
- *                  a user reporting "arrows don't work, only WASD"; this file is why.
+ *     config.cfg   the packager's keybinds, which are why a bundle can arrive with
+ *                  the arrow keys bound and WASD dead.
  *     save/        the packager's savegames. Saves are native-endian, so i386 saves are garbage
  *                  on PPC anyway.
  *     dlls/ cl_dlls/  i386 game code, which we replace.

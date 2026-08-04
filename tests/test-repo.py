@@ -160,7 +160,7 @@ def test_mod_count_is_consistent():
         except (IOError, UnicodeDecodeError):
             continue
         for m in pat.finditer(body):
-[removed]
+            # 26 is the upstream collection's own count, a different number again.
             if m.group(1) not in (str(n), str(sourced), "26"):
                 line = body[:m.start()].count("\n") + 1
                 stale.append("%s:%d  %s" % (rel, line, m.group(0)))
@@ -245,8 +245,8 @@ def test_menu_dictionary_is_shipped_and_sane():
     # alone, and are written "#Valve_Orange" at the call site, so a search for
     # GameUI_ found nothing and a count of 81 looked complete.
     have = set(re.findall(r'^"([A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+)"', body, re.M))
-    trees = [d for d in ("vendor/xash3d-fwgs-intel/3rdparty/mainui",
-[removed]
+    # One tree now: every slice builds the menu from the same branch of our fork.
+    trees = [d for d in ("vendor/xash3d-fwgs/3rdparty/mainui",)
              if os.path.isdir(os.path.join(REPO, d))]
     if not trees:
         if VERBOSE:

@@ -6,9 +6,9 @@ body:
     attributes:
       value: |
         This project ships the rebuilt game code for each mod and no content.
-[removed]
-        If the problem is with the content itself rather than with installing or
-        running it here, that page is the better place.
+        Half-Life Mods.app fetches each mod from its own publisher, so if the
+        problem is with the content itself rather than with installing or
+        running it here, that publisher is the better place to raise it.
 
         Half-Life Mods.app writes **Half-Life-Mods-install.log** next to itself.
         That log is usually the whole answer, so please attach it.

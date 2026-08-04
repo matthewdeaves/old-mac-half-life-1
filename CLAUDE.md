@@ -56,14 +56,16 @@ on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
   (issue #2); Apple Silicon runs `x86_64` under Rosetta 2. Never write "not for
   Apple Silicon". The System Report app is the exception and ships i386 from
   10.4 and x86_64 from 10.5, deliberately below the game. `docs/adr/0010`
-[removed]
+- **Mac OS X only, not Mac OS 9** (issue #23). Classic is out of scope.
 - **Three trees:** engine (`xash3d-fwgs`), menu (`mainui_cpp`), game dylibs
-  (`hlsdk-portable`); PowerPC from big-endian forks, Intel from mainline, hence
-  no PowerPC TLS (issue #1) and same-arch-only demos. `docs/adr/0003`
+  (`hlsdk-portable`). **All three slices now build from the same branch of each**,
+  our own, from mainline. There is no separate PowerPC tree any more, so a fix
+  cannot be live on one architecture and missing on another. `docs/adr/0012`
 - **PowerPC links `panther-sdl2` 2.0.3 statically, Intel builds SDL 2.0.22 as a
   dylib.** `leopard-sdl2` is in no shipped slice. `docs/adr/0004`
-- **Never use GitHub ZIPs.** Upstream is cloned `--recursive` at pinned commits
-  into a git-ignored `vendor/`, then patched. `docs/adr/0002`
+- **Never use GitHub ZIPs.** Each tree is cloned `--recursive` at the pinned
+  commit into a git-ignored `vendor/`. **Nothing patches it on the way to the
+  compiler.** `docs/adr/0002`, `docs/adr/0012`
 - **`Contents/MacOS/xash3d` is a shell launcher** that picks the display
   profile; the Mach-O beside it is `xash3d.bin`. `docs/adr/0007`
 
