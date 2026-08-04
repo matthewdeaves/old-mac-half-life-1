@@ -61,7 +61,7 @@ PIN_LIBBACKTRACE_UPSTREAM="ianlancetaylor/libbacktrace@b9e40069"
 # is Valve's Half-Life 1 SDK licence, NOT GPL, whoever forks it. docs/LICENSING.md.
 PIN_HLSDK_URL="https://github.com/matthewdeaves/hlsdk-portable.git"
 PIN_HLSDK_BRANCH="oldmac"
-PIN_HLSDK_COMMIT="1da978ce4f60f959028ad7aac452763c6fa12194"
+PIN_HLSDK_COMMIT="28380b10e62dab6673e02b98e0234926bf5fbebb"
 PIN_HLSDK_UPSTREAM="FWGS/hlsdk-portable@8c5b2846"
 
 # --- SDL: PowerPC only, linked statically ------------------------------------

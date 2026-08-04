@@ -76,7 +76,9 @@ rm -f valve/scrshots/*.png valve/scrshots/*.bmp valve/scrshots/*.tga 2>/dev/null
 	echo "quit"
 } > valve/hw-shot.cfg
 
-"$GAME" +exec hw-shot.cfg "$@" >/dev/null 2>&1 &
+# -nomsgbox: see hw-play.sh. A modal crash dialog on an unattended machine costs a
+# human interruption per crash, and the crash text is already in three other places.
+"$GAME" -nomsgbox +exec hw-shot.cfg "$@" >/dev/null 2>&1 &
 sleep "$SECS"
 
 cleanup

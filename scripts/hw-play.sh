@@ -73,7 +73,11 @@ rm -f valve/scrshots/*.png valve/scrshots/*.bmp valve/scrshots/*.tga 2>/dev/null
 	echo "quit"
 } > valve/hw-play.cfg
 
-"$GAME" +exec hw-play.cfg "$@" >/dev/null 2>&1 &
+# -nomsgbox: the engine's crash dialog is modal, so without this a crash parks the
+# machine on a window nobody is sitting in front of until the watchdog below kills
+# it. The crash text still reaches stderr, the engine log and the operating
+# system's own report in ~/Library/Logs/CrashReporter, so nothing is lost.
+"$GAME" -nomsgbox +exec hw-play.cfg "$@" >/dev/null 2>&1 &
 sleep "$SECS"
 
 cleanup

@@ -53,20 +53,44 @@ lzma|$PIN_LZMA_URL|$PIN_LZMA_BRANCH|$PIN_LZMA_COMMIT|$SRC/lzma-installer
 EOF
 }
 
+# --status is a GATE, not a report: it exits non-zero unless every tree is
+# exactly at its pin. scripts/build-all.sh runs it as a step for that reason, so
+# a tree moved by hand between a fetch and a build is caught rather than built.
+#
+# DIRTY means a TRACKED file differs, which is the hand-edit that must never
+# reach a compiler. Untracked files are not dirty: the waf output directories
+# live in these trees and would otherwise report every tree as dirty forever,
+# which trains everyone to ignore the word.
 status() {
+	local bad=0
 	printf '%-10s %-12s %s\n' NAME STATE DIRECTORY
-	trees | while IFS='|' read -r name url branch commit dir; do
+
+	# Redirected, not piped: a `... | while` body runs in a subshell, so `bad`
+	# would be set in the subshell and lost, and this would always report clean.
+	local list
+	list="$( mktemp -t oldmac-status )"
+	trees > "$list"
+
+	while IFS='|' read -r name url branch commit dir; do
 		if [ ! -d "$dir/.git" ]; then
 			printf '%-10s %-12s %s\n' "$name" "absent" "$dir"
+			bad=1
 			continue
 		fi
 		have="$( cd "$dir" && $GIT rev-parse HEAD 2>/dev/null || echo '?' )"
-		dirty="$( cd "$dir" && $GIT status --porcelain 2>/dev/null | head -1 )"
-		if [ "$have" != "$commit" ]; then state="WRONG-PIN"
-		elif [ -n "$dirty" ];      then state="DIRTY"
+		dirty="$( cd "$dir" && $GIT status --porcelain -uno 2>/dev/null | head -1 )"
+		if [ "$have" != "$commit" ]; then state="WRONG-PIN"; bad=1
+		elif [ -n "$dirty" ];      then state="DIRTY";     bad=1
 		else                            state="ok"; fi
 		printf '%-10s %-12s %s\n' "$name" "$state" "${have:0:12}"
-	done
+	done < "$list"
+	rm -f "$list"
+
+	if [ "$bad" -ne 0 ]; then
+		echo "!! not every tree is at its pin. Run scripts/fetch-sources.sh" >&2
+		return 1
+	fi
+	return 0
 }
 
 fetch_one() {
@@ -84,7 +108,27 @@ fetch_one() {
 	# git 1.7 has no `git -C`, so subshell every time.
 	( cd "$dir"
 	  $GIT remote set-url origin "$url"
-	  $GIT fetch origin "$branch"
+
+	  # A failed fetch is tolerable ONLY if the pinned commit is already in this
+	  # tree's object store. That is a real and common case: the pin moved back to
+	  # a commit we already have, or an earlier fetch brought it down.
+	  #
+	  # It must never be tolerated silently, and it used to be. All six forks are
+	  # private, so an unauthenticated GitHub fetch from a build mini fails with
+	  # "could not read Username", and this ran on regardless: the engine happened
+	  # to already hold its pin, so it reported "ok" with the fatal still on screen
+	  # a line above. Checking $? explicitly is the whole fix. Do not rely on set -e
+	  # here: the failure is inside a subshell, which is exactly where it is easiest
+	  # to lose.
+	  if ! $GIT fetch origin "$branch"; then
+	  	if $GIT cat-file -e "$commit^{commit}" 2>/dev/null; then
+	  		echo "   (fetch failed, but $commit is already here: continuing)" >&2
+	  	else
+	  		echo "!! $name: fetch from $url failed, and $commit is not in this tree." >&2
+	  		echo "   These forks are private. The build host needs credentials for them." >&2
+	  		exit 1
+	  	fi
+	  fi
 	  # Hard, and clean: a build must be a pure function of the pin.
 	  $GIT checkout -q --detach "$commit" 2>/dev/null || {
 	  	echo "!! $name: pinned commit $commit not found after fetch" >&2
@@ -143,7 +187,12 @@ check_sub() {
 }
 
 main() {
-	if [ "${1:-}" = "--status" ]; then status; return 0; fi
+	# Pass the gate's verdict on. Returning 0 here regardless, which is what this
+	# used to do, made --status unusable as a check by anything but a human eye.
+	if [ "${1:-}" = "--status" ]; then
+		status
+		return $?
+	fi
 
 	want="${*:-}"
 	mkdir -p "$SRC"

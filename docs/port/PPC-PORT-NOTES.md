@@ -50,6 +50,64 @@ descriptions, the logo and the version string are correct.
 Captured headlessly with `scripts/hw-shot.sh`, which is frame-count based rather
 than wall-clock so it behaves the same on a 450 MHz G3.
 
+### The map-load crash was our own byte swap, applied twice
+
+Loading `c1a0` died with SIGSEGV on the G3 and, intermittently, on the G5. It was
+first reported here as a fault in renderer setup, because the last line printed
+before it was `Setting up renderer...`. That was a coincidence of timing: the
+next thing that happens is the first frame, and the first frame is where a studio
+model is drawn.
+
+Three measurements found it.
+
+1. **Bisecting by configuration cleared the renderer.** With `gl_singlepass 0` it
+   still crashed, and with `-ref soft` it still crashed. A fault that survives
+   turning off the multitexture path and then survives swapping the entire
+   renderer for the software one is not in either renderer.
+2. **The operating system had already written the answer down.** Every one of
+   these machines keeps a fully symbolised trace in
+   `~/Library/Logs/CrashReporter/xash3d.bin.crash.log`. It named four frames of
+   client game code that our own handler never reached:
+   `StudioCalcBonePosition` <- `StudioCalcRotations` <- `StudioSetupBones` <-
+   `StudioDrawModel`.
+3. **The registers named the value.** The faulting address sat `0x7a02` past a
+   live model pointer, and `r0` held `0x7a02`. Byte-reversed that is `0x027a`, an
+   entirely ordinary offset into a model. So a `short` that should have been in
+   host order was in little-endian order at the point of use.
+
+The cause was a commit of ours, `studio: byte-swap the model data the renderer
+reads directly`. It swapped animation offsets and animation values in the client
+dll's `CStudioModelRenderer`, on the stated grounds that the engine's
+`LoadCacheFile` is "a raw file load with no byteswapping anywhere in it".
+
+That premise is false for the engine we build. `Mod_LoadCacheFile` in
+`engine/common/model.c` carries an `XASH_BIG_ENDIAN` block that calls
+`Mod_SwapStudioSeqGroupAnims`, and the comment above it says what it is for:
+"this handles when studio model renderer tries to load sequence files on it's
+own, which is what they always do in HLSDK". That is precisely the case the
+commit was written for. `Mod_SwapStudioSeqGroupAnims` swaps `mstudioanim_t`'s
+six offsets and every `mstudioanimvalue_t` behind them, and it is reached for
+sequence group 0 through `R_StudioLoadHeader` as well.
+
+So both halves of the commit were a second swap over bytes that were already in
+host order, and a second swap is the identity undone: it put the offsets back
+into little-endian, and the pointer arithmetic then walked off the model.
+
+It is reachable because the client sets the renderer's studio header, at
+`StudioModelRenderer.cpp:1166`, before calling `StudioSetupBones` at 1190. The
+engine's swap block asks for that header through `PARM_GET_STUDIO_HDR`, finds it,
+and does the work. Nothing was missing.
+
+**Action: the commit is dropped**, not amended: with the engine doing this
+correctly there is nothing left for it to do. It is kept as the tag
+`archive/studio-double-swap` on the hlsdk fork rather than in the branch.
+
+The lesson is narrower than "check upstream". The commit's reasoning was sound
+for an engine that does not swap there, and it was written while this port still
+built against one that did not. When a fix rests on what another component does
+*not* do, that premise has to be re-read against the component actually being
+built, because it is the kind of premise that silently stops being true.
+
 ### CLOSED, NOT A FAULT: the "corrupted glyphs" top left are the background art
 
 This was reported here as an open PowerPC bug: a band of garbled, very
