@@ -49,3 +49,9 @@ timestamp,label,host,renderer,resolution,screenmode,map,frames,fps_min,fps_med,f
 2026-08-05T00:27:00,after-brushmodel,g5-panther,gl,800x600,fullscreen,c0a0,300,209.893,210.306,210.327,209.893|210.327|210.306
 2026-08-05T00:30:00,before-brushmodel,intelmacmini233,gl,800x600,fullscreen,c0a0,300,119.244,119.478,120.000,119.478|120.000|119.244
 2026-08-05T00:34:00,after-brushmodel,intelmacmini233,gl,800x600,fullscreen,c0a0,300,121.381,121.713,122.040,122.040|121.713|121.381
+2026-08-05T00:41:00,v1.5.0-dmg-production-path,macs-Computer,gl,800x600,fullscreen,c0a0,300,29.949,30.053,30.114,29.949|30.053|30.114
+2026-08-05T00:52:00,v1.5.0-g3-tiger-singlepass,macs-Computer,gl,800x600,fullscreen,c0a0,300,30.298,30.380,30.392,30.298|30.380|30.392
+2026-08-05T00:54:00,v1.5.0-g3-tiger-twopass,macs-Computer,gl,800x600,fullscreen,c0a0,300,23.435,23.533,23.577,23.435|23.533|23.577
+2026-08-05T01:05:00,v1.5.0-g5-leopard-singlepass,g5-leopard,gl,800x600,fullscreen,c0a0,300,208.612,208.975,208.984,208.612|208.975|208.984
+2026-08-05T01:07:00,v1.5.0-g5-leopard-twopass,g5-leopard,gl,800x600,fullscreen,c0a0,300,168.268,168.400,168.437,168.268|168.400|168.437
+2026-08-05T01:12:00,v1.5.0-g5-leopard-native-as-played,g5-leopard,gl,1680x1050,fullscreen,c0a0,300,69.375,69.384,69.396,69.396|69.384|69.375
