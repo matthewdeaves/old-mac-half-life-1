@@ -74,7 +74,13 @@ setis "engine executable is ppc750 ppc7400 x86_64" "ppc750 ppc7400 x86_64" "$BIN
 # The exact-subtype rule. A generic ppc slice in the EXECUTABLE is the failure
 # mode that bricks a G3 on Tiger, so assert the absence explicitly rather than
 # relying on the archs list alone.
-if lipo -detailed_info "$BIN" 2>/dev/null | grep -q "cputype CPU_TYPE_POWERPC$(printf '\n')cpusubtype CPU_SUBTYPE_POWERPC_ALL"; then
+# NOT a grep for a two-line pattern. It used to be, and it could never match:
+# $(printf '\n') strips its own trailing newline and collapses to the empty
+# string, and grep is line-oriented anyway, so the check reported "ok" on every
+# image ever tested, including ones that genuinely carry CPU_SUBTYPE_POWERPC_ALL.
+# lipo prints one "architecture <name>" line per slice, and the name for a generic
+# ppc slice is exactly "ppc", so ask for that.
+if lipo -detailed_info "$BIN" 2>/dev/null | awk '/^architecture ppc$/ { found = 1 } END { exit !found }'; then
 	bad "executable carries a generic ppc (ALL) slice"
 else
 	ok "executable carries no generic ppc (ALL) slice"

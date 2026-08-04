@@ -407,12 +407,25 @@ def test_drivers_refuse_a_tree_that_is_not_at_its_pin():
     actually checked out. Asserted on the pin variables being read at all: a
     driver that never sources build-pins.sh cannot be checking anything.
     """
+    # On NON-COMMENT lines only. A plain `"build-pins.sh" in body` passed off the
+    # header comment alone: every driver names the file in its own preamble and in
+    # the echo strings inside check_pin, so the entire pre-flight could be deleted
+    # and this stayed green. That is the exact failure the note above
+    # shell_commands exists to record, reintroduced in the test written to replace
+    # the tests that had it.
     missing = []
     for driver in BUILD_DRIVERS:
-        body = read(driver)
-        if "build-pins.sh" not in body:
-            missing.append("%s does not source %s" % (driver, PIN_FILE))
-    check("every build driver reads the pins", not missing, "\n".join(missing))
+        cmds = shell_commands(read(driver))
+        text = "\n".join(cmds)
+        if not re.search(r'^\s*(?:\.|source)\s+\S*build-pins\.sh', text, re.M):
+            missing.append("%s never sources %s" % (driver, PIN_FILE))
+            continue
+        if "PIN_ENGINE_COMMIT" not in text:
+            missing.append("%s sources the pins but never compares PIN_ENGINE_COMMIT" % driver)
+        if "exit 1" not in text:
+            missing.append("%s checks a pin but never exits non-zero" % driver)
+    check("every build driver reads the pins and refuses a mismatch",
+          not missing, "\n".join(missing))
 
 
 def test_no_script_calls_a_helper_that_is_gone():
@@ -521,7 +534,14 @@ def test_issue_templates_reference_real_labels():
                              read(".github/ISSUE_TEMPLATE/" + fn), re.M):
             for part in m.group(1).split(","):
                 declared.add(part.strip().strip('"').strip("'"))
-    check("issue templates declare at least one label", bool(declared) or True)
+    # `bool(declared) or True` was the previous assertion, which cannot fail under
+    # any input. If a template declares a label, say which; if the directory has
+    # templates but none declares one, that is worth knowing, because a label named
+    # in a form that does not exist is silently dropped by GitHub.
+    forms = [f for f in os.listdir(tdir) if f.endswith(".yml") and f != "config.yml"]
+    check("there are issue forms to check", bool(forms))
+    check("issue forms declare labels", bool(declared),
+          "no labels declared by any of: %s" % ", ".join(sorted(forms)))
     if VERBOSE and declared:
         print("          labels used: %s" % ", ".join(sorted(declared)))
 
