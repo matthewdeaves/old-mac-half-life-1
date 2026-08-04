@@ -321,33 +321,18 @@ def shell_scripts():
                   if f.endswith(".sh"))
 
 
-# ------------------------------------------------------------- patch wiring --
-
-# Every driver that patches the menu tree. build-ppc.sh builds the retired
-# ppc970 slice and ships nothing, but it is kept as the record of how that slice
-# was made, so it has to stay in step with the others.
-MAINUI_DRIVERS = ("scripts/build-lion.sh", "scripts/build-ppc-panther.sh",
-                  "scripts/build-ppc-tiger.sh", "scripts/build-ppc.sh")
-
-# Patch scripts that must run after another one. Two reasons appear here, and
-# both are ordering the drivers have to get right:
+# --------------------------------------------------------------- the pins --
 #
-#   - the earlier script's anchor stops matching once the later script has
-#     inserted its code (nullcheck before picker), or
-#   - the later script's OUTPUT is only correct because the earlier one ran
-#     (bmp-endian before picker: the preview block the picker writes reads a BMP
-#     header out of CBMP::LoadFile and swaps it for the PIC_Load handoff, which
-#     is only right if LoadFile hands back host order, and bmp-endian is what
-#     makes it do that on the PowerPC tree).
-PATCH_ORDER = (("scripts/patch-mainui-logo-nullcheck.py",
-                "scripts/patch-mainui-logo-picker.py"),
-               ("scripts/patch-mainui-bmp-endian.py",
-                "scripts/patch-mainui-logo-picker.py"))
-
-
-def driver_commands():
-    return dict((d, shell_commands(read(d))) for d in MAINUI_DRIVERS)
-
+# These used to be wiring tests: every scripts/patch-*.py had to be invoked by
+# every driver that built a tree it touched. That mechanism is gone. The port is
+# carried as commits on our own branch of each upstream, and the build checks out
+# a pin and compiles it, so there is no per-driver list left to drift.
+#
+# The failure they guarded against has not gone away, it has moved. It used to be
+# "a fix is wired into three drivers out of four, so one machine silently ships
+# without it". It is now "a driver builds a tree that is not at its pin", which is
+# the same fault with a different shape: a build that looks fine and contains
+# something other than what the pins say. So the tests follow it.
 
 def test_invocation_matcher_rejects_a_mention():
     """The wiring tests are only worth their runtime if a mention fails them.
@@ -371,85 +356,105 @@ def test_invocation_matcher_rejects_a_mention():
               got == want, "matcher said %s" % got)
 
 
-def test_mainui_patches_are_wired():
-    """A patch script nobody runs is a fix that never shipped.
+PIN_FILE = "scripts/build-pins.sh"
 
-    The menu is patched from four drivers and the trees are re-cloned, so a fix
-    only reaches a slice if that slice's driver runs its script. Adding the
-    script and wiring three drivers out of four looks exactly like a fix that
-    works everywhere except on one machine.
+# The drivers that compile something we ship.
+BUILD_DRIVERS = ("scripts/build-lion.sh", "scripts/build-ppc-panther.sh",
+                 "scripts/build-ppc-tiger.sh")
+
+
+def test_every_pin_is_a_full_commit():
+    """A pin has to be a full 40-character commit, not a branch or a tag.
+
+    A branch name would make the build a function of when it ran rather than of
+    what it was told to build, which is the whole property the pins exist for.
+    An abbreviated sha would be worse than useless in a shipped BUILD-INFO: it
+    is what a person reads to find out what a release was made from.
     """
-    names = patch_scripts("patch-mainui-")
-    check("there are mainui patch scripts to check", bool(names))
-    cmds = driver_commands()
+    body = read(PIN_FILE)
+    pins = re.findall(r'^(PIN_[A-Z0-9_]*_COMMIT)="([^"]*)"', body, re.M)
+    check("build-pins.sh declares pins", bool(pins))
 
+    bad = ["%s=%s" % (k, v) for k, v in pins
+           if not re.match(r'^[0-9a-f]{40}$', v)]
+    check("every pin is a 40-character commit", not bad, "\n".join(bad))
+
+
+def test_every_pin_has_a_url_and_a_branch():
+    """Each pinned component names where it came from, so provenance is complete.
+
+    BUILD-INFO in a shipped app prints this table. A pin with no URL beside it
+    reduces that to a bare sha, which nobody can resolve to anything.
+    """
+    body = read(PIN_FILE)
     missing = []
-    for name in names:
-        for driver in MAINUI_DRIVERS:
-            if invocation_line(cmds[driver], name) < 0:
-                missing.append("%s is not run by %s" % (name, driver))
-    check("every scripts/patch-mainui-*.py runs in all %d drivers" % len(MAINUI_DRIVERS),
-          not missing, "\n".join(missing))
-
-    # Order matters where one script anchors on text another one splits apart.
-    # Compared by invocation line, so a name in a header comment cannot supply
-    # the ordering the calls do not have.
-    wrong = []
-    for first, second in PATCH_ORDER:
-        for driver in MAINUI_DRIVERS:
-            a = invocation_line(cmds[driver], os.path.basename(first))
-            b = invocation_line(cmds[driver], os.path.basename(second))
-            if a < 0 or b < 0 or a > b:
-                wrong.append("%s: %s must run before %s"
-                             % (driver, os.path.basename(first), os.path.basename(second)))
-    check("patch scripts with an ordering dependency are wired in order",
-          not wrong, "\n".join(wrong))
+    for key in re.findall(r'^PIN_([A-Z0-9_]*)_COMMIT="', body, re.M):
+        for suffix in ("URL", "BRANCH"):
+            if not re.search(r'^PIN_%s_%s="[^"]+"' % (key, suffix), body, re.M):
+                missing.append("PIN_%s_%s" % (key, suffix))
+    check("every pin has a URL and a branch", not missing, ", ".join(missing))
 
 
-def test_net_patches_are_wired():
-    """Same rule for the networking patches, for the same reason.
+def test_drivers_refuse_a_tree_that_is_not_at_its_pin():
+    """The pre-flight is the only thing standing between us and a stale build.
 
-    Both of them remove a blocking DNS lookup from the frame loop, and the
-    symptom of a missing one is not a build error: it is one machine freezing
-    for a resolver timeout while the others are fine, which reads as a hardware
-    or OS difference rather than as a driver that was never edited.
+    This is not hypothetical. A driver did once compile a tree that had been left
+    at the wrong commit, the link succeeded, the timestamps looked fresh, and the
+    slices shipped code that was not in the source tree. Every check in place at
+    the time passed, because they all looked at the output.
+
+    Each driver must therefore read the pins and compare them against what is
+    actually checked out. Asserted on the pin variables being read at all: a
+    driver that never sources build-pins.sh cannot be checking anything.
     """
-    names = patch_scripts("patch-net-")
-    check("there are networking patch scripts to check", bool(names))
-    cmds = driver_commands()
-
-    # patch-net-ws-thread-t.py is Panther-only: the 10.3.9 mach headers collide
-    # with a local typedef, which is not a problem anywhere else.
-    panther_only = {"patch-net-ws-thread-t.py"}
-
     missing = []
-    for name in names:
-        if name in panther_only:
-            continue
-        for driver in MAINUI_DRIVERS:
-            if invocation_line(cmds[driver], name) < 0:
-                missing.append("%s is not run by %s" % (name, driver))
-    check("every scripts/patch-net-*.py runs in all %d drivers" % len(MAINUI_DRIVERS),
-          not missing, "\n".join(missing))
+    for driver in BUILD_DRIVERS:
+        body = read(driver)
+        if "build-pins.sh" not in body:
+            missing.append("%s does not source %s" % (driver, PIN_FILE))
+    check("every build driver reads the pins", not missing, "\n".join(missing))
 
 
-def test_no_orphan_patch_scripts():
-    """The other half of the same gap.
+def test_no_script_calls_a_patch_script_that_is_gone():
+    """Deleting a retired patch script must not leave a driver calling it.
 
-    The two tests above only police patch-mainui-* and patch-net-*. Everything
-    else in scripts/patch-*.py is wired by exactly one line in one driver, and
-    if that line goes the script stays in the tree, stays in the diff review and
-    stops running. This does not say which driver should run which script, only
-    that no patch script has become a file nothing calls.
+    Forty-three of them were removed when the port moved onto our own branches.
+    A driver still invoking one would fail at build time, which is loud and fine,
+    but a doc or a test still naming one is a quiet lie about how this builds.
     """
+    present = set(patch_scripts())
+    dangling = []
+    for sh in shell_scripts():
+        body = read(os.path.join("scripts", sh))
+        cmds = shell_commands(body)
+        for name in set(re.findall(r'patch-[a-z0-9-]+\.py', body)):
+            if name in present:
+                continue
+            if invocation_line(cmds, name) >= 0:
+                dangling.append("%s calls %s, which does not exist" % (sh, name))
+    check("no script invokes a deleted patch script", not dangling,
+          "\n".join(dangling))
+
+
+def test_surviving_patch_scripts_are_still_wired():
+    """The few patch scripts left over patch trees that are not ours to fork.
+
+    Three kinds survive: the installer's copy of mbedTLS, and the two that are
+    applied to the separate source tree of each mod we build. There is no single
+    repository for those to be commits in, so they stay scripts, and the original
+    rule still applies to them: a patch script nobody runs is a fix that never
+    shipped.
+    """
+    names = patch_scripts()
+    check("there are surviving patch scripts to check", bool(names))
+
     invokers = {}
     for sh in shell_scripts():
         invokers[sh] = shell_commands(read(os.path.join("scripts", sh)))
-    orphans = []
-    for name in patch_scripts():
-        if not any(invocation_line(cmds, name) >= 0 for cmds in invokers.values()):
-            orphans.append(name)
-    check("every scripts/patch-*.py is invoked by some scripts/*.sh",
+
+    orphans = [n for n in names
+               if not any(invocation_line(c, n) >= 0 for c in invokers.values())]
+    check("every surviving scripts/patch-*.py is invoked by some scripts/*.sh",
           not orphans, "invoked by nothing: %s" % ", ".join(orphans))
 
 
@@ -522,9 +527,11 @@ def main():
                test_build_info_slice_line,
                test_menu_dictionary_is_shipped_and_sane,
                test_invocation_matcher_rejects_a_mention,
-               test_mainui_patches_are_wired,
-               test_net_patches_are_wired,
-               test_no_orphan_patch_scripts,
+               test_every_pin_is_a_full_commit,
+               test_every_pin_has_a_url_and_a_branch,
+               test_drivers_refuse_a_tree_that_is_not_at_its_pin,
+               test_no_script_calls_a_patch_script_that_is_gone,
+               test_surviving_patch_scripts_are_still_wired,
                test_no_em_dashes,
                test_no_stray_tool_markup,
                test_issue_templates_reference_real_labels):
