@@ -150,3 +150,71 @@ on the Quicksilver's Radeon 9000. No machine regressed, and lighting was verifie
 unchanged on the G3 and G4 by screenshot A/B. The change is arch-neutral and lives
 in one commit on our engine branch, so every slice builds from it and it cannot be
 present on one architecture and missing on another.
+
+## Step 4: the same trick for brush models, **+9.6 %** more
+
+Step 2 was scoped to `R_DrawTextureChains`, the **static world** only. Brush
+entities (doors, platforms, buttons, trains, and the tram you ride in `c0a0`) went
+on rasterizing their geometry twice, because `r_singlepass_active` was set inside
+`R_DrawTextureChains` and cleared again on the way out, so `R_DrawBrushModel`
+never saw it.
+
+That is easy to miss and expensive to leave: `c0a0` is a tram ride through a level
+built largely out of brush entities. Re-profiling the G3 with the step-2 build in
+place said so plainly. 2792 main-thread samples, 30 s @ 10 ms:
+
+| | samples | |
+|---|---:|---|
+| blocked in `CGLFlushDrawable` → `mach_msg_trap` | 2326 | **83.3 %**, still GPU bound |
+| `R_DrawBrushModel` | 148 | **more than the world**, still two-pass |
+|  · of which `R_BlendLightmaps`, the second geometry pass | 55 | |
+| `R_DrawWorld` | 107 | down from 160: step 2 working |
+
+So the *world* had been fixed and the *entities* had not, and on this map the
+entities were the larger half.
+
+### The fix, and what it has to refuse
+
+`R_DrawBrushModel` now runs the same `R_SinglePassBegin` / `R_SinglePassEnd`
+bracket around its surface loop. Two restrictions matter:
+
+- **`kRenderNormal` only.** `R_SinglePassBegin` puts TMU0 in `GL_REPLACE`, which
+  discards the primary colour, and that colour is exactly how the translucent
+  rendermodes carry their per-entity alpha and tint. `R_HasLightmap` already
+  declines `kRenderTransColor`, `kRenderTransAdd` and `kRenderGlow` per surface,
+  but `kRenderTransAlpha` and `kRenderTransTexture` would otherwise reach a
+  REPLACE stage and silently lose their blend.
+- **Non-VBO path only**, since `R_DrawVBO` does its own lightmap combining and
+  must not run against a TMU1 stage this code set up.
+
+Surfaces whose lightmap turns out to be dynamic are deferred to the dynamic chain
+exactly as in the world path, and still get their lightmap from
+`R_BlendLightmaps`. After the change that function falls from 58 samples to 2.
+
+### Measured, same machine, same protocol
+
+`c0a0`, 800×600 fullscreen, `timerefresh 300`, 3 runs, median:
+
+| machine | GPU / OS | before | after | gain |
+|---|---|---:|---:|---:|
+| G3 yosemite | Rage 128 · 10.3 | 27.44 | **30.07** | **+9.6 %** |
+| G4 mini | Radeon 9200 · 10.4 | 84.94 | **92.99** | **+9.5 %** |
+| G5 | Radeon 9600 · 10.3 | 191.54 | **210.31** | **+9.8 %** |
+| Intel mini | GMA 950 · 10.7 | 119.48 | 121.71 | +1.9 % |
+
+The three PowerPC machines gain the same ~9.5 % because the change removes the
+same redundant geometry pass on all of them. The Intel mini barely moves, and
+that is the expected result rather than a disappointing one: the GMA 950 has
+`GL_ARB_vertex_buffer_object`, so it takes the VBO path where this change is
+inert by construction.
+
+Rendering was verified by screenshot A/B on the G3 at a fixed frame count from
+map start, `c1a0`, two fresh processes. The single-pass shot is correct; brush
+entities including the hazard-striped blast door render with proper lightmaps.
+
+> That A/B also turned up a separate, pre-existing defect: with `gl_singlepass 0`
+> the G3 renders the whole scene heavily blue-tinted. Single-pass puts TMU0 in
+> `GL_REPLACE` and so discards the primary colour, which means it has been
+> *masking* a bad primary colour that the two-pass `GL_MODULATE` path multiplies
+> in. It matters because single-pass auto-disables when fog is enabled. Tracked
+> separately; it is not caused by this change, which is inert when the cvar is 0.
