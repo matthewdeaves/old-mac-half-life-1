@@ -32,8 +32,8 @@
 # Xash normally loads game code by ARCH-SUFFIXED name (dlls/bshift_amd64.dylib),
 # which would need one file per architecture. But the engine also falls back to
 # the plain name written in the mod's own liblist.gam - server-side in
-# SV_InitGame() via COM_GetGameDllPathFromGameInfo(), and client-side via our
-# patch-gamedll-plain-name.py. That is also the exact filename every existing Mac
+# SV_InitGame() via COM_GetGameDllPathFromGameInfo(), and client-side via a commit
+# on our engine branch. That is also the exact filename every existing Mac
 # mod release already uses. So we lipo the two slices into ONE fat dylib per role
 # and drop it in at the plain name: one file, whole fleet, and installing a mod
 # becomes a straight overwrite of what shipped in it.
@@ -130,7 +130,15 @@ else echo "ERROR: no python interpreter found" >&2; exit 1; fi
 
 usage() { sed -n '2,12p' "$0"; exit 2; }
 [ $# -gt 0 ] || usage
-if [ "$1" = "--all" ]; then set -- $(all_branches) || exit 1; fi
+if [ "$1" = "--all" ]; then
+	# NOT `set -- $(all_branches) || exit 1`: the || binds to `set`, whose status
+	# is always 0, so a failure in all_branches was discarded, $@ became empty,
+	# the per-branch loop never ran, and the script reported
+	# "built: <none>  FAILED: <none>" and exited 0. Capture first, then check.
+	branches="$( all_branches )" || exit 1
+	[ -n "$branches" ] || { echo "ERROR: no branches read from $MODMAP" >&2; exit 1; }
+	set -- $branches
+fi
 
 mkdir -p "$MODSRC" "$DIST" "$LOGS" "$SHIM"
 

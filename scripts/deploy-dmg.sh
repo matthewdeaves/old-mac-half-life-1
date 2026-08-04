@@ -23,7 +23,10 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 HOST="${1:?usage: $0 <machine> [version]}"
 VERSION="${2:-}"
 if [ -z "$VERSION" ]; then
-  DMG=$(ls -t "$REPO_ROOT"/dist/Half-Life-OldMac-*.dmg 2>/dev/null | head -1)
+  # `|| true` is required, not defensive: under `set -o pipefail` a failing ls
+  # makes the whole substitution non-zero and `set -e` exits right here, so the
+  # "no dmg found" message below could never print.
+  DMG=$(ls -t "$REPO_ROOT"/dist/Half-Life-OldMac-*.dmg 2>/dev/null | head -1) || true
   [ -n "$DMG" ] || { echo "no dist/Half-Life-OldMac-*.dmg found - run scripts/make-dmg.sh" >&2; exit 1; }
 else
   DMG="$REPO_ROOT/dist/Half-Life-OldMac-$VERSION.dmg"

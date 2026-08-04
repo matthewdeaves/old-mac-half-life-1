@@ -289,7 +289,16 @@ cp "$DH"/valve/dlls/*.dylib    "$APP/valve/dlls/"
 if [ "${OLDMAC_KEEP_BUILD:-0}" = "1" ]; then
 	printf '%s\n' "not-shippable-OLDMAC_KEEP_BUILD" > "$APP/BUILD-STAMP"
 else
-	printf '%s\n' "$PIN_ENGINE_COMMIT" > "$APP/BUILD-STAMP"
+	# MEASURED, not copied from the pin. Writing $PIN_ENGINE_COMMIT made the stamp a
+	# restatement of what we asked for rather than a record of what was built, so it
+	# could not notice a tree moved after the pre-flight, and under ENGINE_OVERRIDE
+	# it asserted a pin that was never checked. make-universal.sh compares stamps
+	# against build-pins.sh, so the stamp has to be evidence to be worth anything.
+	if [ -n "${ENGINE_OVERRIDE:-}" ]; then
+		printf '%s\n' "not-shippable-ENGINE_OVERRIDE" > "$APP/BUILD-STAMP"
+	else
+		printf '%s\n' "$( cd "$ENGINE" && git rev-parse HEAD )" > "$APP/BUILD-STAMP"
+	fi
 fi
 
 echo "==> done. Panther ppc build at $APP"

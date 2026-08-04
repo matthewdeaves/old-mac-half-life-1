@@ -125,7 +125,17 @@ chmod u+w "$OUT/libSDL2-2.0.0.dylib" "$OUT/libxash.dylib"
 # build-box absolute path. install_name_tool touches only the x86_64 slice (the ppc
 # slices have no SDL load command, so they are left untouched).
 install_name_tool -id @loader_path/libSDL2-2.0.0.dylib "$OUT/libSDL2-2.0.0.dylib"
-install_name_tool -change "$SDLX86" @loader_path/libSDL2-2.0.0.dylib "$OUT/libxash.dylib" 2>/dev/null || true
+# NOT optional, and NOT silenced. build-lion.sh rewrites the SDL install name only
+# on the copy it stages into dist/lion-play; the libxash.dylib fused here still
+# carries the build box's absolute path to libSDL2. If this fails, the shipped
+# x86_64 slice references a path that exists on no user machine, and nothing
+# downstream looks: make-dmg.sh md5s the file but never reads its load commands.
+install_name_tool -change "$SDLX86" @loader_path/libSDL2-2.0.0.dylib "$OUT/libxash.dylib"
+if otool -L "$OUT/libxash.dylib" | grep -q "$SDLX86"; then
+	echo "!! libxash.dylib still references the build path $SDLX86" >&2
+	echo "   The Intel slice would fail to load SDL on any other machine." >&2
+	exit 1
+fi
 
 echo "==> game dylibs (both arch sets; generic-ppc pair serves G3/G4/G5)"
 cp "$PANTHER/valve/cl_dlls/client_ppc.dylib" "$OUT/gamedata/cl_dlls/"

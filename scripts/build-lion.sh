@@ -164,6 +164,14 @@ ln -sfn "../$(basename "$HLSDK")" "$ENGINE/hlsdk"
 # branch of the tree it belongs to, and scripts/fetch-sources.sh checked those out
 # already. docs/adr/0012.
 
+# Clear the destdir before installing. Both PowerPC drivers do this and this one
+# did not, so a waf task that failed while still exiting 0 left the PREVIOUS run's
+# binaries in place, and the stamp written below then asserted they were built
+# from the current pin. That is the stale-artifact fault the stamp exists to
+# catch, reintroduced one directory upstream of the check.
+rm -rf "$OUT"
+mkdir -p "$OUT"
+
 echo "==> [1/3] game dylibs (hlsdk-portable, x86_64/10.7)"
 # The shared-client fixes, the same ones the mods carry, are commits on our own
 # hlsdk-portable branch, checked out by scripts/fetch-sources.sh.
@@ -180,11 +188,26 @@ echo "==> [2/3] engine + renderers + menu (x86_64/10.7)"
   python ./waf build
   python ./waf install --destdir="$OUT" )
 
+# Every artifact must exist and be from THIS run. waf exits 0 on a failed task,
+# so the only trustworthy evidence is the output. The PowerPC drivers have carried
+# this check for a while; the Intel one did not.
+for f in xash3d libxash.dylib libref_gl.dylib libref_soft.dylib libmenu.dylib filesystem_stdio.dylib; do
+	[ -s "$OUT/$f" ] || { echo "!! build-lion: $OUT/$f missing after install, the build did not do what it said" >&2; exit 1; }
+done
+
 # --- build stamp -------------------------------------------------------------
 # Record what this slice was actually built from. make-universal.sh refuses to
 # fuse slices whose stamps disagree with each other or with build-pins.sh, so a
 # directory left behind by an earlier run cannot be quietly folded into a release.
-printf '%s\n' "$PIN_ENGINE_COMMIT" > "$OUT/BUILD-STAMP"
+# MEASURED, not copied. Writing $PIN_ENGINE_COMMIT here made the stamp a restatement
+# of the pin, so it could not detect a tree that moved after the pre-flight, and
+# under an override it was simply false. Ask the tree what it is.
+STAMPED="$( cd "$ENGINE" && git rev-parse HEAD )"
+[ "$STAMPED" = "$PIN_ENGINE_COMMIT" ] || {
+	echo "!! build-lion: engine tree is at $STAMPED but the pin says $PIN_ENGINE_COMMIT" >&2
+	exit 1
+}
+printf '%s\n' "$STAMPED" > "$OUT/BUILD-STAMP"
 
 echo "==> [3/3] assemble self-contained play folder"
 # This step does `rm -rf` on the folder, so it stages OFF the Desktop, the same

@@ -33,3 +33,5 @@ timestamp,label,host,renderer,resolution,screenmode,map,frames,fps_min,fps_med,f
 2026-07-28T00:01:36,g5-leopard-SOFT-not-comparable-to-gl,g5-leopard,soft,800x600,fullscreen,c0a0,100,28.279,28.856,28.881,28.856|28.279|28.881
 2026-07-28T00:02:14,g5-leopard-SOFT-not-comparable-to-gl,g5-leopard,soft,1680x1050,fullscreen,c0a0,100,15.495,15.603,15.704,15.603|15.495|15.704
 2026-07-28T00:20:00,imac-g5-control-gl-act1440x900,imacg5siMacG5,gl,800x600,fullscreen,c0a0,300,61.426,61.666,61.778,61.426|61.666|61.778
+2026-08-04T09:08:28,leopard-vs-tiger,g5-leopard,gl,1680x1050,borderless,c0a0,300,ERR,ERR,ERR,
+2026-08-04T09:15:12,leopard-clean-1680,g5-leopard,gl,1680x1050,fullscreen,c0a0,300,2.278,2.278,2.278,2.278
