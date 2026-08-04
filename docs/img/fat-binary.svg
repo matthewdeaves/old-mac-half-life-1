@@ -13,14 +13,14 @@
     <rect x="16"  y="58" width="286" height="92" rx="8" fill="#ffffff" stroke="#d0d7de"/>
     <text x="32" y="86" font-size="15" font-weight="700" fill="#1f2328">Engine</text>
     <text x="32" y="107" font-size="12.5" fill="#57606a">xash3d-fwgs</text>
-[removed]
-    <text x="32" y="142" font-size="11.5" fill="#57606a">big-endian · Intel: FWGS mainline</text>
+    <text x="32" y="126" font-size="11.5" fill="#57606a">one branch, ours, from FWGS mainline</text>
+    <text x="32" y="142" font-size="11.5" fill="#57606a">every slice builds from it</text>
 
     <rect x="347" y="58" width="286" height="92" rx="8" fill="#ffffff" stroke="#d0d7de"/>
     <text x="363" y="86" font-size="15" font-weight="700" fill="#1f2328">Menu</text>
     <text x="363" y="107" font-size="12.5" fill="#57606a">mainui_cpp</text>
-[removed]
-    <text x="363" y="142" font-size="11.5" fill="#57606a">Intel: FWGS · built as a dylib</text>
+    <text x="363" y="126" font-size="11.5" fill="#57606a">submodule of the engine, our branch</text>
+    <text x="363" y="142" font-size="11.5" fill="#57606a">built as a dylib</text>
 
     <rect x="678" y="58" width="286" height="92" rx="8" fill="#ffffff" stroke="#d0d7de"/>
     <text x="694" y="86" font-size="15" font-weight="700" fill="#1f2328">Game code</text>
@@ -35,8 +35,8 @@
 
   <!-- Build bar -->
   <rect x="16" y="196" width="948" height="46" rx="8" fill="#eaeef2" stroke="#d0d7de"/>
-  <text x="490" y="219" font-size="13.5" font-weight="700" fill="#1f2328" text-anchor="middle">per-arch build - waf + patch-*.py</text>
-  <text x="490" y="235" font-size="11.5" fill="#57606a" text-anchor="middle">big-endian fixes · gcc-4.x shims · legacy SDL2 · OpenGL renderer</text>
+  <text x="490" y="219" font-size="13.5" font-weight="700" fill="#1f2328" text-anchor="middle">per-arch build - waf, from pinned commits</text>
+  <text x="490" y="235" font-size="11.5" fill="#57606a" text-anchor="middle">nothing patches a source tree on the way to the compiler</text>
 
   <line x1="490" y1="242" x2="490" y2="268" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
 
@@ -67,7 +67,7 @@
     <text x="60" y="480">xash3d.bin</text><text x="300" y="480" fill="#57606a">fat: ppc750 · ppc7400 · x86_64</text>
     <text x="60" y="502">libref_gl.dylib / libref_soft.dylib</text><text x="360" y="502" fill="#57606a">fat renderers (GL + software fallback)</text>
     <text x="60" y="524">libSDL2-2.0.0.dylib</text><text x="300" y="524" fill="#57606a">x86_64 only - PPC slices link SDL statically</text>
-    <text x="60" y="546">valve/</text><text x="300" y="546" fill="#57606a">your retail game data - not included in this repo</text>
+    <text x="34" y="546">Contents/Resources/Half-Life/valve/</text><text x="360" y="546" fill="#57606a">our game dylibs - your retail data sits beside the app</text>
   </g>
 
   <text x="24" y="590" font-size="12.5" fill="#57606a">At launch, dyld maps only the slice matching the CPU. Nothing to pick - one download runs on every machine.</text>

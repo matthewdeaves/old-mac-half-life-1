@@ -8,9 +8,20 @@ finds itself on, and plays 25 Half-Life mods as well as the base game. This repo
 holds the porting glue, not the game: no Valve assets, no upstream source.
 
 **Mac OS X and macOS only, 10.3.9 up. Not Mac OS 9 / Classic**, at least not yet
-([#23](https://github.com/matthewdeaves/old-mac-halflife/issues/23)). For Classic,
-[removed]
-[removed]
+([#23](https://github.com/matthewdeaves/old-mac-halflife/issues/23)).
+
+**How this is built.** Development is a fully automated AI loop: implement,
+deploy to real hardware, test on it, iterate. The fleet is a rack of actual old
+Macs, a G3, a G4, a dual G5 and two Intel minis, and every change is compiled,
+installed and run on them rather than on an emulator. Findings that turned out to
+be wrong are recorded as wrong, in `docs/port/PPC-PORT-NOTES.md`.
+
+The port itself is carried as commits on our own branch of each upstream, so
+
+    git log --oneline <upstream>..oldmac
+
+in any of the repositories below is exactly what this project changed and nothing
+else. Nothing rewrites a source tree on the way to the compiler.
 
 ![Anatomy of the fat binary: three source trees build into three CPU slices that lipo fuses into one Half-Life.app](docs/img/fat-binary.svg)
 
@@ -185,18 +196,21 @@ a git-ignored `vendor/`, patched and built, so what this repo actually tracks is
 
 ### Upstream
 
+Every slice, PowerPC and Intel, builds from the same branch of each project
+below. There is no separate PowerPC tree.
+
 | Project | Used for |
 |---|---|
-| [`FWGS/xash3d-fwgs`](https://github.com/FWGS/xash3d-fwgs) | engine, Intel slice |
-[removed]
-[removed]
-| [`FWGS/mainui_cpp`](https://github.com/FWGS/mainui_cpp) | menu, Intel slice |
-[removed]
-| [`FWGS/hlsdk-portable`](https://github.com/FWGS/hlsdk-portable) | game code, Intel dylibs |
-[removed]
+| [`FWGS/xash3d-fwgs`](https://github.com/FWGS/xash3d-fwgs) | the engine, all three slices |
+| [`FWGS/mainui_cpp`](https://github.com/FWGS/mainui_cpp) | the menu, all three slices |
+| [`FWGS/miniutl`](https://github.com/FWGS/miniutl) | the menu's containers |
+| [`FWGS/hlsdk-portable`](https://github.com/FWGS/hlsdk-portable) | game code, and the source of all 25 mods |
+| [`ianlancetaylor/libbacktrace`](https://github.com/ianlancetaylor/libbacktrace) | crash backtraces |
 | [alex-free legacy SDL2](https://forums.macrumors.com/threads/2262878/) | native-Cocoa SDL2 for old macOS; modern SDL2 refuses to build pre-10.6 |
+| [Mbed-TLS](https://github.com/Mbed-TLS/mbedtls), [zlib](https://github.com/madler/zlib), [7-Zip](https://github.com/ip7z/7zip) | the mod installer only, never the engine |
 
-Exact pinned commits are in [`vendor/MANIFEST.md`](vendor/MANIFEST.md).
+Exact pinned commits are in [`scripts/build-pins.sh`](scripts/build-pins.sh),
+and the mod branch pins in [`vendor/MANIFEST.md`](vendor/MANIFEST.md).
 
 **This is an independent repackaging, not an upstream release.** Report problems
 with this build [here](https://github.com/matthewdeaves/old-mac-halflife/issues),
@@ -204,26 +218,21 @@ never on anyone else's release page.
 
 ## Credits
 
-- **[FWGS](https://github.com/FWGS)** for the Xash3D engine, menu and HLSDK.
-[removed]
-  the PowerPC build and menu fixes our PPC slices are built from. Without them
-  there would be no PowerPC half of this binary, and the Intel half carries their
-  work too: the fix that stopped every Intel launch failing its first OpenGL
-  context came from their fork, where it had been solved for PowerPC first. Their
-[removed]
-  covers **Mac OS 9 / Classic**, which this build deliberately drops, so if you
-  need Classic support, that is the one you want.
-[removed]
-  big-endian PowerPC forks.
+- **[FWGS](https://github.com/FWGS)** for the Xash3D engine, the menu and the
+  portable Half-Life SDK, which are what this builds on.
+- **[alex-free](https://github.com/alex-free)** for the
+  [legacy native-Cocoa SDL2](https://forums.macrumors.com/threads/2262878/) that
+  the PowerPC slices link. Modern SDL2 refuses to build for anything before 10.6.
+- **[Ian Lance Taylor](https://github.com/ianlancetaylor)** for libbacktrace.
+- **[Mbed-TLS](https://github.com/Mbed-TLS/mbedtls)**,
+  **[zlib](https://github.com/madler/zlib)** and
+  **[7-Zip](https://github.com/ip7z/7zip)**, used by the mod installer so it can
+  fetch and unpack over https on an OS whose own TLS cannot.
 - **The authors of all 25 mods**, whose maps, models and sounds are their own
   work. This project supplies game code and no content whatsoever.
 - **[runthinkshootlive.com](https://www.runthinkshootlive.com)** and
   **[archive.org](https://archive.org)** for keeping those releases downloadable
   decades on.
-[removed]
-  the PowerPC work above.
-- **[alex-free](https://github.com/alex-free)** for the
-  [legacy native-Cocoa SDL2](https://forums.macrumors.com/threads/2262878/).
 
 Every project credited above is separately maintained. This one is an
 independent repackaging and is not affiliated with any of them.

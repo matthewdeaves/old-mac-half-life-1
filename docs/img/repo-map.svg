@@ -14,23 +14,23 @@
   <rect x="16" y="74" width="222" height="14" fill="#2d333b"/>
   <text x="30" y="78" font-size="12.5" font-weight="700" fill="#ffffff">1 · Upstream repos (public)</text>
   <g font-family="ui-monospace, Menlo, monospace" font-size="11" fill="#1f2328">
-    <text x="30" y="112" font-size="10.5" font-weight="700" fill="#8250df">PowerPC (big-endian)</text>
-[removed]
-[removed]
-[removed]
-[removed]
-    <text x="30" y="216" font-size="10.5" font-weight="700" fill="#0a7ea4">Intel (little-endian)</text>
-    <text x="30" y="236">FWGS/xash3d-fwgs</text>
-    <text x="30" y="254">FWGS/mainui_cpp</text>
-    <text x="30" y="272">FWGS/hlsdk-portable</text>
-    <text x="30" y="302" font-size="10.5" font-weight="700" fill="#57606a">SDL2 (both)</text>
-    <text x="30" y="322">alex-free legacy SDL2</text>
+    <text x="30" y="112" font-size="10.5" font-weight="700" fill="#8250df">Upstream, branched from</text>
+    <text x="30" y="132">FWGS/xash3d-fwgs</text>
+    <text x="30" y="150">FWGS/mainui_cpp</text>
+    <text x="30" y="168">FWGS/miniutl</text>
+    <text x="30" y="186">FWGS/hlsdk-portable</text>
+    <text x="30" y="204">ianlancetaylor/libbacktrace</text>
+    <text x="30" y="234" font-size="10.5" font-weight="700" fill="#0a7ea4">Our forks, branch oldmac</text>
+    <text x="30" y="254">the port is the commits</text>
+    <text x="30" y="272">on these branches</text>
+    <text x="30" y="302" font-size="10.5" font-weight="700" fill="#57606a">SDL2</text>
+    <text x="30" y="322">alex-free legacy SDL2 (PPC)</text>
     <text x="30" y="340">libsdl.org 2.0.22 (Intel)</text>
   </g>
   <text x="30" y="378" font-size="10.5" fill="#57606a">Pinned to exact commits in</text>
-  <text x="30" y="393" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">vendor/MANIFEST.md</text>
-  <text x="30" y="414" font-size="10.5" fill="#57606a">Mirrored to private</text>
-  <text x="30" y="426" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">*-mirror repos as fallback</text>
+  <text x="30" y="393" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">scripts/build-pins.sh</text>
+  <text x="30" y="414" font-size="10.5" fill="#57606a">One tree per component:</text>
+  <text x="30" y="426" font-size="10.5" fill="#57606a">every slice builds from it</text>
 
   <line x1="238" y1="244" x2="262" y2="244" stroke="#57606a" stroke-width="1.5" marker-end="url(#a2)"/>
 
@@ -39,20 +39,20 @@
   <rect x="262" y="58" width="196" height="30" rx="8" fill="#2d333b"/>
   <rect x="262" y="74" width="196" height="14" fill="#2d333b"/>
   <text x="276" y="78" font-size="12.5" font-weight="700" fill="#ffffff">2 · vendor/  (git-ignored)</text>
-  <text x="276" y="112" font-size="11" fill="#57606a">Cloned at the pinned commits by</text>
-  <text x="276" y="127" font-size="11" font-family="ui-monospace, Menlo, monospace" fill="#1f2328">bootstrap-vendor.sh</text>
+  <text x="276" y="112" font-size="11" fill="#57606a">Put at their pins by</text>
+  <text x="276" y="127" font-size="11" font-family="ui-monospace, Menlo, monospace" fill="#1f2328">fetch-sources.sh</text>
   <g font-family="ui-monospace, Menlo, monospace" font-size="10.5" fill="#1f2328">
-[removed]
-    <text x="276" y="178">xash3d-fwgs-intel</text>
-    <text x="276" y="198">hlsdk-portable-ppc</text>
-    <text x="276" y="218">hlsdk-portable-intel</text>
-    <text x="276" y="238">panther-sdl2</text>
+    <text x="276" y="158">xash3d-fwgs</text>
+    <text x="276" y="178">hlsdk-portable</text>
+    <text x="276" y="198">panther-sdl2</text>
+    <text x="276" y="218">mbedtls / zlib / lzma</text>
+    <text x="276" y="238" fill="#57606a">(installer only)</text>
   </g>
   <text x="276" y="272" font-size="11" fill="#57606a">Reconstructed on demand -</text>
   <text x="276" y="287" font-size="11" fill="#57606a">never committed to this repo,</text>
   <text x="276" y="302" font-size="11" fill="#57606a">no game assets, no source.</text>
-  <text x="276" y="336" font-size="11" fill="#57606a">Hand-edits re-applied from</text>
-  <text x="276" y="351" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#1f2328">patches/vendor/*.diff</text>
+  <text x="276" y="336" font-size="11" fill="#57606a">A tree is at its pin, or the</text>
+  <text x="276" y="351" font-size="11" fill="#57606a">build refuses to start.</text>
 
   <line x1="458" y1="244" x2="482" y2="244" stroke="#57606a" stroke-width="1.5" marker-end="url(#a2)"/>
 
@@ -62,8 +62,8 @@
   <rect x="482" y="74" width="196" height="14" fill="#2d333b"/>
   <text x="496" y="78" font-size="12.5" font-weight="700" fill="#ffffff">3 · Build (per arch)</text>
   <g font-size="11" fill="#1f2328">
-    <text x="496" y="114">Apply source patches</text>
-    <text x="496" y="130" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">scripts/patch-*.py</text>
+    <text x="496" y="114">Check every tree is at its pin</text>
+    <text x="496" y="130" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">scripts/build-all.sh</text>
     <text x="496" y="160">Compile each slice</text>
     <text x="496" y="176" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">scripts/build-*.sh (waf)</text>
     <text x="496" y="196" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">gcc-4.x (PPC) · clang (Intel)</text>
