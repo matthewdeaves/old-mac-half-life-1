@@ -21,9 +21,14 @@ HOST="${1:?usage: $0 <machine>}"
 DEST_DIR="${DEST_DIR:-Desktop/Half-Life}"
 
 case "$HOST" in
-  yosemite)               MINALIVE=14; TIMEOUT=90 ;;   # G3 Panther, slowest
+  yosemite|yosemite-tiger|g3-panther|g3-tiger)
+                          MINALIVE=14; TIMEOUT=90 ;;   # G3, slowest. Both partitions.
   sawtooth|quicksilver|mini-g4) MINALIVE=10; TIMEOUT=60 ;; # G4 Tiger
-  imac-g5)                MINALIVE=10; TIMEOUT=60 ;;    # G5 Leopard
+  # The dual G5 multi-boots three OSes from one IP, so each partition has its own
+  # alias. They were missing here, which made the machine that boots the most
+  # OS versions the one this gate could not be run against at all.
+  imac-g5|g5-imac|g5-panther|g5-tiger|g5-leopard|g5-desktop)
+                          MINALIVE=10; TIMEOUT=60 ;;    # G5, any partition
   mini-intel|mini-intel2) MINALIVE=6;  TIMEOUT=40 ;;    # Intel Lion (both minis: same Macmini2,1)
   *) echo "unknown machine: $HOST" >&2; exit 2 ;;
 esac
@@ -77,7 +82,12 @@ case "$RESULT" in
 esac
 
 ALIVE=$(printf '%s\n' "$RESULT" | sed -n 's/^ALIVE=\([0-9]*\).*/\1/p' | head -1)
-MINALIVE_CHK=$(case "$HOST" in yosemite) echo 14;; imac-g5|mini-g4|sawtooth|quicksilver) echo 10;; mini-intel|mini-intel2) echo 6;; esac)
+# Use the threshold decided at the top of this script. There used to be a second
+# copy of that case statement here, and the two had to agree by hand: adding a
+# host to one and not the other left MINALIVE_CHK empty, and the comparison below
+# then failed with "integer expected" and reported the machine as a CRASH. A
+# smoke gate that reports a working build as broken is worse than no gate.
+MINALIVE_CHK="$MINALIVE"
 if printf '%s' "$RESULT" | grep -q '^ERRLINE='; then
   echo "[smoke $HOST] FAIL - fatal error in log during production launch"; exit 1
 fi
