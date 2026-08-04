@@ -102,10 +102,9 @@ its panel's native resolution.
 - The `ppc-compat` fallback introduced in v1.3.1 is deleted: the thin-slice extraction
   in `make-app.sh`, the launcher's CPU/OS case, and its `XASH3D_RODIR` export. That
   code could never be tested on the combination it existed for.
-- Nothing shipped links leopard-sdl2 any more, so
-  `patches/leopard-sdl2-cocoamodes-getrule.patch` is no longer applied by any
-  build. The file stays in the repo, for the same reason `scripts/build-ppc.sh`
-  does: it is part of the record of how that slice was made.
+- Nothing shipped links leopard-sdl2 any more, so the patch it needed is no
+  longer applied by any build. It is deleted rather than kept: the record of how
+  that slice was made is this ADR and the git history, not a file that looks live.
 - One fewer slice, one fewer toolchain path, one fewer build to verify per release.
 
 **Lost**
@@ -113,9 +112,9 @@ its panel's native resolution.
 - The G5 no longer runs code scheduled for its own pipeline. It is faster anyway.
 - The G5 no longer uses SDL 2.0.6. SDL is not in the frame loop, so this is not a
   performance question; it does mean the G5 runs a 2014 SDL rather than a 2017 one.
-- `scripts/build-ppc.sh` no longer contributes to the shipped binary. It is kept
-  rather than deleted, because it is the only record of how the leopard-sdl2 slice
-  was built.
+- The driver that built the ppc970 / leopard-sdl2 slice is deleted. It had not
+  contributed to a shipped binary in a long time, and a build script that nothing
+  runs reads as one that something does.
 
 **Risks accepted**
 

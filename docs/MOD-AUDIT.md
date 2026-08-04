@@ -75,7 +75,7 @@ would have shipped an Intel slice of the same mod still carrying them.
 - `scripts/patch-hlsdk-shared-clientbugs.py` for #34, which is shared hlsdk code.
   This one is also wired into the three shipping engine drivers (`build-lion.sh`,
   `build-ppc-panther.sh`, `build-ppc-tiger.sh`) and into the retired
-  `build-ppc.sh`, because the same two faults sit in the base game's own client
+  the base game's own engine branch, because the same two faults sit in its client
   dylib. Fixing them in 25 mods and leaving them in `valve` would be inconsistent.
 - `scripts/patch-hlsdk-mod-bugs.py` for the rest, keyed by branch so that a moved
   anchor is a hard error rather than a silent skip. Files such as `dlls/player.cpp`

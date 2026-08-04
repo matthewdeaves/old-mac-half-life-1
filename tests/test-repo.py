@@ -276,7 +276,7 @@ def test_menu_dictionary_is_shipped_and_sane():
 #
 # The wiring tests below used to ask whether a script's name appeared anywhere
 # in a driver's text. That is not the question. patch-mainui-miniutl-endian.py
-# passed for a while on the strength of a COMMENT in build-ppc.sh that said, in
+# passed for a while on the strength of a COMMENT in a driver that said, in
 # so many words, that the driver does not run it. A mention is not a call, and
 # the whole point of these tests is that an unrun patch ships as a missing fix
 # on one machine, with no build error anywhere.

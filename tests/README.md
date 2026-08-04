@@ -65,7 +65,7 @@ Each check corresponds to a real defect:
 - **Patch scripts are invoked, not merely named.** The wiring tests used to ask
   whether a script's filename appeared anywhere in a driver.
   `patch-mainui-miniutl-endian.py` passed on the strength of a comment in
-  `build-ppc.sh` that said, in so many words, that the driver does not run it. A
+  a retired driver that said, in so many words, that it does not run it. A
   driver is now reduced to the text that executes (comments cut, heredoc bodies
   dropped, backslash continuations joined), split into shell words, and the name
   has to be the argument of an interpreter standing in command position. A

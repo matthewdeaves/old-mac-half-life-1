@@ -10,12 +10,12 @@
 # (970, 10.5.8). A ppc7400 subtype slice is fine on all three; the G3/Panther build
 # is a separate, generic-ppc script.
 #
-# DELTA vs build-ppc.sh (the retired 10.5 Leopard build) - everything else is identical:
+# DELTA vs the retired 10.5 Leopard build - everything else is identical:
 #   SDK       10.5           -> 10.4u        (frameworks/headers a Tiger box actually has)
 #   min-OS    10.5           -> 10.4         (so dyld doesn't gate it off Tiger)
 #   compiler  gcc/g++-4.2    -> CC gcc-4.2 / CXX g++-4.0  (split toolchain, the Tiger crux):
 #     * C++  MUST be g++-4.0: the 10.4u SDK ships the 4.0 libstdc++, and g++-4.2 -isysroot 10.4u
-#            can't find its C++ headers (build-ppc.sh:55-57 flagged exactly this).
+#            can't find its C++ headers; the retired driver flagged exactly this.
 #     * C    MUST stay gcc-4.2: the engine's bundled 3rdparty/libbacktrace (always linked) uses
 #            __builtin_bswap32/64, which only became compiler builtins in gcc-4.3. Apple's gcc-4.2
 #            backported them; gcc-4.0 has NOT, so a 4.0 C build fails to link libxash with

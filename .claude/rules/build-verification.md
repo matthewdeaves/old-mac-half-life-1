@@ -50,9 +50,8 @@ a machine other than the one you built for.
 - The G3 slice is built `-arch ppc`, then its **executable's** Mach-O cpusubtype
   is re-stamped to POWERPC_750 (9) in `build-ppc-panther.sh`. The **dylibs stay
   ALL**: `dlopen` grades those fine on a 750 host.
-- Only two PowerPC slices ship. `build-ppc.sh` builds the retired ppc970 /
-  leopard-sdl2 slice and contributes nothing; it is kept as the record of how
-  that slice was made. See
+- Only two PowerPC slices ship, `ppc750` and `ppc7400`. There is no ppc970
+  slice: the G5 runs the `ppc7400` one. See
   `docs/adr/0001-slices-are-chosen-by-cpu-capability.md`.
 
 ## Display profile is chosen in the launcher, not by slice

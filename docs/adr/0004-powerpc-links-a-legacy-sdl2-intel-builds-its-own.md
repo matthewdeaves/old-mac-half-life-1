@@ -99,4 +99,4 @@ API; the platform layer is `engine/platform/sdl2/`.
   the weakest link in the reproduction chain that ADR 0002 sets up.
 - `leopard-sdl2` and its patch are still present in the repo
   (`patches/leopard-sdl2-cocoamodes-getrule.patch`) and referenced by the retired
-  `scripts/build-ppc.sh`. Nothing shipping reads them.
+  a retired driver. Nothing shipping reads them.

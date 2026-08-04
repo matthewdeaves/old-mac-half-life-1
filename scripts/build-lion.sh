@@ -188,7 +188,7 @@ printf '%s\n' "$PIN_ENGINE_COMMIT" > "$OUT/BUILD-STAMP"
 
 echo "==> [3/3] assemble self-contained play folder"
 # This step does `rm -rf` on the folder, so it stages OFF the Desktop, the same
-# way build-ppc-panther.sh, build-ppc-tiger.sh and build-ppc.sh already do.
+# way build-ppc-panther.sh and build-ppc-tiger.sh already do.
 #
 # It used to default to ~/Desktop/Half-Life, which on a bench machine is the
 # DEPLOYED game: the player's retail valve/ and every installed mod, gigabytes we
