@@ -35,3 +35,7 @@ timestamp,label,host,renderer,resolution,screenmode,map,frames,fps_min,fps_med,f
 2026-07-28T00:20:00,imac-g5-control-gl-act1440x900,imacg5siMacG5,gl,800x600,fullscreen,c0a0,300,61.426,61.666,61.778,61.426|61.666|61.778
 2026-08-04T09:08:28,leopard-vs-tiger,g5-leopard,gl,1680x1050,borderless,c0a0,300,ERR,ERR,ERR,
 2026-08-04T09:15:12,leopard-clean-1680,g5-leopard,gl,1680x1050,fullscreen,c0a0,300,2.278,2.278,2.278,2.278
+2026-08-04T10:32:48,leopard-npot-fixed,g5-leopard,gl,1680x1050,fullscreen,c0a0,300,63.248,63.253,63.275,63.253|63.275|63.248
+2026-08-04T10:45:23,g5-tiger-verify,g5-tiger,gl,1680x1050,fullscreen,c0a0,300,63.255,63.260,63.264,63.264|63.255
+2026-08-04T10:51:35,g5-panther-verify,g5-panther,gl,1680x1050,fullscreen,c0a0,300,63.013,63.014,63.016,63.013|63.016
+2026-08-04T11:00:03,g3-panther-verify,macs-Computer,gl,800x600,fullscreen,c0a0,300,27.376,27.415,27.453,27.376|27.453
