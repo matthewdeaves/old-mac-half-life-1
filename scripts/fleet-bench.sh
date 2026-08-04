@@ -36,8 +36,11 @@ WARMUPS=1
 TIMEOUT=300
 MAP=c0a0
 SCREENMODE=fullscreen
+# Console commands applied after map settle, before the warmup. Lets an A/B of a
+# render cvar run through the supported harness instead of a hand-rolled cfg.
+EXTRA=""
 
-while getopts "l:r:W:H:f:n:w:t:m:s:" opt; do
+while getopts "l:r:W:H:f:n:w:t:m:s:x:" opt; do
 	case "$opt" in
 		l) LABEL=$OPTARG ;;
 		r) REND=$OPTARG ;;
@@ -49,7 +52,8 @@ while getopts "l:r:W:H:f:n:w:t:m:s:" opt; do
 		t) TIMEOUT=$OPTARG ;;
 		m) MAP=$OPTARG ;;
 		s) SCREENMODE=$OPTARG ;;
-		*) echo "usage: fleet-bench.sh [-l label] [-r gl|soft] [-W w] [-H h] [-f frames] [-n runs] [-w warmups] [-t timeout] [-m map] [-s fullscreen|borderless|windowed] [host ...]" >&2; exit 2 ;;
+		x) EXTRA=$OPTARG ;;
+		*) echo "usage: fleet-bench.sh [-l label] [-r gl|soft] [-W w] [-H h] [-f frames] [-n runs] [-w warmups] [-t timeout] [-m map] [-s fullscreen|borderless|windowed] [-x \"cvar val; cvar val\"] [host ...]" >&2; exit 2 ;;
 	esac
 done
 shift $((OPTIND - 1))
@@ -88,7 +92,16 @@ for h in $HOSTS; do
 	$SCP "$BENCH_SH" "$h:/tmp/bench.sh" >/dev/null 2>&1
 	$SSH "$h" 'chmod +x /tmp/bench.sh' 2>/dev/null
 	# run it; bench.sh prints one CSV line on stdout (and notes on stderr)
-	line=$($SSH "$h" "/tmp/bench.sh -r $REND -W $W -H $H -f $FRAMES -n $RUNS -w $WARMUPS -t $TIMEOUT -m $MAP -s $SCREENMODE" 2>/tmp/fleet_${h}.err)
+	line=$($SSH "$h" "/tmp/bench.sh -r $REND -W $W -H $H -f $FRAMES -n $RUNS -w $WARMUPS -t $TIMEOUT -m $MAP -s $SCREENMODE -x '$EXTRA'" 2>/tmp/fleet_${h}.err)
+	# bench.sh emits an ERR row rather than a number when its own assertions fail.
+	# Surface the reason here: an ERR row that scrolls past unexplained is how a
+	# broken harness gets mistaken for a broken build.
+	case "$line" in
+		*,ERR,ERR,ERR,*)
+			echo "  [$h] !! BENCH FAILED, no number produced:" >&2
+			sed 's/^/  [/'"$h"'] /' /tmp/fleet_${h}.err >&2
+			;;
+	esac
 	if [ -n "$line" ]; then
 		# bench.sh writes the mode it actually ran in field 4 of its CSV line, so
 		# the row is always honest about the run. If it disagrees with what we

@@ -39,3 +39,13 @@ timestamp,label,host,renderer,resolution,screenmode,map,frames,fps_min,fps_med,f
 2026-08-04T10:45:23,g5-tiger-verify,g5-tiger,gl,1680x1050,fullscreen,c0a0,300,63.255,63.260,63.264,63.264|63.255
 2026-08-04T10:51:35,g5-panther-verify,g5-panther,gl,1680x1050,fullscreen,c0a0,300,63.013,63.014,63.016,63.013|63.016
 2026-08-04T11:00:03,g3-panther-verify,macs-Computer,gl,800x600,fullscreen,c0a0,300,27.376,27.415,27.453,27.376|27.453
+2026-08-05T00:12:00,before-brushmodel-singlepass,macs-Computer,gl,800x600,fullscreen,c0a0,300,27.348,27.438,27.492,27.348|27.438|27.492
+2026-08-05T00:13:00,before-brushmodel-twopass,macs-Computer,gl,800x600,fullscreen,c0a0,300,23.357,23.478,23.539,23.357|23.478|23.539
+2026-08-05T00:14:00,after-brushmodel-singlepass,macs-Computer,gl,800x600,fullscreen,c0a0,300,29.917,30.066,30.124,29.917|30.066|30.124
+2026-08-05T00:15:00,after-brushmodel-twopass,macs-Computer,gl,800x600,fullscreen,c0a0,300,23.340,23.498,23.558,23.340|23.498|23.558
+2026-08-05T00:20:00,before-brushmodel,g4-mini-1,gl,800x600,fullscreen,c0a0,300,84.895,84.939,84.991,84.895|84.991|84.939
+2026-08-05T00:26:00,after-brushmodel,g4-mini-1,gl,800x600,fullscreen,c0a0,300,92.703,92.993,93.003,93.003|92.993|92.703
+2026-08-05T00:21:00,before-brushmodel,g5-panther,gl,800x600,fullscreen,c0a0,300,191.181,191.538,191.564,191.181|191.564|191.538
+2026-08-05T00:27:00,after-brushmodel,g5-panther,gl,800x600,fullscreen,c0a0,300,209.893,210.306,210.327,209.893|210.327|210.306
+2026-08-05T00:30:00,before-brushmodel,intelmacmini233,gl,800x600,fullscreen,c0a0,300,119.244,119.478,120.000,119.478|120.000|119.244
+2026-08-05T00:34:00,after-brushmodel,intelmacmini233,gl,800x600,fullscreen,c0a0,300,121.381,121.713,122.040,122.040|121.713|121.381

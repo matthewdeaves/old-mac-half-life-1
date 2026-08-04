@@ -17,7 +17,13 @@
 # Usage:
 #   bench.sh [-r gl|soft] [-W width] [-H height] [-f frames] [-n runs]
 #            [-w warmups] [-m map] [-a /path/to/Half-Life.app] [-t timeout_s]
-#            [-s fullscreen|borderless|windowed]
+#            [-s fullscreen|borderless|windowed] [-x "cvar val; cvar val"]
+#
+# It launches through the app's LAUNCHER and then ASSERTS that the run it got is
+# the run it asked for: bundled game root in the search path, game dylibs loaded,
+# requested renderer actually loaded, no host error, and every requested sample
+# present. Any of those failing prints the reason plus the tail of the engine log
+# and exits non-zero with an ERR row, rather than reporting a number.
 #
 # Output (stdout): one CSV line per invocation:
 #   host,renderer,WxH,screenmode,map,frames,fps_min,fps_med,fps_max,fps_runs
@@ -39,8 +45,12 @@ MAP=c0a0
 APP=""
 TIMEOUT=240
 SCREENMODE=fullscreen   # fullscreen | borderless | windowed
+# Console commands run AFTER the map has settled and BEFORE the warmup, so an
+# A/B of a render cvar is a first-class benchmark rather than a hand-rolled cfg
+# in /tmp. Semicolon-separated, e.g. -x "gl_singlepass 0; gl_overbright 1".
+EXTRA=""
 
-while getopts "r:W:H:f:n:w:m:a:t:s:" opt 2>/dev/null; do
+while getopts "r:W:H:f:n:w:m:a:t:s:x:" opt 2>/dev/null; do
 	case "$opt" in
 		r) REND=$OPTARG ;;
 		W) W=$OPTARG ;;
@@ -52,6 +62,7 @@ while getopts "r:W:H:f:n:w:m:a:t:s:" opt 2>/dev/null; do
 		a) APP=$OPTARG ;;
 		t) TIMEOUT=$OPTARG ;;
 		s) SCREENMODE=$OPTARG ;;
+		x) EXTRA=$OPTARG ;;
 		*) echo "bench.sh: bad option" >&2; exit 2 ;;
 	esac
 done
@@ -82,8 +93,27 @@ if [ -z "$APP" ] || [ ! -d "$APP" ]; then
 fi
 
 MACOS="$APP/Contents/MacOS"
-BIN="$MACOS/xash3d.bin"
-[ -x "$BIN" ] || BIN="$MACOS/xash3d"
+# ALWAYS launch through the LAUNCHER (Contents/MacOS/xash3d), never the Mach-O
+# (xash3d.bin) directly.
+#
+# This is not a style preference, it is the difference between a benchmark and a
+# crash. Launching the Mach-O directly skips the launcher's environment setup, and
+# the engine then never adds the bundled read-only root, so no game dylib is found:
+#
+#   via launcher : Adding directory: <app>/Contents/Resources/Half-Life/
+#                  Dll loaded for game "Half-Life"
+#   via .bin     : (no rodir line at all)
+#                  Host_ErrorInit: can't initialize cl_dlls/client_ppc.dylib
+#
+# Measured on the G3 on 2026-08-04, both logs side by side. The failure mode is
+# nasty because the engine still opens a window, still prints GL_RENDERER and
+# still reaches video init, so it looks like a working run right up until the map
+# never loads. Verified below by ASSERTing the rodir line rather than trusting it.
+LAUNCHER="$MACOS/xash3d"
+if [ ! -x "$LAUNCHER" ]; then
+	echo "bench.sh: no launcher at $LAUNCHER" >&2
+	exit 1
+fi
 # basedir: the dir that contains valve/ (bundle's parent on our deployments)
 BASE="$APP/.."
 if [ ! -d "$BASE/valve" ]; then
@@ -101,8 +131,15 @@ fi
 
 HOSTN=$(hostname -s 2>/dev/null || hostname)
 CFG="$VALVE/bench_tr.cfg"
-LOG="/tmp/bench_${HOSTN}_${REND}_${W}x${H}.log"
-rm -f "$LOG"
+# The LAUNCHER owns the engine's stdout: it ends with
+#   exec "$HERE/xash3d.bin" ... >> "$LOG" 2>&1
+# writing to <basedir>/last-run.log. So redirecting the launcher's own stdout
+# captures nothing useful and the results must be parsed out of that file. Keep a
+# copy under /tmp afterwards so consecutive runs do not overwrite each other's
+# evidence.
+LOG="$BASE/last-run.log"
+KEEP="/tmp/bench_${HOSTN}_${REND}_${W}x${H}.log"
+rm -f "$LOG" "$KEEP"
 
 # ---- build the self-sequencing benchmark cfg --------------------------------
 # Resolution is pinned by the -width/-height DASH parms at launch (they take
@@ -114,6 +151,14 @@ rm -f "$LOG"
 	i=0; while [ $i -lt 120 ]; do echo wait; i=$((i+1)); done
 	echo "gl_vsync 0"
 	echo wait
+	# Caller-supplied cvars go in BEFORE the warmup, so the warmup frames are
+	# drawn in the same state as the measured ones. Split on ';' with the field
+	# separator rather than a bashism, this has to run on 10.3's sh.
+	if [ -n "$EXTRA" ]; then
+		echo "$EXTRA" | tr ';' '\n' | while read -r cmd; do
+			[ -n "$cmd" ] && { echo "$cmd"; echo wait; }
+		done
+	fi
 	r=0; while [ $r -lt "$WARMUPS" ]; do echo "timerefresh $FRAMES"; echo wait; r=$((r+1)); done
 	r=0; while [ $r -lt "$RUNS" ];    do echo "timerefresh $FRAMES"; echo wait; r=$((r+1)); done
 	echo quit
@@ -122,13 +167,21 @@ rm -f "$LOG"
 TOTAL=$((WARMUPS + RUNS))
 
 # ---- launch -----------------------------------------------------------------
-export XASH3D_BASEDIR="$BASE"
-export DYLD_LIBRARY_PATH="$MACOS"
-cd "$MACOS" || exit 1
+# cd to the BASEDIR, not to Contents/MacOS: the launcher derives everything from
+# its own location, and the engine's working directory should be the folder that
+# holds valve/, which is how a player's double-click launch sees it.
+cd "$BASE" || exit 1
+# -nomsgbox is NOT optional on a machine being driven remotely. Without it any
+# engine warning becomes a modal dialog on the bench machine's screen, and the
+# engine BLOCKS until somebody physically walks over and clicks OK. On 2026-08-04
+# that stalled a G3 run for 85 seconds and put an alert in front of the user.
+#
 # -width/-height + the screen-mode dash parm are read at video init and take
-# priority over config.cfg (unlike the width/height/fullscreen cvars).
-"$BIN" -console -nosound -ref "$REND" -width "$W" -height "$H" $MODEPARM \
-	+map "$MAP" +exec bench_tr.cfg > "$LOG" 2>&1 &
+# priority over config.cfg (unlike the width/height/fullscreen cvars). They also
+# override the launcher's built-in per-machine profile, which is what the
+# launcher's caller-wins argument handling exists for.
+"$LAUNCHER" -nomsgbox -nosound -ref "$REND" -width "$W" -height "$H" $MODEPARM \
+	+map "$MAP" +exec bench_tr.cfg >/dev/null 2>&1 &
 PID=$!
 
 # If this script is interrupted (Ctrl-C, parent shell gone) the engine keeps
@@ -154,6 +207,13 @@ while [ $i -lt "$TIMEOUT" ]; do
 	got=$(grep -c "timerefresh:" "$LOG" 2>/dev/null | tr -d ' \n')
 	[ -z "$got" ] && got=0
 	if [ "$got" -ge "$TOTAL" ]; then break; fi
+	# Bail the moment the engine says it has failed, rather than sitting here
+	# until the timeout. A run that cannot load its game dylibs will never print
+	# a timerefresh line, and waiting 240s to discover that wastes the operator's
+	# time and holds the machine.
+	if grep -q "Host_ErrorInit\|Host_Error\|missing game library" "$LOG" 2>/dev/null; then
+		break
+	fi
 	kill -0 $PID 2>/dev/null || break
 	sleep 2; i=$((i+2))
 done
@@ -175,22 +235,66 @@ killall -9 xash3d.bin xash3d 2>/dev/null
 # anything else goes fullscreen on this box.
 sleep "${COOLDOWN:-3}"
 
+PLAIN=/tmp/bench_plain_$$.log
+sed -E 's/\x1b\[[0-9;]*m//g' "$LOG" > "$PLAIN" 2>/dev/null
+cp "$PLAIN" "$KEEP" 2>/dev/null
+
+# ---- assert the run was the run we asked for --------------------------------
+# A benchmark that reports a number for a run that did something else is worse
+# than no benchmark: it becomes a recorded fact and gets reasoned from. Every
+# assertion here corresponds to a way a run has actually gone wrong on this
+# fleet, so each one is cheap insurance against a fabricated result.
+bench_fail () {
+	echo "bench.sh: $1" >&2
+	echo "---- last 20 lines of $LOG ----" >&2
+	tail -20 "$PLAIN" >&2
+	echo "$HOSTN,$REND,${W}x${H},$SCREENMODE,$MAP,$FRAMES,ERR,ERR,ERR,"
+	rm -f "$PLAIN"
+	exit 1
+}
+
+# 1. The bundled read-only root must be in the search path. Without it the engine
+#    finds no client/server dylib and the map never loads, while still opening a
+#    window and printing GL strings - i.e. it looks fine until it is not.
+grep -q "Adding directory:.*Contents/Resources/Half-Life/" "$PLAIN" ||
+	bench_fail "the bundled game root was never added to the search path (launched wrongly?)"
+
+# 2. The game dylibs must actually have loaded.
+grep -q "Dll loaded for game" "$PLAIN" ||
+	bench_fail "no game dylib loaded"
+grep -q "missing game library" "$PLAIN" &&
+	bench_fail "engine reported a missing game library for this platform"
+
+# 3. The renderer that ran must be the renderer that was asked for. The launcher
+#    used to hardcode -ref gl ahead of caller arguments, which silently turned two
+#    recorded software-renderer results into GL results.
+GOTREF=$(grep "Loading renderer:" "$PLAIN" | tail -1 | sed 's/.*Loading renderer: *//; s/ .*//')
+if [ -n "$GOTREF" ] && [ "$GOTREF" != "$REND" ]; then
+	bench_fail "asked for -ref $REND but the engine loaded '$GOTREF'"
+fi
+
+# 4. Nothing fatal happened mid-run.
+grep -q "Host_ErrorInit\|Host_Error:" "$PLAIN" &&
+	bench_fail "the engine raised a host error during the run"
+
 # ---- parse results (skip warmups) -------------------------------------------
 # strip ANSI, pull the fps field (6th token) from each timerefresh line
-ALLFPS=$(sed -E 's/\x1b\[[0-9;]*m//g' "$LOG" 2>/dev/null \
-	| grep "timerefresh:" | awk '{print $(NF-1)}')
-MODE=$(sed -E 's/\x1b\[[0-9;]*m//g' "$LOG" 2>/dev/null | grep "MODE:" | tail -1 | awk '{print $NF}')
-GLREND=$(sed -E 's/\x1b\[[0-9;]*m//g' "$LOG" 2>/dev/null | grep "GL_RENDERER:" | tail -1 | sed 's/.*GL_RENDERER: //')
+ALLFPS=$(grep "timerefresh:" "$PLAIN" | awk '{print $(NF-1)}')
+MODE=$(grep "MODE:" "$PLAIN" | tail -1 | awk '{print $NF}')
+GLREND=$(grep "GL_RENDERER:" "$PLAIN" | tail -1 | sed 's/.*GL_RENDERER: //')
 
 # drop the warmup samples
 MEAS=$(echo "$ALLFPS" | awk -v skip="$WARMUPS" 'NR>skip')
 NMEAS=$(echo "$MEAS" | grep -c . )
 
 if [ -z "$MEAS" ] || [ "$NMEAS" -lt 1 ]; then
-	echo "bench.sh: NO RESULT on $HOSTN ($REND ${W}x${H} $SCREENMODE) - see $LOG" >&2
-	echo "$HOSTN,$REND,${W}x${H},$SCREENMODE,$MAP,$FRAMES,ERR,ERR,ERR,"
-	sed -E 's/\x1b\[[0-9;]*m//g' "$LOG" | grep -i "svc_bad\|Host_Error\|Crash\|couldn.t find\|GL_INVALID" | head -3 >&2
-	exit 1
+	bench_fail "NO RESULT on $HOSTN ($REND ${W}x${H} $SCREENMODE): no timerefresh line"
+fi
+# Every requested sample must be present. A short run means the watchdog cut it
+# off, and averaging whatever happened to land before that is how a slow run gets
+# recorded as a fast one.
+if [ "$NMEAS" -lt "$RUNS" ]; then
+	bench_fail "only $NMEAS of $RUNS measured samples completed before the timeout"
 fi
 
 # min / median / max
@@ -200,5 +304,6 @@ FMAX=$(echo "$SORTED" | tail -1)
 FMED=$(echo "$SORTED" | awk '{a[NR]=$1} END{ if(NR%2){print a[(NR+1)/2]} else {printf "%.3f", (a[NR/2]+a[NR/2+1])/2} }')
 RUNSCSV=$(echo "$MEAS" | tr '\n' '|' | sed 's/|$//')
 
-echo "[$HOSTN] $REND ${W}x${H} $SCREENMODE (actual ${MODE:-?}) map=$MAP frames=$FRAMES : median ${FMED} fps  (runs: $RUNSCSV)  GPU=${GLREND:-n/a}" >&2
+rm -f "$PLAIN"
+echo "[$HOSTN] $REND ${W}x${H} $SCREENMODE (actual ${MODE:-?}) map=$MAP frames=$FRAMES${EXTRA:+ [$EXTRA]} : median ${FMED} fps  (runs: $RUNSCSV)  GPU=${GLREND:-n/a}" >&2
 echo "$HOSTN,$REND,${W}x${H},$SCREENMODE,$MAP,$FRAMES,$FMIN,$FMED,$FMAX,$RUNSCSV"

@@ -52,7 +52,14 @@ fi
 [ -d "$APP" ] || { echo "prof-g3.sh: no Half-Life.app (use -a)" >&2; exit 1; }
 
 MACOS="$APP/Contents/MacOS"
-BIN="$MACOS/xash3d.bin"; [ -x "$BIN" ] || BIN="$MACOS/xash3d"
+# Launch through the LAUNCHER, never the Mach-O. See the long note in bench.sh:
+# running xash3d.bin directly skips the bundled read-only game root, so no game
+# dylib loads and the run dies in Host_ErrorInit after opening a window and
+# printing GL strings, which reads as a working run. `sample` still gets the
+# right PID because the launcher ends in `exec`, replacing itself with the
+# engine and keeping its process id.
+LAUNCHER="$MACOS/xash3d"
+[ -x "$LAUNCHER" ] || { echo "prof-g3.sh: no launcher at $LAUNCHER" >&2; exit 1; }
 BASE="$APP/.."
 [ -d "$BASE/valve" ] || { [ -d "$APP/Contents/Resources/Half-Life/valve" ] && BASE="$APP/Contents/Resources/Half-Life"; }
 BASE=$(cd "$BASE" && pwd)
@@ -78,19 +85,30 @@ rm -f "$LOG" "$OUT"
 	echo quit
 } > "$CFG"
 
-export XASH3D_BASEDIR="$BASE"
-export DYLD_LIBRARY_PATH="$MACOS"
-cd "$MACOS" || exit 1
+cd "$BASE" || exit 1
 
-echo "prof-g3: launching $BIN ($REND ${W}x${H} $SCREENMODE map=$MAP)" >&2
-"$BIN" -console -nosound -ref "$REND" -width "$W" -height "$H" $MODEPARM \
-	+map "$MAP" +exec prof_tr.cfg > "$LOG" 2>&1 &
+# The launcher writes the engine's output to <basedir>/last-run.log itself, so
+# that is the file to watch. -nomsgbox keeps a warning from becoming a modal
+# dialog that blocks the engine until somebody clicks it in person.
+LOG="$BASE/last-run.log"
+rm -f "$LOG"
+
+echo "prof-g3: launching via $LAUNCHER ($REND ${W}x${H} $SCREENMODE map=$MAP)" >&2
+"$LAUNCHER" -nomsgbox -nosound -ref "$REND" -width "$W" -height "$H" $MODEPARM \
+	+map "$MAP" +exec prof_tr.cfg >/dev/null 2>&1 &
 PID=$!
 
 # wait for the warmup timerefresh result line = long render is about to start
 i=0
 while [ $i -lt 120 ]; do
 	grep -q "timerefresh:" "$LOG" 2>/dev/null && break
+	# Same assertion bench.sh makes, for the same reason: a run that cannot see
+	# the bundled game root never loads a map, so profiling it would sample the
+	# menu and report a bottleneck that has nothing to do with the game.
+	if grep -q "missing game library\|Host_ErrorInit" "$LOG" 2>/dev/null; then
+		echo "prof-g3: the bundled game root was not found - launched wrongly. See $LOG" >&2
+		kill -9 $PID 2>/dev/null; exit 1
+	fi
 	kill -0 $PID 2>/dev/null || { echo "prof-g3: engine died before warmup - see $LOG" >&2; exit 1; }
 	sleep 1; i=$((i+1))
 done
