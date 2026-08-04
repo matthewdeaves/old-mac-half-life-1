@@ -121,6 +121,32 @@ BOOL OMPathIsReadOnly( NSString *path )
 	return ( st.f_flags & MNT_RDONLY ) ? YES : NO;
 }
 
+/*
+ * Can we actually install into this folder?
+ *
+ * The only hard requirement on a chosen install folder. Everything else about
+ * where mods go is the user's call: they may install beside the game, on another
+ * volume, or somewhere they intend to move later. But a folder that cannot be
+ * written to fails after the first download rather than before it, which on these
+ * machines can be a long wait for nothing.
+ *
+ * The read-only check catches a mounted disk image or a locked volume; the access
+ * check catches an ordinary folder somebody else owns. Both are needed: a
+ * writable filesystem says nothing about one directory on it.
+ */
+BOOL OMPathIsWritableDirectory( NSString *path )
+{
+	BOOL isdir = NO;
+
+	if( path == nil )
+		return NO;
+	if( ![[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isdir] || !isdir )
+		return NO;
+	if( OMPathIsReadOnly( path ))
+		return NO;
+	return ( access( [path fileSystemRepresentation], W_OK | X_OK ) == 0 ) ? YES : NO;
+}
+
 /* ------------------------------------------------------------------- md5 -- */
 /*
  * The download runs over plain HTTP, which is unauthenticated and, on these

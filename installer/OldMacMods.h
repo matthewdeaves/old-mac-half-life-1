@@ -80,6 +80,7 @@ long long OMFreeSpaceAt( NSString *path );
 /* Is the volume holding `path` mounted read-only? True for a mounted .dmg, which
  * is how we catch someone running this app straight off the release image. */
 BOOL OMPathIsReadOnly( NSString *path );
+BOOL OMPathIsWritableDirectory( NSString *path );
 
 /* md5 of a file as lowercase hex, or nil. Uses /sbin/md5, which exists on 10.3
  * through modern macOS - CommonCrypto's CC_MD5 only arrived in 10.4.

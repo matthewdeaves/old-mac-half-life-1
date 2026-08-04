@@ -19,6 +19,7 @@
 	NSButton           *getButton;
 	NSButton           *cancelButton;
 	NSButton           *forceButton;   /* reinstall already-installed mods */
+	NSButton           *chooseButton;  /* pick the install folder */
 
 	NSString *destRoot;      /* folder containing Half-Life.app */
 	NSString *logPath;
@@ -36,6 +37,7 @@
 
 /* actions */
 - (void)getMods:(id)sender;
+- (void)chooseDestination:(id)sender;
 - (void)cancel:(id)sender;
 - (void)showModsHelp:(id)sender;
 - (void)showAbout:(id)sender;
@@ -47,6 +49,7 @@
 - (NSAttributedString *)formattedHelp;
 - (NSDictionary *)attributesForLogLine:(NSString *)line;
 - (BOOL)ensureDestination;
+- (BOOL)pickDestination;
 - (void)quitWhenIdle:(NSTimer *)t;
 - (NSString *)helpText;
 

@@ -183,7 +183,28 @@ else
 	fi
 fi
 
-exec "\$HERE/xash3d.bin" -console \$PROFILE $EXTRA_ARGS "\$@" > "\$LOG" 2>&1
+# Anything the caller passes wins over the profile.
+#
+# The profile used to be handed to the engine unconditionally, with "\$@" after
+# it, so a caller adding -ref soft got TWO -ref flags and the profile's won. That
+# is not a cosmetic problem: it silently invalidated two renderer tests on the
+# bench machines, both of which logged "Loading renderer: gl" while being
+# recorded as software results. A flag you can pass and watch be ignored is worse
+# than one that is not accepted at all.
+#
+# So drop from the profile any flag the caller has overridden. -width and -height
+# go together with -fullscreen, because a caller choosing a display mode wants
+# the whole mode, not a half-applied one.
+for a in "\$@"; do
+	case "\$a" in
+		-ref)         PROFILE=\$( echo " \$PROFILE " | sed 's/ -ref [a-z]*//g' ) ;;
+		-fullscreen|-borderless|-windowed|-width|-height)
+			PROFILE=\$( echo " \$PROFILE " | sed -e 's/ -fullscreen//g' -e 's/ -borderless//g' -e 's/ -windowed//g' -e 's/ -width [0-9]*//g' -e 's/ -height [0-9]*//g' ) ;;
+	esac
+done
+
+echo "launcher: xash3d.bin -console \$PROFILE $EXTRA_ARGS \$@" > "\$LOG"
+exec "\$HERE/xash3d.bin" -console \$PROFILE $EXTRA_ARGS "\$@" >> "\$LOG" 2>&1
 WRAP
 chmod +x "$APP/Contents/MacOS/xash3d"
 

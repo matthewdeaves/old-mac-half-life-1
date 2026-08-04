@@ -90,9 +90,8 @@ static BOOL om_is_heading( NSString *line );
 	 * happened to find, and the panel only appeared when the search FAILED, so a
 	 * wrong guess was unfixable from the UI.
 	 */
-	getButton    = [self buttonAt:NSMakeRect(  56, 330, 160, 32 ) title:@"Choose Folder..." action:@selector(chooseDestination:)];
-	[content addSubview:getButton];
-	chooseButton = getButton;
+	chooseButton = [self buttonAt:NSMakeRect(  56, 330, 160, 32 ) title:@"Choose Folder..." action:@selector(chooseDestination:)];
+	[content addSubview:chooseButton];
 	getButton    = [self buttonAt:NSMakeRect( 228, 330, 160, 32 ) title:@"Get Mods" action:@selector(getMods:)];
 	cancelButton = [self buttonAt:NSMakeRect( 400, 330, 160, 32 ) title:@"Cancel"   action:@selector(cancel:)];
 	[cancelButton setEnabled:NO];
@@ -380,6 +379,7 @@ static BOOL om_is_heading( NSString *line );
 {
 	running = r;
 	[getButton setEnabled:!r];
+	[chooseButton setEnabled:!r];
 	[forceButton setEnabled:!r];
 	[cancelButton setEnabled:r];
 
@@ -798,61 +798,104 @@ done:
  */
 - (BOOL)ensureDestination
 {
-	NSFileManager *fm = [NSFileManager defaultManager];
-	NSOpenPanel *panel;
-	NSString *path;
-
 	if( destRoot != nil )
 		return YES;
+	return [self pickDestination];
+}
 
-	[self omLog:@"Half-Life.app was not found automatically."];
-	[self omLog:@"Please pick the folder that contains it."];
+/*
+ * Ask for the install folder.
+ *
+ * Finding Half-Life.app is a CONVENIENCE, not a constraint. It decides where this
+ * panel opens and nothing else: mods install wherever the user says, including a
+ * folder with no Half-Life.app in it. That is a reasonable thing to want. Somebody
+ * may keep mods on another volume, stage them before moving them, or run more than
+ * one copy of the game.
+ *
+ * It used to refuse any folder without Half-Life.app beside it, and it only
+ * appeared at all when the automatic search had FAILED, so a wrong guess could not
+ * be corrected from the UI.
+ *
+ * MUST be called on the main thread: NSOpenPanel is modal UI.
+ */
+- (BOOL)pickDestination
+{
+	NSFileManager *fm = [NSFileManager defaultManager];
+	NSOpenPanel *panel;
+	NSString *path, *start;
 
 	panel = [NSOpenPanel openPanel];
 	[panel setCanChooseDirectories:YES];
 	[panel setCanChooseFiles:YES];        /* so the .app itself can be picked too */
 	[panel setAllowsMultipleSelection:NO];
-	[panel setTitle:@"Where is Half-Life.app?"];
-	[panel setPrompt:@"Use Folder"];
+	[panel setCanCreateDirectories:YES];
+	[panel setTitle:@"Where should mods be installed?"];
+	[panel setPrompt:@"Install Here"];
 
-	if( [panel runModalForDirectory:NSHomeDirectory() file:nil types:nil] != NSOKButton )
+	/* Open where the game is, if we found one. That is the whole benefit of the
+	 * search: a sensible starting point, not a restriction. */
+	start = destRoot;
+	if( start == nil )
+		start = [OMInstaller defaultDestination];
+	if( start == nil )
+		start = [NSHomeDirectory() stringByAppendingPathComponent:@"Desktop"];
+	if( ![fm fileExistsAtPath:start] )
+		start = NSHomeDirectory();
+
+	if( [panel runModalForDirectory:start file:nil types:nil] != NSOKButton )
 	{
-		[self omLog:@"Cancelled - no destination chosen."];
-		[self omStatus:@"No destination."];
-		return NO;
+		[self omLog:@"Cancelled - install folder unchanged."];
+		if( destRoot == nil )
+			[self omStatus:@"No folder chosen."];
+		return ( destRoot != nil );
 	}
 
 	path = [panel filename];
 	if( path == nil )
-		return NO;
+		return ( destRoot != nil );
 
-	/* Picking Half-Life.app itself is the obvious mistake to make, and it is
-	 * unambiguous what was meant: mods go beside the app, not inside it. */
+	/* Picking Half-Life.app itself is the obvious mistake, and it is unambiguous
+	 * what was meant: mods go beside the app, not inside it. */
 	if( [[path lastPathComponent] isEqualToString:@"Half-Life.app"] )
 		path = [path stringByDeletingLastPathComponent];
 
-	if( ![fm fileExistsAtPath:[path stringByAppendingPathComponent:@"Half-Life.app"]] )
+	/* The one hard requirement: we must be able to write there. Everything else
+	 * is advice. */
+	if( !OMPathIsWritableDirectory( path ))
 	{
-		[self omLog:[NSString stringWithFormat:
-			@"No Half-Life.app in %@ - nothing installed.", path]];
-		[self omStatus:@"Half-Life.app not found there."];
+		[self omLog:[NSString stringWithFormat:@"Cannot write to %@", path]];
+		[self omLog:@"Pick a folder you own, on a disk that is not read-only."];
+		[self omStatus:@"That folder is not writable."];
 		return NO;
-	}
-
-	/* An explicit choice overrides our layout heuristic - the user may know
-	 * something we do not - but say so, because if it really is not our build
-	 * the mods will install correctly and then fail to load. */
-	if( ![OMInstaller isOurGameApp:[path stringByAppendingPathComponent:@"Half-Life.app"]] )
-	{
-		[self omLog:@"WARNING: that Half-Life.app does not look like this port"];
-		[self omLog:@"         (no Contents/MacOS/xash3d.bin). Continuing anyway."];
 	}
 
 	[destRoot release];
 	destRoot = [path retain];
-	[self omLog:[NSString stringWithFormat:@"Destination set to %@", destRoot]];
+	[self omLog:[NSString stringWithFormat:@"Installing into: %@", destRoot]];
+
+	/* Advice, not refusal. Mods install correctly into a folder with no game in
+	 * it; they simply will not be playable until the game is there too, so say
+	 * so once and carry on. */
+	if( ![fm fileExistsAtPath:[path stringByAppendingPathComponent:@"Half-Life.app"]] )
+	{
+		[self omLog:@"Note: there is no Half-Life.app in that folder."];
+		[self omLog:@"Mods will install, but move them beside the game to play them."];
+	}
+	else if( ![OMInstaller isOurGameApp:[path stringByAppendingPathComponent:@"Half-Life.app"]] )
+	{
+		[self omLog:@"Note: that Half-Life.app does not look like this port"];
+		[self omLog:@"      (no Contents/MacOS/xash3d.bin). Continuing anyway."];
+	}
+
 	[self omStatus:@"Ready."];
 	return YES;
+}
+
+- (void)chooseDestination:(id)sender
+{
+	if( running )
+		return;
+	[self pickDestination];
 }
 
 - (void)getMods:(id)sender
