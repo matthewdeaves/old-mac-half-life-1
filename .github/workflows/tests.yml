@@ -1,0 +1,51 @@
+name: tests
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  repo-invariants:
+    # Deliberately Linux: these checks must not need a Mac, a build or any of
+    # the fleet hardware. Anything that does belongs in tests/test-artifact.sh,
+    # which runs against a built disk image before a release.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Repo invariants
+        run: python3 tests/test-repo.py -v
+
+  shell-syntax:
+    # The build drivers cannot be executed here (no PowerPC toolchain, no fleet),
+    # but a syntax error in one is still worth catching without a round trip to
+    # a build mini.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse every shell script
+        run: |
+          fail=0
+          for f in scripts/*.sh tests/*.sh; do
+            if bash -n "$f"; then
+              echo "ok   $f"
+            else
+              echo "FAIL $f"; fail=1
+            fi
+          done
+          exit $fail
+      - name: Parse every Python script
+        run: |
+          fail=0
+          for f in scripts/*.py tests/*.py; do
+            if python3 -m py_compile "$f"; then
+              echo "ok   $f"
+            else
+              echo "FAIL $f"; fail=1
+            fi
+          done
+          exit $fail

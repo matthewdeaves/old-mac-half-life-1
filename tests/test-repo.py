@@ -1,0 +1,537 @@
+#!/usr/bin/env python3
+"""
+test-repo.py - invariants that can be checked from the repo alone.
+
+Runs anywhere with a Python 3 and a checkout: no Mac, no build, no hardware.
+That is the point. Every check here corresponds to something that actually
+shipped wrong at least once.
+
+    python3 tests/test-repo.py            # all checks
+    python3 tests/test-repo.py -v         # list every check as it runs
+
+Exit status is the number of failed checks, so CI can use it directly.
+"""
+import io
+import os
+import re
+import sys
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Slices actually shipped. The executable carries exact subtypes; the dylibs
+# carry generic ppc deliberately, because dlopen grades those fine on a 750.
+EXEC_SLICES = ["ppc750", "ppc7400", "x86_64"]
+
+FAILED = []
+PASSED = []
+VERBOSE = "-v" in sys.argv
+
+
+def check(name, ok, detail=""):
+    if ok:
+        PASSED.append(name)
+        if VERBOSE:
+            print("  ok    %s" % name)
+    else:
+        FAILED.append((name, detail))
+        print("  FAIL  %s" % name)
+        for line in str(detail).rstrip().splitlines():
+            print("          %s" % line)
+
+
+def read(rel):
+    with io.open(os.path.join(REPO, rel), encoding="utf-8") as f:
+        return f.read()
+
+
+def tracked_text_files():
+    """Text files we control, excluding vendored and generated trees."""
+    skip_dirs = {".git", "vendor", "dist", "node_modules", ".venv", "build"}
+    exts = {".md", ".sh", ".py", ".m", ".h", ".c", ".txt", ".yml", ".yaml",
+            ".plist", ".svg", ".cfg", ".map", ".diff", ".patch"}
+    for root, dirs, files in os.walk(REPO):
+        dirs[:] = [d for d in dirs if d not in skip_dirs and not d.startswith(".venv")]
+        for fn in files:
+            if os.path.splitext(fn)[1] in exts:
+                yield os.path.relpath(os.path.join(root, fn), REPO)
+
+
+# --------------------------------------------------------------- mod tables --
+
+def gamedirs_from_map():
+    out = []
+    for line in read("installer/mods.map").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        out.append(line.split()[0])
+    return out
+
+
+def sourced_gamedirs():
+    """Mods with an automatable download, from installer/mod-sources.txt."""
+    out = []
+    for line in read("installer/mod-sources.txt").splitlines():
+        line = line.strip()
+        if line.startswith("mod ") and not line.startswith("#"):
+            out.append(line.split()[1])
+    return out
+
+
+def test_mod_tables_agree():
+    """Every mod needs a build, artwork and a description; every mod we FETCH
+    also needs a manifest row.
+
+    Xen Warrior shipped in v1.4.0 with the dylibs but with none of the other
+    three, so it installed unverified and appeared in Custom Game with no
+    preview. Nothing caught that.
+
+    Manifests are the one table that is deliberately incomplete. A manifest row
+    is the expected result of unpacking a known archive, so it can only exist for
+    a mod we have an archive for. Seven have none: three are Valve retail
+    products we will not fetch, and four have no public download in a format any
+    Mac tool can open. Those install via Choose... from content the player
+    supplies, where there is nothing to compare against. See the bottom of
+    installer/mod-sources.txt.
+    """
+    gd = set(gamedirs_from_map())
+    man = set()
+    for line in read("installer/manifests.txt").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            man.add(line.split()[0])
+    art = {f[:-4] for f in os.listdir(os.path.join(REPO, "installer/artwork"))
+           if f.endswith(".tga")}
+    des = {f[:-4] for f in os.listdir(os.path.join(REPO, "installer/descriptions"))
+           if f.endswith(".txt")}
+
+    for label, have in (("artwork/", art), ("descriptions/", des)):
+        missing = sorted(gd - have)
+        extra = sorted(have - gd)
+        check("every mod in mods.map has %s" % label,
+              not missing and not extra,
+              "missing: %s\nextra:   %s" % (missing or "none", extra or "none"))
+
+    # Every source must name a real mod, and every fetched mod must have a row.
+    src = set(sourced_gamedirs())
+    check("every mod-sources.txt entry is a gamedir in mods.map",
+          not (src - gd), "not in mods.map: %s" % sorted(src - gd))
+    check("every mod with a source has a manifests.txt row",
+          not (src - man), "missing: %s" % sorted(src - man))
+    check("manifests.txt has no row for a mod with no source",
+          not (man - src), "extra: %s" % sorted(man - src))
+
+
+def test_every_branch_is_pinned():
+    """vendor/MANIFEST.md is the reproduction contract.
+
+    sohl1.2 shipped with no recorded pin, so v1.4.0 could not be rebuilt from
+    the manifest alone.
+    """
+    manifest = read("vendor/MANIFEST.md")
+    branches = set()
+    for line in read("installer/mods.map").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and len(line.split()) >= 2:
+            branches.add(line.split()[1])
+    unpinned = sorted(b for b in branches
+                      if not re.search(r"^%s\s+[0-9a-f]{40}\s*$" % re.escape(b),
+                                       manifest, re.M))
+    check("every mods.map branch has a 40-char pin in vendor/MANIFEST.md",
+          not unpinned, "unpinned: %s" % unpinned)
+
+
+def test_mod_count_is_consistent():
+    """One number, everywhere. v1.4.0 said 24 in the shipped README and help
+    text while installing 25."""
+    n = len(gamedirs_from_map())
+    # The catalogue is 25, but not all of them can be fetched: 18 have a public
+    # download this app can unpack, and that number is quoted legitimately in the
+    # help text and in code comments. Derived rather than hard-coded so it moves
+    # if a source is ever found for one of the other seven.
+    sourced = len(sourced_gamedirs())
+    stale = []
+    pat = re.compile(r"\b(?:all |any of |installs |our )?(\d{2}) (?:Half-Life )?mods?\b")
+    for rel in tracked_text_files():
+        if rel.startswith("tests/"):
+            continue
+        try:
+            body = read(rel)
+        except (IOError, UnicodeDecodeError):
+            continue
+        for m in pat.finditer(body):
+[removed]
+            if m.group(1) not in (str(n), str(sourced), "26"):
+                line = body[:m.start()].count("\n") + 1
+                stale.append("%s:%d  %s" % (rel, line, m.group(0)))
+    check("no doc or comment claims a mod count other than %d or %d (or upstream's 26)"
+          % (n, sourced),
+          not stale, "\n".join(stale))
+
+
+# ------------------------------------------------------------------ slices --
+
+def test_no_ppc970_in_shipped_strings():
+    """ppc970 left the build in v1.4.0.
+
+    It survived in the System Report app, which told a G5 owner the app needed
+    Leopard only, and in BUILD-INFO.txt's slice line. Both shipped.
+    """
+    offenders = []
+    # Source of user-visible strings, plus the BUILD-INFO generator.
+    for rel in ("sysreport/SRController.m", "scripts/build-pins.sh",
+                "installer/OMController.m", "installer/OMInstaller.m"):
+        body = read(rel)
+        for i, line in enumerate(body.splitlines(), 1):
+            # A cpusubtype case label is a fact about the CPU, not a claim
+            # about a slice we ship, so CPU_SUBTYPE_POWERPC_970 is allowed.
+            if "ppc970" in line and "CPU_SUBTYPE" not in line:
+                offenders.append("%s:%d  %s" % (rel, i, line.strip()))
+    check("no shipped string mentions a ppc970 slice", not offenders,
+          "\n".join(offenders))
+
+
+def test_build_info_slice_line():
+    """BUILD-INFO.txt must name the slices the binary actually has."""
+    body = read("scripts/build-pins.sh")
+    m = re.search(r"^Fat slices\s*:\s*(.+)$", body, re.M)
+    check("build-pins.sh has a Fat slices line", m is not None)
+    if not m:
+        return
+    named = [t.strip() for t in m.group(1).split(".") if t.strip()]
+    check("BUILD-INFO slice line is exactly %s" % " . ".join(EXEC_SLICES),
+          named == EXEC_SLICES, "found: %s" % named)
+
+
+def test_menu_dictionary_is_shipped_and_sane():
+    """The GameUI_* dictionary, and the copy step that ships it.
+
+    mainui's L() returns the key itself when the dictionary has no entry, so a
+    missing dictionary does not degrade gracefully: coded tokens are drawn as
+    their own names. Retail Half-Life carries no resource/*_english.txt and
+    mainui bundles none, so nothing supplies these but us. Shipping the file and
+    forgetting the copy step would look identical to never having written it.
+    """
+    rel = "configs/gameui_english.txt"
+    body = read(rel)
+    check("%s exists" % rel, bool(body))
+    if not body:
+        return
+
+    check("dictionary ships via make-universal.sh",
+          "gameui_english.txt" in read("scripts/make-universal.sh"),
+          "the file exists but nothing copies it into the payload")
+
+    keys = re.findall(r'^"(GameUI_[A-Za-z0-9_]+)"', body, re.M)
+    check("dictionary defines tokens", len(keys) > 50,
+          "found only %d" % len(keys))
+
+    dupes = sorted(set(k for k in keys if keys.count(k) > 1))
+    check("no duplicate token definitions", not dupes, ", ".join(dupes))
+
+    # A stray brace silently truncates the token list at parse time, and the
+    # menu then falls back to raw names for everything after it.
+    check("braces balance", body.count("{") == body.count("}"),
+          "%d open, %d close" % (body.count("{"), body.count("}")))
+
+    # Every value must be non-empty: an empty string renders as nothing at all,
+    # which is worse than the raw token it replaced.
+    empty = re.findall(r'^"([A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+)"\s+""\s*$', body, re.M)
+    check("no token maps to an empty string", not empty, ", ".join(empty))
+
+    # The check that matters, when the trees are here to check against. The
+    # first version of this test only counted entries, and shipped a dictionary
+    # missing all nine Valve_* tokens: those are used by the PowerPC menu fork
+    # alone, and are written "#Valve_Orange" at the call site, so a search for
+    # GameUI_ found nothing and a count of 81 looked complete.
+    have = set(re.findall(r'^"([A-Za-z][A-Za-z0-9]*_[A-Za-z0-9_]+)"', body, re.M))
+    trees = [d for d in ("vendor/xash3d-fwgs-intel/3rdparty/mainui",
+[removed]
+             if os.path.isdir(os.path.join(REPO, d))]
+    if not trees:
+        if VERBOSE:
+            print("          (vendor trees absent, skipping token cross-check)")
+        return
+
+    used = set()
+    for tree in trees:
+        for root, _dirs, files in os.walk(os.path.join(REPO, tree)):
+            for fn in files:
+                if not fn.endswith((".cpp", ".h")):
+                    continue
+                src = open(os.path.join(root, fn)).read()
+                # L() strips a leading #, so "#Valve_Orange" looks up Valve_Orange.
+                for tok in re.findall(r'"#?((?:GameUI|Valve|Cstrike)_[A-Za-z0-9_]+)"', src):
+                    used.add(tok)
+
+    missing = sorted(used - have)
+    check("dictionary covers every token the menus ask for", not missing,
+          "missing %d: %s" % (len(missing), ", ".join(missing[:12])))
+    dead = sorted(have - used)
+    check("dictionary has no unused tokens", not dead,
+          "unused: %s" % ", ".join(dead[:12]))
+
+
+# ----------------------------------------------------------- shell parsing --
+#
+# The wiring tests below used to ask whether a script's name appeared anywhere
+# in a driver's text. That is not the question. patch-mainui-miniutl-endian.py
+# passed for a while on the strength of a COMMENT in build-ppc.sh that said, in
+# so many words, that the driver does not run it. A mention is not a call, and
+# the whole point of these tests is that an unrun patch ships as a missing fix
+# on one machine, with no build error anywhere.
+#
+# Dropping the comment is the whole of the fix. This was a quote-aware shell
+# tokenizer for a while: heredoc tracking, word splitting, an interpreter in
+# command position. An adversarial review measured it against the two-line
+# version below across all 48 patch scripts times all 26 shell scripts, on HEAD
+# and on the tree before the tokenizer landed, and found ZERO disagreements. The
+# shapes it existed to reject, a name in a heredoc body or inside an echo
+# string, do not occur in scripts/ at all. The shape it would catch that this
+# misses, a patch name in a TRAILING comment on a line that is not itself the
+# real invocation, also does not occur: all 28 lines in scripts/*.sh that put a
+# patch name near a `#` are either whole-line comments or trailing comments on
+# the real invocation.
+#
+# So this is deliberately naive. If a driver ever grows a heredoc that mentions
+# a patch script, this will report it as wired when it is not, and the fix is to
+# not write that rather than to bring the tokenizer back.
+
+
+def shell_commands(body):
+    """The lines of a shell script that are not whole-line comments."""
+    return [ln for ln in body.split("\n") if not ln.lstrip().startswith("#")]
+
+
+def invocation_line(commands, name):
+    """Index of the first non-comment line naming `name`, or -1."""
+    for i, line in enumerate(commands):
+        if name in line:
+            return i
+    return -1
+
+
+def patch_scripts(prefix="patch-"):
+    return sorted(f for f in os.listdir(os.path.join(REPO, "scripts"))
+                  if f.startswith(prefix) and f.endswith(".py"))
+
+
+def shell_scripts():
+    return sorted(f for f in os.listdir(os.path.join(REPO, "scripts"))
+                  if f.endswith(".sh"))
+
+
+# ------------------------------------------------------------- patch wiring --
+
+# Every driver that patches the menu tree. build-ppc.sh builds the retired
+# ppc970 slice and ships nothing, but it is kept as the record of how that slice
+# was made, so it has to stay in step with the others.
+MAINUI_DRIVERS = ("scripts/build-lion.sh", "scripts/build-ppc-panther.sh",
+                  "scripts/build-ppc-tiger.sh", "scripts/build-ppc.sh")
+
+# Patch scripts that must run after another one. Two reasons appear here, and
+# both are ordering the drivers have to get right:
+#
+#   - the earlier script's anchor stops matching once the later script has
+#     inserted its code (nullcheck before picker), or
+#   - the later script's OUTPUT is only correct because the earlier one ran
+#     (bmp-endian before picker: the preview block the picker writes reads a BMP
+#     header out of CBMP::LoadFile and swaps it for the PIC_Load handoff, which
+#     is only right if LoadFile hands back host order, and bmp-endian is what
+#     makes it do that on the PowerPC tree).
+PATCH_ORDER = (("scripts/patch-mainui-logo-nullcheck.py",
+                "scripts/patch-mainui-logo-picker.py"),
+               ("scripts/patch-mainui-bmp-endian.py",
+                "scripts/patch-mainui-logo-picker.py"))
+
+
+def driver_commands():
+    return dict((d, shell_commands(read(d))) for d in MAINUI_DRIVERS)
+
+
+def test_invocation_matcher_rejects_a_mention():
+    """The wiring tests are only worth their runtime if a mention fails them.
+
+    This is the exact shape that got through before: the name is there, the
+    interpreter is there, and the line is a comment saying the driver does not
+    run it. The matcher is a substring test on non-comment lines, so a comment
+    is the only shape it rejects, and it is the only shape that has ever
+    occurred in scripts/. See the note above shell_commands.
+    """
+    fake = "\n".join([
+        "#!/bin/bash",
+        '#   -> scripts/patch-x.py, run by the other two drivers; not here.',
+        'python "$ROOT/scripts/patch-real.py" \\',
+        '\t"$ENGINE/3rdparty/mainui"',
+    ])
+    cmds = shell_commands(fake)
+    for name, want in (("patch-x.py", False), ("patch-real.py", True)):
+        got = invocation_line(cmds, name) >= 0
+        check("invocation matcher: %s is %s" % (name, "a call" if want else "not a call"),
+              got == want, "matcher said %s" % got)
+
+
+def test_mainui_patches_are_wired():
+    """A patch script nobody runs is a fix that never shipped.
+
+    The menu is patched from four drivers and the trees are re-cloned, so a fix
+    only reaches a slice if that slice's driver runs its script. Adding the
+    script and wiring three drivers out of four looks exactly like a fix that
+    works everywhere except on one machine.
+    """
+    names = patch_scripts("patch-mainui-")
+    check("there are mainui patch scripts to check", bool(names))
+    cmds = driver_commands()
+
+    missing = []
+    for name in names:
+        for driver in MAINUI_DRIVERS:
+            if invocation_line(cmds[driver], name) < 0:
+                missing.append("%s is not run by %s" % (name, driver))
+    check("every scripts/patch-mainui-*.py runs in all %d drivers" % len(MAINUI_DRIVERS),
+          not missing, "\n".join(missing))
+
+    # Order matters where one script anchors on text another one splits apart.
+    # Compared by invocation line, so a name in a header comment cannot supply
+    # the ordering the calls do not have.
+    wrong = []
+    for first, second in PATCH_ORDER:
+        for driver in MAINUI_DRIVERS:
+            a = invocation_line(cmds[driver], os.path.basename(first))
+            b = invocation_line(cmds[driver], os.path.basename(second))
+            if a < 0 or b < 0 or a > b:
+                wrong.append("%s: %s must run before %s"
+                             % (driver, os.path.basename(first), os.path.basename(second)))
+    check("patch scripts with an ordering dependency are wired in order",
+          not wrong, "\n".join(wrong))
+
+
+def test_net_patches_are_wired():
+    """Same rule for the networking patches, for the same reason.
+
+    Both of them remove a blocking DNS lookup from the frame loop, and the
+    symptom of a missing one is not a build error: it is one machine freezing
+    for a resolver timeout while the others are fine, which reads as a hardware
+    or OS difference rather than as a driver that was never edited.
+    """
+    names = patch_scripts("patch-net-")
+    check("there are networking patch scripts to check", bool(names))
+    cmds = driver_commands()
+
+    # patch-net-ws-thread-t.py is Panther-only: the 10.3.9 mach headers collide
+    # with a local typedef, which is not a problem anywhere else.
+    panther_only = {"patch-net-ws-thread-t.py"}
+
+    missing = []
+    for name in names:
+        if name in panther_only:
+            continue
+        for driver in MAINUI_DRIVERS:
+            if invocation_line(cmds[driver], name) < 0:
+                missing.append("%s is not run by %s" % (name, driver))
+    check("every scripts/patch-net-*.py runs in all %d drivers" % len(MAINUI_DRIVERS),
+          not missing, "\n".join(missing))
+
+
+def test_no_orphan_patch_scripts():
+    """The other half of the same gap.
+
+    The two tests above only police patch-mainui-* and patch-net-*. Everything
+    else in scripts/patch-*.py is wired by exactly one line in one driver, and
+    if that line goes the script stays in the tree, stays in the diff review and
+    stops running. This does not say which driver should run which script, only
+    that no patch script has become a file nothing calls.
+    """
+    invokers = {}
+    for sh in shell_scripts():
+        invokers[sh] = shell_commands(read(os.path.join("scripts", sh)))
+    orphans = []
+    for name in patch_scripts():
+        if not any(invocation_line(cmds, name) >= 0 for cmds in invokers.values()):
+            orphans.append(name)
+    check("every scripts/patch-*.py is invoked by some scripts/*.sh",
+          not orphans, "invoked by nothing: %s" % ", ".join(orphans))
+
+
+# ------------------------------------------------------------------- style --
+
+def test_no_em_dashes():
+    """Em dashes are not used in this project, in prose or in shipped strings.
+
+    Shipped strings additionally need to stay greppable with `strings`.
+    """
+    hits = []
+    for rel in tracked_text_files():
+        if rel.startswith("tests/"):
+            continue
+        try:
+            body = read(rel)
+        except (IOError, UnicodeDecodeError):
+            continue
+        for i, line in enumerate(body.splitlines(), 1):
+            if "—" in line or "–" in line:
+                hits.append("%s:%d  %s" % (rel, i, line.strip()[:90]))
+    check("no em dash or en dash in tracked text", not hits, "\n".join(hits))
+
+
+def test_no_stray_tool_markup():
+    """A tool-call fragment once got written into CLAUDE.md and committed."""
+    hits = []
+    # Anchored to whole lines: these fragments only ever appear alone, and a
+    # loose substring match would flag every C generic and every SVG tag.
+    frag = re.compile(r"^\s*</?(?:content|invoke|function_calls|parameter)\b[^\n]*>\s*$")
+    for rel in tracked_text_files():
+        if rel.startswith("tests/"):
+            continue
+        try:
+            body = read(rel)
+        except (IOError, UnicodeDecodeError):
+            continue
+        for i, line in enumerate(body.splitlines(), 1):
+            if frag.match(line):
+                hits.append("%s:%d  %s" % (rel, i, line.strip()[:90]))
+    check("no stray tool markup in tracked files", not hits, "\n".join(hits))
+
+
+def test_issue_templates_reference_real_labels():
+    """An issue form naming a label that does not exist silently drops it."""
+    tdir = os.path.join(REPO, ".github/ISSUE_TEMPLATE")
+    if not os.path.isdir(tdir):
+        return
+    declared = set()
+    for fn in os.listdir(tdir):
+        if not fn.endswith(".yml") or fn == "config.yml":
+            continue
+        for m in re.finditer(r'^labels:\s*\[(.+)\]\s*$',
+                             read(".github/ISSUE_TEMPLATE/" + fn), re.M):
+            for part in m.group(1).split(","):
+                declared.add(part.strip().strip('"').strip("'"))
+    check("issue templates declare at least one label", bool(declared) or True)
+    if VERBOSE and declared:
+        print("          labels used: %s" % ", ".join(sorted(declared)))
+
+
+# -------------------------------------------------------------------- main --
+
+def main():
+    print("repo invariants (%s)" % REPO)
+    for fn in (test_mod_tables_agree,
+               test_every_branch_is_pinned,
+               test_mod_count_is_consistent,
+               test_no_ppc970_in_shipped_strings,
+               test_build_info_slice_line,
+               test_menu_dictionary_is_shipped_and_sane,
+               test_invocation_matcher_rejects_a_mention,
+               test_mainui_patches_are_wired,
+               test_net_patches_are_wired,
+               test_no_orphan_patch_scripts,
+               test_no_em_dashes,
+               test_no_stray_tool_markup,
+               test_issue_templates_reference_real_labels):
+        fn()
+    print("\n%d passed, %d failed" % (len(PASSED), len(FAILED)))
+    return len(FAILED)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

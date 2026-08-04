@@ -1,0 +1,33 @@
+# Vendored upstream sources - cloned locally, not committed here.
+# Anchored to repo root so it does NOT swallow patches/vendor/ (our captured edits).
+/vendor/
+# ...but keep the reproducibility manifest that lives alongside the clones.
+!/vendor/
+/vendor/*
+!/vendor/MANIFEST.md
+
+# Build output
+build/
+dist/
+*.dylib
+*.o
+*.a
+
+# Retail game data - never commit copyrighted assets
+valve/
+*.wad
+*.bsp
+*.pak
+
+# macOS cruft
+.DS_Store
+
+# Python bytecode (patch/build helper scripts)
+__pycache__/
+*.pyc
+
+# Local python virtualenv for the helper scripts
+.venv/
+
+# Driver logs from scripts/session-loop.sh
+/logs/

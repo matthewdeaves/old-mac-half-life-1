@@ -1,0 +1,51 @@
+# mods.map - which build goes with which mod, and what to call it.
+#
+# Columns (whitespace separated; '#' starts a comment):
+#   1  gamedir      the mod's folder name, as it appears on disk
+#   2  branch       FWGS/hlsdk-portable branch we build it from (dist/mods/<branch>/)
+#   3  server_dll   fallback basename for the server dylib, WITHOUT extension
+#   4  title        display name
+#
+# The server dylib's real name is read from the mod's own liblist.gam at install
+# time (`gamedll "dlls\survivor.dll"` -> survivor.dylib). Column 3 is only used
+# when a mod ships without a liblist.gam. Do NOT derive these from the branch's
+# mod_options.txt: several branches disagree with what the mod actually ships -
+# residual_point declares rp_pub/rp but ships rp/ + survivor.dylib, caseclosed
+# declares caseclosed but ships cc/, CAd declares CAd but ships cad/.
+#
+# The client dylib is always cl_dlls/client.dylib, on every mod.
+
+# gamedir        branch             server_dll   title
+aom              aom                hl           Afraid of Monsters
+asheep           asheep             hl           Azure Sheep
+biglolly         biglolly           bl           Big Lolly
+blackops         blackops           hl           Black Ops
+bshift           bshift             bshift       Blue Shift
+cad              CAd                hl           Cleaners Adventures
+cc               caseclosed         cc           Case Closed
+dmc              dmc                dmc          Deathmatch Classic
+echoes           echoes             echoes       Echoes
+eftd             eftd               hl           Escape from the Darkness
+gearbox          opfor              opfor        Opposing Force
+half-screwed     half-screwed       hl           Half-Screwed
+Hunger           theyhunger         einar        They Hunger
+induction        induction_1.2      hl           Induction
+noffice          noffice            nato         Night at the Office
+poke646          poke646            hl           Poke 646
+redempt          redempt            redempt      Redemption
+rp               residual_point     survivor     Residual Point
+shall            halloween          spirit       Swiss Cheese Halloween
+TheGate          thegate            hl           The Gate
+tot              tot                hl           Times of Troubles
+vendetta         poke646_vendetta   hl           Poke 646 Vendetta
+visitors         visitors           hl           Visitors
+xenwar           sohl1.2            libserver    Xen Warrior
+Zombie-X-DLE     zombie-x           zx           Zombie-X
+
+# NOT SUPPORTED - no build is shipped for this, and the installer says so
+# rather than copying content that cannot run:
+#   tfc     Team Fortress Classic - shipped dylib is i386 and no source exists
+#           to rebuild it. FWGS deleted its tfc branch; the 43 forks that still
+#           carry it have all 19 TFC server .cpp files at zero bytes. No open
+#           TFC server implementation exists for GoldSrc in any language.
+#           Closed as not achievable, GitHub issue #13.

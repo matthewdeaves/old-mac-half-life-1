@@ -1,0 +1,97 @@
+name: A mod, or the mod installer
+description: Half-Life Mods.app failed, or an installed mod does not appear or does not work.
+labels: ["mods"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This project ships the rebuilt game code for each mod and no content.
+[removed]
+        If the problem is with the content itself rather than with installing or
+        running it here, that page is the better place.
+
+        Half-Life Mods.app writes **Half-Life-Mods-install.log** next to itself.
+        That log is usually the whole answer, so please attach it.
+
+  - type: textarea
+    id: sysreport
+    attributes:
+      label: System Report output
+      description: The whole report, straight from Half-Life System Report.app. Do not trim it.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Where it went wrong
+      options:
+        - Downloading the collection
+        - Verifying the download
+        - Mounting the disk image
+        - Installing a particular mod
+        - The mod installed, but does not appear under Custom Game
+        - The mod appears, but will not start
+        - The mod starts, but something is wrong in it
+        - Something else, described below
+    validations:
+      required: true
+
+  - type: input
+    id: mod
+    attributes:
+      label: Which mod
+      description: Leave blank if it failed before it reached any particular one.
+      placeholder: Opposing Force
+    validations:
+      required: false
+
+  - type: textarea
+    id: installlog
+    attributes:
+      label: Half-Life-Mods-install.log
+      description: >-
+        The file sitting next to Half-Life Mods.app. Paste it or drag it in. If
+        it is long, the last hundred lines are usually enough.
+      render: text
+    validations:
+      required: false
+
+  - type: dropdown
+    id: source
+    attributes:
+      label: How you gave it the content
+      options:
+        - Get Mods, downloaded by the app
+        - Choose..., a .dmg I already had
+        - Choose..., an already-mounted volume
+        - Choose..., a plain folder
+    validations:
+      required: true
+
+  - type: textarea
+    id: errortext
+    attributes:
+      label: The exact wording of any error
+      description: A photo of the screen is fine; drag it in.
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Which release
+      placeholder: v1.4.1
+    validations:
+      required: true
+
+  - type: textarea
+    id: freespace
+    attributes:
+      label: Free disk space, if it ran out
+      description: >-
+        A full install needs roughly 6.5 GB free: about 2.6 GB for the download
+        and about 4 GB once it is unpacked.
+    validations:
+      required: false

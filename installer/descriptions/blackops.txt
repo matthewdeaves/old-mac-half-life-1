@@ -1,0 +1,2 @@
+Single-player campaign playing the
+other side of the Black Mesa incident.

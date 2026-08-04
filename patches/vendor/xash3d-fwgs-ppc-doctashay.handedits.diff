@@ -1,0 +1,478 @@
+diff --git a/common/cvardef.h b/common/cvardef.h
+index 2844e5cd..93350dcd 100644
+--- a/common/cvardef.h
++++ b/common/cvardef.h
+@@ -103,7 +103,10 @@ struct convar_s {
+ 	char     *desc;
+ 	char     *def_string;
+ };
++#if !defined( CONVAR_T_DEFINED ) // oldmac: gcc-4.2 rejects duplicate typedef
++#define CONVAR_T_DEFINED
+ typedef struct convar_s convar_t;
++#endif
+ 
+ #if XASH_64BIT
+ #define CVAR_SENTINEL (uintptr_t)0xDEADBEEFDEADBEEF
+diff --git a/common/q_client.h b/common/q_client.h
+index f4644867..4b8ba3ef 100644
+--- a/common/q_client.h
++++ b/common/q_client.h
+@@ -90,7 +90,7 @@ typedef enum {
+ } ptype_t;
+ 
+ // !!! if this is changed, it must be changed in d_ifacea.h too !!!
+-typedef struct particle_s
++struct particle_s
+ {
+ 	// driver-usable fields
+ 	vec3_t  org;
+@@ -108,7 +108,14 @@ typedef struct particle_s
+ 	void (*on_die)( struct particle_s *p );
+ 	void (*think)( struct particle_s *p, float frametime );
+ 	unsigned char userdata;
+-} particle_t;
++};
++
++// oldmac: demoted the struct above from a typedef and guard the typedef name so
++// gcc-4.2 (gnu89/gnu99) doesn't see a duplicate when r_efx.h is also included.
++#if !defined( PARTICLE_T_DEFINED )
++#define PARTICLE_T_DEFINED
++typedef struct particle_s particle_t;
++#endif
+ 
+ STATIC_CHECK_SIZEOF( particle_t, 56, 72 );
+ 
+diff --git a/common/r_efx.h b/common/r_efx.h
+index 4ce5e630..37ad5b9e 100644
+--- a/common/r_efx.h
++++ b/common/r_efx.h
+@@ -104,7 +104,12 @@ typedef struct tempent_s
+ 	// baseline.angles		- angle velocity
+ } TEMPENTITY;
+ 
++// oldmac: guard the particle_t typedef so Apple gcc-4.2 (gnu89/gnu99) doesn't
++// see it twice when q_client.h is also included (C11 permits the dup; gcc-4.2 errors).
++#if !defined( PARTICLE_T_DEFINED )
++#define PARTICLE_T_DEFINED
+ typedef struct particle_s particle_t;
++#endif
+ typedef struct efx_api_s efx_api_t;
+ struct dlight_s;
+ 
+diff --git a/common/wadfile.h b/common/wadfile.h
+index d4d24575..80410d4d 100644
+--- a/common/wadfile.h
++++ b/common/wadfile.h
+@@ -76,13 +76,17 @@ typedef struct lmp_s
+ 
+ ========================================================================
+ */
+-typedef struct mip_s
++struct mip_s
+ {
+ 	char		name[16];
+ 	unsigned int	width;
+ 	unsigned int	height;
+ 	unsigned int	offsets[4];	// four mip maps stored
+-} mip_t;
++};
++#if !defined( MIP_T_DEFINED ) // oldmac: gcc-4.2 dup-typedef
++#define MIP_T_DEFINED
++typedef struct mip_s mip_t;
++#endif
+ 
+ /*
+ ========================================================================
+diff --git a/engine/client/client.h b/engine/client/client.h
+index 013edf37..9157b471 100644
+--- a/engine/client/client.h
++++ b/engine/client/client.h
+@@ -1151,7 +1151,10 @@ void Mod_ReleaseHullPolygons( void );
+ //
+ // s_main.c
+ //
++#if !defined( SOUND_T_DEFINED ) // oldmac: gcc-4.2 dup-typedef
++#define SOUND_T_DEFINED
+ typedef int sound_t;
++#endif
+ void S_StartBackgroundTrack( const char *intro, const char *loop, int position, qboolean fullpath );
+ void S_StopBackgroundTrack( void );
+ void S_StreamSetPause( int pause );
+diff --git a/engine/client/sound.h b/engine/client/sound.h
+index a0b0bbf1..76a1e43a 100644
+--- a/engine/client/sound.h
++++ b/engine/client/sound.h
+@@ -135,7 +135,10 @@ typedef struct
+ 	qboolean stream_paused; // pause only background track
+ } listener_t;
+ 
++#if !defined( SOUND_T_DEFINED ) // oldmac: gcc-4.2 dup-typedef
++#define SOUND_T_DEFINED
+ typedef int sound_t;
++#endif
+ 
+ //====================================================================
+ 
+diff --git a/engine/client/soundlib/libmpg/libmpg.h b/engine/client/soundlib/libmpg/libmpg.h
+index da12c1c7..8c3f8990 100644
+--- a/engine/client/soundlib/libmpg/libmpg.h
++++ b/engine/client/soundlib/libmpg/libmpg.h
+@@ -34,11 +34,14 @@ typedef struct
+ 	int	playtime;		// stream size in milliseconds
+ } wavinfo_t;
+ 
++#ifndef MPG_SSIZE_T_DEFINED // oldmac: defined in both mpg123.h and libmpg.h; gcc-4.2 rejects dup typedef
++#define MPG_SSIZE_T_DEFINED
+ #ifdef _MSC_VER // a1ba: MSVC6 don't have ssize_t
+ typedef long		mpg_ssize_t;
+ #else
+ typedef ssize_t		mpg_ssize_t;
+ #endif
++#endif
+ 
+ // custom stdio
+ typedef mpg_ssize_t (*pfread)( void *handle, void *buf, size_t count );
+diff --git a/engine/client/soundlib/libmpg/mpg123.h b/engine/client/soundlib/libmpg/mpg123.h
+index 3c51af07..c0f0187b 100644
+--- a/engine/client/soundlib/libmpg/mpg123.h
++++ b/engine/client/soundlib/libmpg/mpg123.h
+@@ -47,20 +47,27 @@ typedef struct mpg123_handle_s	mpg123_handle_t;
+ //#define IEEE_FLOAT
+ 
+ // begin used typedefs
++#ifndef XASH_TYPES_H // oldmac: byte/word already come from xash3d_types.h (included above); gcc-4.2 rejects the dup typedef
+ typedef unsigned char	byte;
+ typedef unsigned short	word;
++#endif
+ typedef unsigned long	ulong;
+ typedef unsigned int	uint;
+ typedef fs_offset_t	mpg_off_t;
+ 
++#ifndef MPG_SSIZE_T_DEFINED // oldmac: defined in both mpg123.h and libmpg.h; gcc-4.2 rejects dup typedef
++#define MPG_SSIZE_T_DEFINED
+ #ifdef _MSC_VER // a1ba: MSVC6 don't have ssize_t
+ typedef long		mpg_ssize_t;
+ #else
+ typedef ssize_t		mpg_ssize_t;
+ #endif
++#endif
+ 
++#ifndef XASH_TYPES_H // oldmac: <stdint.h> (included above) already defines these; gcc-4.2 rejects the dup typedef
+ typedef short		int16_t;
+ typedef unsigned short	uint16_t;
++#endif
+ 
+ #include "synth.h"
+ #include "index.h"
+diff --git a/engine/client/voice.h b/engine/client/voice.h
+index 832d2d6a..145356cd 100644
+--- a/engine/client/voice.h
++++ b/engine/client/voice.h
+@@ -21,11 +21,17 @@ GNU General Public License for more details.
+ #include "protocol.h" // MAX_CLIENTS
+ #include "sound.h"
+ 
++// oldmac: opus's own headers forward-declare these identically; Apple gcc-4.2
++// rejects the duplicate typedef that C11 allows. Skip ours when opus is present.
++#ifndef OPUS_CUSTOM_H
+ typedef struct OpusCustomEncoder OpusCustomEncoder;
+ typedef struct OpusCustomDecoder OpusCustomDecoder;
+ typedef struct OpusCustomMode OpusCustomMode;
++#endif
++#ifndef OPUS_H
+ typedef struct OpusEncoder OpusEncoder;
+ typedef struct OpusDecoder OpusDecoder;
++#endif
+ 
+ #define VOICE_LOOPBACK_INDEX    ( -2 )
+ #define VOICE_LOCALCLIENT_INDEX ( -1 )
+diff --git a/engine/common/http/net_http_xash.c b/engine/common/http/net_http_xash.c
+index 4ad8f033..b6fe333f 100644
+--- a/engine/common/http/net_http_xash.c
++++ b/engine/common/http/net_http_xash.c
+@@ -43,7 +43,7 @@ typedef struct httpserver_s
+ typedef struct httpfile_s httpfile_t;
+ typedef int (*http_process_fn_t)( httpfile_t *file );
+ 
+-typedef struct httpfile_s
++struct httpfile_s // oldmac: demoted from typedef; httpfile_t forward-declared above (gcc-4.2 dup-typedef)
+ {
+ 	struct httpfile_s *next;
+ 	httpserver_t *server;
+@@ -72,7 +72,7 @@ typedef struct httpfile_s
+ 	// query or response
+ 	char buf[MAX_HTTP_BUFFER_SIZE+1];
+ 	int header_size, query_length, bytes_sent;
+-} httpfile_t;
++};
+ 
+ static struct http_static_s
+ {
+diff --git a/engine/common/net_encode.h b/engine/common/net_encode.h
+index 13bf6473..8f4edce4 100644
+--- a/engine/common/net_encode.h
++++ b/engine/common/net_encode.h
+@@ -78,7 +78,10 @@ typedef struct goldsrc_delta_s
+ 	float postmultiply;
+ } goldsrc_delta_t;
+ 
++#if !defined( DELTA_T_DEFINED ) // oldmac: gcc-4.2 rejects duplicate typedef
++#define DELTA_T_DEFINED
+ typedef struct delta_s delta_t;
++#endif
+ typedef void (*pfnDeltaEncode)( struct delta_s *pFields, const byte *from, const byte *to );
+ 
+ typedef struct
+diff --git a/engine/eiface.h b/engine/eiface.h
+index b0817de6..5ce3c411 100644
+--- a/engine/eiface.h
++++ b/engine/eiface.h
+@@ -97,7 +97,10 @@ typedef struct
+ 
+ typedef unsigned int	CRC32_t;
+ 
++#if !defined( DELTA_T_DEFINED ) // oldmac: gcc-4.2 rejects duplicate typedef
++#define DELTA_T_DEFINED
+ typedef struct delta_s delta_t;
++#endif
+ struct entity_state_s;
+ 
+ // Engine hands this to DLLs for functionality callbacks
+diff --git a/engine/platform/platform.h b/engine/platform/platform.h
+index 8a8b5944..02d41b35 100644
+--- a/engine/platform/platform.h
++++ b/engine/platform/platform.h
+@@ -331,9 +331,18 @@ typedef enum
+ } rserr_t;
+ 
+ struct vidmode_s;
++#if !defined( WINDOW_MODE_T_DEFINED ) // oldmac: gcc-4.2 dup-typedef
++#define WINDOW_MODE_T_DEFINED
+ typedef enum window_mode_e window_mode_t;
++#endif
++#if !defined( REF_WINDOW_TYPE_T_DEFINED ) // oldmac: gcc-4.2 dup-typedef
++#define REF_WINDOW_TYPE_T_DEFINED
+ typedef enum ref_window_type_e ref_window_type_t;
++#endif
++#if !defined( REF_GRAPHIC_APIS_T_DEFINED ) // oldmac: gcc-4.2 dup-typedef
++#define REF_GRAPHIC_APIS_T_DEFINED
+ typedef enum ref_graphic_apis_e ref_graphic_apis_t;
++#endif
+ 
+ // Window
+ qboolean  R_Init_Video( ref_graphic_apis_t type );
+diff --git a/engine/ref_api.h b/engine/ref_api.h
+index da901761..422abaf4 100644
+--- a/engine/ref_api.h
++++ b/engine/ref_api.h
+@@ -108,15 +108,19 @@ typedef enum
+ 	DEMO_QUAKE1
+ } demo_mode;
+ 
+-typedef enum window_mode_e
++enum window_mode_e
+ {
+ 	WINDOW_MODE_WINDOWED = 0,
+ 	WINDOW_MODE_FULLSCREEN,
+ 	WINDOW_MODE_BORDERLESS,
+ 	WINDOW_MODE_COUNT,
+-} window_mode_t;
++};
++#if !defined( WINDOW_MODE_T_DEFINED ) // oldmac: gcc-4.2 dup-typedef
++#define WINDOW_MODE_T_DEFINED
++typedef enum window_mode_e window_mode_t;
++#endif
+ 
+-typedef enum ref_window_type_e
++enum ref_window_type_e
+ {
+ 	REF_WINDOW_TYPE_NULL = 0,
+ 	REF_WINDOW_TYPE_WIN32, // HWND
+@@ -125,7 +129,11 @@ typedef enum ref_window_type_e
+ 	REF_WINDOW_TYPE_MACOS, // NSWindow*
+ 	REF_WINDOW_TYPE_SDL2, // SDL2 SDL_Window*
+ 	REF_WINDOW_TYPE_SDL3, // SDL3 SDL_Window*
+-} ref_window_type_t;
++};
++#if !defined( REF_WINDOW_TYPE_T_DEFINED ) // oldmac: gcc-4.2 dup-typedef
++#define REF_WINDOW_TYPE_T_DEFINED
++typedef enum ref_window_type_e ref_window_type_t;
++#endif
+ 
+ typedef struct
+ {
+@@ -222,12 +230,16 @@ enum ref_defaultsprite_e
+ 
+ // the order of first three is important!
+ // so you can use this value in IEngineStudio.StudioIsHardware
+-typedef enum ref_graphic_apis_e
++enum ref_graphic_apis_e
+ {
+ 	REF_SOFTWARE,	// hypothetical: just make a surface to draw on, in software
+ 	REF_GL,		// create GL context
+ 	REF_D3D,	// Direct3D
+-} ref_graphic_apis_t;
++};
++#if !defined( REF_GRAPHIC_APIS_T_DEFINED ) // oldmac: gcc-4.2 dup-typedef
++#define REF_GRAPHIC_APIS_T_DEFINED
++typedef enum ref_graphic_apis_e ref_graphic_apis_t;
++#endif
+ 
+ typedef enum
+ {
+@@ -301,7 +313,10 @@ typedef struct remap_info_s
+ 	model_t		*model;		// for catch model changes
+ } remap_info_t;
+ 
++#if !defined( CONVAR_T_DEFINED ) // oldmac: gcc-4.2 rejects duplicate typedef
++#define CONVAR_T_DEFINED
+ typedef struct convar_s convar_t;
++#endif
+ struct con_nprint_s;
+ struct engine_studio_api_s;
+ struct r_studio_interface_s;
+diff --git a/engine/wscript b/engine/wscript
+index b5f18000..4d9b4824 100644
+--- a/engine/wscript
++++ b/engine/wscript
+@@ -61,7 +61,14 @@ def run_darwin_engine_test_task(bld, target_name, extra_lib_paths, testdata_root
+ def m_hook(self, node):
+ 	task = self.create_compiled_task('c', node)
+ 	task.env = task.env.derive()
+-	task.env.append_value('CFLAGS', ['-fno-lto'])
++	# oldmac: Apple gcc-4.2 predates LTO and rejects -fno-lto. Only add it where the
++	# compiler understands LTO (gcc >= 4.5 or clang); skip for the PowerPC gcc-4.2 cross-build.
++	try:
++		ver = tuple(int(x) for x in (task.env.CC_VERSION or ('0',)))
++	except (TypeError, ValueError):
++		ver = (0,)
++	if task.env.CC_NAME != 'gcc' or ver >= (4, 5):
++		task.env.append_value('CFLAGS', ['-fno-lto'])
+ 	return task
+ 
+ def options(opt):
+diff --git a/filesystem/dir.c b/filesystem/dir.c
+index 46a3022f..ae6fe3ec 100644
+--- a/filesystem/dir.c
++++ b/filesystem/dir.c
+@@ -46,12 +46,12 @@ enum
+ 	DIRENTRY_CASEINSENSITIVE = -2, // directory is already caseinsensitive, just copy whatever is left
+ };
+ 
+-typedef struct dir_s
++struct dir_s // oldmac: demoted from typedef; dir_t comes from filesystem_internal.h (gcc-4.2 dup-typedef)
+ {
+ 	string name;
+ 	int numentries;
+ 	struct dir_s *entries; // sorted
+-} dir_t;
++};
+ 
+ static qboolean Platform_GetDirectoryCaseSensitivity( const char *dir )
+ {
+diff --git a/filesystem/filesystem_internal.h b/filesystem/filesystem_internal.h
+index fec87003..ca321b59 100644
+--- a/filesystem/filesystem_internal.h
++++ b/filesystem/filesystem_internal.h
+@@ -33,7 +33,9 @@ extern "C"
+ {
+ #endif
+ 
+-typedef struct searchpath_s searchpath_t;
++// oldmac: searchpath_t is already forward-typedef'd in filesystem.h (included
++// above); Apple gcc-4.2 (gnu89/gnu99) rejects the duplicate typedef that C11
++// permits. The full struct below is demoted to a plain tagged struct.
+ typedef struct dir_s dir_t;
+ typedef struct zip_s zip_t;
+ typedef struct pack_s pack_t;
+@@ -94,7 +96,7 @@ typedef struct stringlist_s
+ 	char		**strings;
+ } stringlist_t;
+ 
+-typedef struct searchpath_s
++struct searchpath_s
+ {
+ 	string           filename;
+ 	searchpathtype_t type;
+@@ -118,7 +120,7 @@ typedef struct searchpath_s
+ 	int     (*pfnFindFile)( struct searchpath_s *search, const char *path, char *fixedname, size_t len );
+ 	void    (*pfnSearch)( struct searchpath_s *search, stringlist_t *list, const char *pattern, int caseinsensitive );
+ 	byte   *(*pfnLoadFile)( struct searchpath_s *search, const char *path, int pack_ind, fs_offset_t *filesize, void *( *pfnAlloc )( size_t ), void ( *pfnFree )( void * ));
+-} searchpath_t;
++};
+ 
+ typedef searchpath_t *(*FS_ADDARCHIVE_FULLPATH)( const char *path, int flags );
+ 
+diff --git a/public/xash3d_mathlib.h b/public/xash3d_mathlib.h
+index 0156fce1..9dc640da 100644
+--- a/public/xash3d_mathlib.h
++++ b/public/xash3d_mathlib.h
+@@ -167,8 +167,12 @@ typedef struct mplane_s
+ 	byte    pad[2];
+ } mplane_t;
+ 
+-typedef struct mstudiobone_s mstudiobone_t;
+-typedef struct mstudioanim_s mstudioanim_t;
++// NOTE(oldmac): forward-declare the struct tags rather than typedef'ing here.
++// Apple gcc-4.2 (gnu89) rejects the identical typedef being redefined in
++// studio.h; C89 permits repeated struct-tag forward declarations. The full
++// typedef still comes from studio.h for translation units that include it.
++struct mstudiobone_s;
++struct mstudioanim_s;
+ 
+ float Q_rsqrt( float number );
+ uint16_t FloatToHalf( float v );
+@@ -180,7 +184,7 @@ void VectorsAngles( const vec3_t forward, const vec3_t right, const vec3_t up, v
+ qboolean SphereIntersect( const vec3_t vSphereCenter, float fSphereRadiusSquared, const vec3_t vLinePt, const vec3_t vLineDir );
+ void QuaternionSlerp( const vec4_t p, const vec4_t q, float t, vec4_t qt );
+ 
+-void R_StudioCalcBones( int frame, float s, const mstudiobone_t *pbone, const mstudioanim_t *panim, const float *adj, vec3_t pos, vec4_t q );
++void R_StudioCalcBones( int frame, float s, const struct mstudiobone_s *pbone, const struct mstudioanim_s *panim, const float *adj, vec3_t pos, vec4_t q );
+ int BoxOnPlaneSide( const vec3_t emins, const vec3_t emaxs, const mplane_t *p );
+ 
+ static inline int BOX_ON_PLANE_SIDE( const vec3_t emins, const vec3_t emaxs, const mplane_t *p )
+diff --git a/ref/soft/r_local.h b/ref/soft/r_local.h
+index 117e0c2c..4fbed153 100644
+--- a/ref/soft/r_local.h
++++ b/ref/soft/r_local.h
+@@ -31,7 +31,10 @@ GNU General Public License for more details.
+ #include "cvardef.h"
+ #include "pmove.h"
+ 
++#if !defined( MIP_T_DEFINED ) // oldmac: gcc-4.2 rejects duplicate typedef
++#define MIP_T_DEFINED
+ typedef struct mip_s mip_t;
++#endif
+ 
+ typedef int fixed8_t;
+ typedef int fixed16_t;
+diff --git a/scripts/waifulib/xcompile.py b/scripts/waifulib/xcompile.py
+index 62a4c057..e3b9b389 100644
+--- a/scripts/waifulib/xcompile.py
++++ b/scripts/waifulib/xcompile.py
+@@ -808,7 +808,17 @@ def configure(conf):
+ 		MACRO_TO_DESTOS[k] = c_config.MACRO_TO_DESTOS[k] # ordering is important
+ 	c_config.MACRO_TO_DESTOS  = MACRO_TO_DESTOS
+ 
++def oldmac_fixup_dest_cpu(conf):
++	# oldmac: when cross-building the PowerPC slice on an Intel host, waf probes
++	# DEST_CPU with the bare compiler and never sees our '-arch ppc' (it lives in
++	# CFLAGS/CXXFLAGS), so it mis-detects the x86_64 build host. Correct it here so
++	# endian-sensitive 3rdparty (opus SSE gating, AltiVec) configure for PowerPC.
++	allflags = ' '.join(conf.env.CFLAGS + conf.env.CXXFLAGS)
++	if conf.env.DEST_OS == 'darwin' and '-arch ppc' in allflags and conf.env.DEST_CPU != 'ppc':
++		conf.env.DEST_CPU = 'ppc'
++
+ def post_compiler_cxx_configure(conf):
++	oldmac_fixup_dest_cpu(conf)
+ 	conf.msg('Target OS', conf.env.DEST_OS)
+ 	conf.msg('Target CPU', conf.env.DEST_CPU)
+ 	conf.msg('Target binfmt', conf.env.DEST_BINFMT)
+@@ -824,6 +834,7 @@ def post_compiler_cxx_configure(conf):
+ 	return
+ 
+ def post_compiler_c_configure(conf):
++	oldmac_fixup_dest_cpu(conf)
+ 	conf.msg('Target OS', conf.env.DEST_OS)
+ 	conf.msg('Target CPU', conf.env.DEST_CPU)
+ 	conf.msg('Target binfmt', conf.env.DEST_BINFMT)

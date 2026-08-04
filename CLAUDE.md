@@ -1,0 +1,142 @@
+# Half-Life old-Mac port
+
+Half-Life 1 on Xash3D FWGS as ONE universal fat app across PowerPC and Intel
+Macs, from a single `Half-Life.app`. Sticky facts only, loaded every session.
+Reasoning and rejected alternatives live in `docs/adr/`; anything that dates
+goes in the README or an issue.
+
+## Commands
+
+The build drivers run **locally on a build mini** and do no ssh of their own, so
+claim a host first, then run them there. The repo is at `~/oldmac` on both minis.
+
+```sh
+scripts/pick-build-host.sh --status            # who is free
+HOST=$(scripts/pick-build-host.sh --acquire LABEL)
+ssh $HOST 'cd oldmac && scripts/reset-vendor-trees.sh' # REQUIRED FIRST, see below
+ssh $HOST 'cd oldmac && scripts/build-lion.sh'         # x86_64 slice
+ssh $HOST 'cd oldmac && scripts/build-ppc-panther.sh'  # ppc750 slice
+ssh $HOST 'cd oldmac && scripts/build-ppc-tiger.sh'    # ppc7400 slice
+ssh $HOST 'cd oldmac && scripts/make-universal.sh'     # fuse to dist/universal
+ssh $HOST 'cd oldmac && scripts/make-app.sh dist/universal dist/universal-app/Half-Life.app'
+scripts/pick-build-host.sh --release $HOST
+
+scripts/make-dmg.sh [version-label]      # Tiger G4 ONLY, see the hard rules
+scripts/deploy-dmg.sh HOST [version]     # install on a bench box as a user would
+scripts/smoke-dmg.sh HOST                # does the installed app actually launch
+scripts/fleet-bench.sh -l LABEL [host]   # timerefresh FPS, appends to benchmarks/
+python3 tests/test-repo.py               # repo invariants, runs on this box
+tests/test-artifact.sh                   # checks a built artifact
+```
+
+**`reset-vendor-trees.sh` is not optional and nothing calls it for you.** The
+drivers patch a tree that already exists, and the patch scripts are
+marker-guarded, so a file holding a SUPERSEDED fix reports "already patched" and
+is skipped. Withdrawing a fix from the repo does not withdraw it from a build
+host, and every check in `build-verification.md` looks at the OUTPUT, so none of
+them can see it. This is the only thing that clears it. Issue #39.
+
+`lipo` and `strings` checks belong on **this** box, never on Lion.
+**All build output lives under `~/oldmac/dist/`**, never at the repo root and never
+on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
+
+## Facts
+
+- `dyld` grades a fat by **CPU subtype alone**, never the OS, so a slice exists
+  only for a CPU capability difference: **`ppc750`** (G3), **`ppc7400`** (G4 and
+  G5), **`x86_64`**. PowerPC targets 10.3.9 and runs to 10.5. `docs/adr/0001`
+- **Intel is 10.7 Lion+ and x86_64 only, NOT 10.6**: mainui is C++11, 10.6 has
+  no libc++, and neither mini has a 10.6 SDK. No force flag is needed, the Lion
+  clang defaults to x86_64 for both engine and HLSDK. `docs/adr/0010`
+- **The GAME has no i386 slice** (issue #22) and **no native arm64 slice**
+  (issue #2); Apple Silicon runs `x86_64` under Rosetta 2. Never write "not for
+  Apple Silicon". The System Report app is the exception and ships i386 from
+  10.4 and x86_64 from 10.5, deliberately below the game. `docs/adr/0010`
+[removed]
+- **Three trees:** engine (`xash3d-fwgs`), menu (`mainui_cpp`), game dylibs
+  (`hlsdk-portable`); PowerPC from big-endian forks, Intel from mainline, hence
+  no PowerPC TLS (issue #1) and same-arch-only demos. `docs/adr/0003`
+- **PowerPC links `panther-sdl2` 2.0.3 statically, Intel builds SDL 2.0.22 as a
+  dylib.** `leopard-sdl2` is in no shipped slice. `docs/adr/0004`
+- **Never use GitHub ZIPs.** Upstream is cloned `--recursive` at pinned commits
+  into a git-ignored `vendor/`, then patched. `docs/adr/0002`
+- **`Contents/MacOS/xash3d` is a shell launcher** that picks the display
+  profile; the Mach-O beside it is `xash3d.bin`. `docs/adr/0007`
+
+## Machines
+
+- **This dev box is orchestration only** (Apple Silicon, macOS 26). ALL THREE
+  slices cross-compile on an Intel Lion mini; the PowerPC boxes are bench/test
+  targets, NOT build hosts. Drivers RUN ON the mini: `build-lion.sh`,
+  `build-ppc-panther.sh` (G3), `build-ppc-tiger.sh` (G4 and G5), fused by
+  `make-universal.sh` and `make-app.sh`. `docs/adr/0005`
+- **TWO interchangeable Intel build minis**, either builds any slice:
+  `mini-intel` (10.188.1.190), `mini-intel2` (10.188.1.216), same Macmini2,1 /
+  10.7.5 / toolchain. Ask `scripts/pick-build-host.sh` (`--status`,
+  `--acquire LABEL`, `--release HOST`), never hardcode: a host is busy if it
+  holds `/tmp/.retro-build-lock` or is compiling, so hand-started builds count.
+- **Two machines multi-boot from one IP**: the G3 (`yosemite`, `yosemite-tiger`)
+  and the dual G5 (`g5-panther`, `g5-tiger`, `g5-desktop`, all `powermacg5` on
+  10.188.1.188). One OS at a time, so each partition needs its own alias with
+  `HostKeyAlias` and `CheckHostIP no`, and the booted one mounts its neighbours
+  under `/Volumes`. Switch with `bless` and reboot; `docs/BENCHMARKING.md`.
+
+## Lion build-box traps
+
+- Git there is Xcode 4's 1.7, which has no `git -C`. Use `( cd DIR && git ... )`.
+- Its OpenSSL cannot do TLS 1.2. Modern git/curl/OpenSSL under `~/local` do
+  reach GitHub, but clone from `vendor/hlsdk-portable-mirror.git` anyway.
+- `--disable-altivec` is an ENGINE option. It breaks hlsdk's configure.
+- hlsdk assumes darwin means clang, so it hands gcc a `-Wl,--no-undefined`
+  flag that Apple's ld rejects.
+- Lion's `strings` cannot read a modern x86_64 Mach-O and reports zero matches,
+  which looks exactly like a missing patch. Verify strings on the dev box.
+
+## Working method: measure, and refute when it earns it
+
+Work solo by default. Agents are a tool for when they pay, not a ritual.
+
+A **refutation pass** is handing a fresh agent the diff plus the unpatched
+upstream file and telling it to **refute** the fix, not approve it. It is worth
+doing when a claim is load-bearing and hard to test directly: a mechanism about
+endianness, the frame loop, save/restore or `dlopen`, or any "this is why it
+broke" that is about to be written down as fact. Three mechanisms were published
+as fact and retracted in one session; that is the failure it exists for.
+
+**Do not run one automatically.** Judge whether it earns its cost, and when it
+does, say so and ask before running it. A build-script change or a mechanical
+port that the compiler and the hardware already check is not a candidate: the
+build and the bench boxes are the stronger evidence.
+
+Brief every agent: read-only unless told otherwise, label each claim measured or
+inferred. A partial result from a killed agent is a lead, never a finding.
+
+## Hard rules
+
+- **NEVER trust a build's "done" or exit 0.** waf exits 0 on a failed task and
+  then installs stale objects. Procedure, cpusubtype stamping and the launcher's
+  display profiles: `.claude/rules/build-verification.md`.
+- **Payload sits at the `valve/` level**, not the rodir root, or the engine's
+  pre-flight check misses it. `.claude/rules/shipped-layout.md`, `docs/adr/0006`
+- **We ship code, not content.** No Valve assets, no mod author's content, ever.
+- **Never PR or push to upstream repos.** Changes live as `scripts/patch-*.py`
+  and `patches/vendor/*.diff`; vendored trees stay re-clonable.
+- **Build the release DMG only on a Tiger G4**, never the G3 or Lion, `-format
+  UDZO`; md5 every binary, `hdiutil verify` is not enough. `docs/adr/0005`
+- Before a release run `python3 tests/test-repo.py` and `tests/test-artifact.sh`.
+- **No em dashes anywhere**, prose or shipped strings.
+- **Never rate or praise work**, ours or upstream's; attribution is a fact.
+- **No Claude co-author** on commits.
+
+## Read on demand
+
+- `README.md` public overview: fleet matrix, per-machine config, upstream credits
+- `docs/MODS.md` mods and rebuilds, `docs/MOD-AUDIT.md` the source audit,
+  `docs/ICONS.md` icons and the Panther size ceiling, `tests/README.md` coverage
+- `docs/BENCHMARKING.md` the timerefresh harness, the ssh aliases, and the
+  runbook for onboarding a new machine or partition; `docs/GL-OPTIMIZATION-CASE-STUDY.md`
+  how the single-pass world draw was measured
+- `docs/adr/`: 0001 CPU-capability slices, 0002 pinned vendoring, 0003 split
+  trees, 0004 SDL2, 0005 Lion builds and Tiger packaging, 0006 code not content,
+  0007 launcher, 0008 mod dylibs, 0009 mod installer, 0010 report-app floors,
+  0011 per-mod sources + installer TLS

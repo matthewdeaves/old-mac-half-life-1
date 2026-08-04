@@ -1,0 +1,3 @@
+Valve's Quake-style deathmatch.
+Multiplayer only - rocket jumps,
+the lightning gun and no story.

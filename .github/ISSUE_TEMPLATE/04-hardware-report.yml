@@ -1,0 +1,66 @@
+name: A hardware report
+description: Telling us what happened on a Mac that is not in the tested list, whether it worked or not.
+labels: ["hardware-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The tested list in the README is only the machines available here, not
+        the limit of what can work. Several combinations are expected to run and
+        have never been confirmed by anyone: a G5 on Panther or Tiger, a G4 on
+        10.3.9, a G3 on Leopard, any PowerPC on a 10.6 build.
+
+        **A report that it simply worked is as useful as one that it did not.**
+        It is how the supported list gets widened.
+
+  - type: textarea
+    id: sysreport
+    attributes:
+      label: System Report output
+      description: >-
+        The whole report, straight from Half-Life System Report.app on the disk
+        image. This alone identifies the machine, the OS and the slice it asked
+        for, so it is the important part.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: What happened
+      options:
+        - It works
+        - It launches, but something is wrong
+        - It does not launch at all
+    validations:
+      required: true
+
+  - type: textarea
+    id: detail
+    attributes:
+      label: How far you got
+      description: >-
+        Whether you reached the menu, started a new game, played through the
+        tram intro, tried a mod, tried multiplayer. If something was wrong, what.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Which release
+      placeholder: v1.4.1
+    validations:
+      required: true
+
+  - type: textarea
+    id: machine
+    attributes:
+      label: Anything about the machine the report cannot see
+      description: >-
+        A graphics card that was swapped in, a processor upgrade, unusual RAM, an
+        external display, or the OS being an installation that started life as an
+        older one.
+    validations:
+      required: false

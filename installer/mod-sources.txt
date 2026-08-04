@@ -1,0 +1,240 @@
+# mod-sources.txt - where each mod's CONTENT is fetched from, one mod per block.
+#
+# We host nothing. Every URL here is a public download published by someone else,
+# and the app fetches it on the user's behalf exactly as their browser would. The
+# game CODE is ours (dist/mods/<branch>), the content is theirs, and the same
+# posture applies here as to valve/: see docs/adr/0006.
+#
+# Format, one block per mod, blank line between blocks, '#' starts a comment:
+#
+#   mod    <gamedir>      must match column 1 of mods.map
+#   url    <http(s) URL>  more than one allowed; tried in order, first win
+#   kind   zip | 7z       archive format, NOT guessed from the extension
+#   size   <bytes>        exact, for the free-space check before starting
+#   md5    <32 hex>       of the ARCHIVE as downloaded
+#   root   <path> | .     where the mod's own tree starts INSIDE the archive
+#
+# URLs ARE ALREADY PERCENT-ENCODED. OMDownload does no encoding of its own, and
+# several of these paths carry spaces, brackets and even a lambda
+# ("H%CE%BBlf-Life Residual Life"). Do not "tidy" them back into literal spaces.
+#
+# ABOUT `root`, WHICH IS THE FIELD THAT ACTUALLY MATTERS
+# -----------------------------------------------------
+# Almost none of these archives unpack to a folder named after the gamedir the
+# engine expects, and that is not cosmetic: Custom Game, liblist.gam and our own
+# mods.map all key off the gamedir. Verified by listing every archive rather than
+# trusting its name:
+#
+#   asheep   ships as  azuresheep          cc      ships as  caseclosed
+#   cad      ships as  CAd                 redempt ships as  absoluteredemption
+#   rp       ships as  rp_v1_pub_final1
+#
+# and two ship the mod's CONTENTS at the archive root with no wrapping folder at
+# all (`root .`), while poke646 is one level down inside a collection folder. So
+# the installer reads `root`, takes that subtree, and writes it out as <gamedir>.
+#
+# Checking the name of a search result is not evidence. Two of these were wrong
+# until the archive was actually opened:
+#   - runthinkshootlive's "Black Ops" download is Black Ops REDUX, a different
+#     and much later mod than the one our `blackops` branch builds code for.
+#     Re-sourced from archive.org, which has the original.
+#   - a site search for "Night at the Office" returned Espionage, and one for
+#     "Xen Warrior" returned Sabotage.
+#
+# WHY THESE TWO HOSTS AND NOT MODDB
+# ---------------------------------
+# ModDB is where a lot of this is nominally published, and it is unusable: it
+# sits behind Cloudflare and answers a non-browser client with 403 before TLS or
+# anything else matters. Measured, not assumed. runthinkshootlive serves direct
+# files with Range support, and archive.org does the same over plain http AND
+# publishes a per-file md5 we can pin against.
+#
+# The md5s below were computed from the actual downloads, not copied from a
+# listing. They are what makes a silently-changed mirror a hard failure instead
+# of a mod that half-works.
+
+# ---------------------------------------------------------------------------
+# runthinkshootlive. HTTPS only (plain http 301s), TLS 1.3 in practice, Range
+# honoured, and it was reachable from a G3 on 10.3.9 - which is the whole reason
+# the app now carries mbedTLS. See OMTLS.m.
+# ---------------------------------------------------------------------------
+
+mod    asheep
+url    https://files.runthinkshootlive.com/half-life-1/hl1-sp-azure-sheep.7z
+kind   7z
+size   28076864
+md5    14bf7d3198ae86834786cb06c4c626e7
+root   azuresheep
+
+mod    biglolly
+url    https://files.runthinkshootlive.com/half-life-1/hl1-sp-big-lolly-folder.7z
+kind   7z
+size   9699880
+md5    7a31b8f1563db9ab8e57e5d47838ea1a
+root   biglolly
+
+mod    cad
+# Ships as "CAd". A case-only difference is invisible on HFS+ but not on a
+# case-sensitive volume, and the gamedir is written into liblist.gam, so it is
+# normalised rather than left to luck.
+url    https://files.runthinkshootlive.com/half-life-1/hl1-sp-cleaners-adventures.7z
+kind   7z
+size   89597855
+md5    a9a7bcf72ed24dd22818c0aa15dd87a0
+root   CAd
+
+mod    cc
+url    https://files.runthinkshootlive.com/half-life-1/hl1-sp-case-closed.7z
+kind   7z
+size   9387158
+md5    8b789dcf1002ada8075d4d08400cbea2
+root   caseclosed
+
+mod    echoes
+url    https://files.runthinkshootlive.com/half-life-1/hl1-sp-hl-echoes-1.4.7z
+kind   7z
+size   234226067
+md5    128707c246a22215f773b7f909c8d555
+root   echoes
+
+mod    Hunger
+url    https://files.runthinkshootlive.com/half-life-1/hl1-sp-they-hunger-with-steamfix.7z
+kind   7z
+size   47437198
+md5    eed133ceb4403638bf9bbe81fcad23b9
+root   Hunger
+
+mod    induction
+url    https://files.runthinkshootlive.com/half-life-1/hl1-sp-induction-1.2.7z
+kind   7z
+size   14912111
+md5    fd22ae4dcba7f4b2778ac2aa0676ccc0
+root   induction
+
+mod    redempt
+url    https://files.runthinkshootlive.com/half-life-1/hl1-sp-absolute-redemption-steam.7z
+kind   7z
+size   28513025
+md5    1c3541fc12ab6e02bf78a9e84fc8c671
+root   absoluteredemption
+
+mod    tot
+url    https://files.runthinkshootlive.com/half-life-1/hl1-sp-times-of-troubles-v12.7z
+kind   7z
+size   11278221
+md5    92862a43b3bc16681e3fd1a9c4c8d999
+root   tot
+
+mod    visitors
+url    https://files.runthinkshootlive.com/half-life-1/hl1-sp-hl-visitors-steam.7z
+kind   7z
+size   30764794
+md5    ac2b5d6d7fee9749d159e09c7ae37838
+root   visitors
+
+mod    xenwar
+url    https://files.runthinkshootlive.com/half-life-1/hl1-sp-xen-warrior.7z
+kind   7z
+size   6730621
+md5    300eb32bff6f90c1b3f6ed890580cd93
+root   xenwar
+
+# ---------------------------------------------------------------------------
+# archive.org. Works over PLAIN http end to end: /download/ answers 302 to a
+# storage node that is also plain http and honours Range at multi-gigabyte
+# offsets. Kept on http deliberately - it costs a 20-year-old machine nothing,
+# and the md5 below is the integrity check either way.
+# ---------------------------------------------------------------------------
+
+mod    blackops
+# NOT runthinkshootlive's "Black Ops", which is Black Ops REDUX - a later,
+# different mod that our blackops branch does not build code for. This is the
+# original. Confirmed by opening it: the tree inside is named `blackops`.
+url    http://archive.org/download/half-lifeseriesmods_20191215_1013/Black%20Ops/Black%20Ops.zip
+kind   zip
+size   44763121
+md5    8c60afe18bb6279d0b3b74cbaac0aa30
+root   blackops
+
+mod    half-screwed
+url    http://archive.org/download/half-lifeseriesmods_20191215_1013/Half-Screwed/Half-Screwed%20Death%20and%20Rebirth.zip
+kind   zip
+size   81972097
+md5    185ea4ee627daf3db498e609eb0ac147
+root   half-screwed
+
+mod    noffice
+# Contents sit at the archive root, so `root .`. It also carries an EXTRAS/
+# folder of Windows .exe bonus videos, which the normal exclusion pass drops
+# along with the Windows game dlls.
+url    http://archive.org/download/noffice-1.3/noffice.zip
+kind   zip
+size   40591788
+md5    83ba3ba1309f862c91d8d3c8efc0b9c2
+root   .
+
+mod    poke646
+# runthinkshootlive's copy is a bare poke646.exe installer, so it is unusable
+# here. This one is a plain archive with the tree one level down.
+url    http://archive.org/download/goldsrc_mods_poke646/goldsrc_mods_poke646.7z
+kind   7z
+size   55750339
+md5    6d58d86251630cc799abf2b231b59fc3
+root   goldsrc_mods_poke646/poke646
+
+mod    rp
+# The lambda in the path is real and is part of the uploader's folder name.
+url    http://archive.org/download/half-lifeseriesmods_20191215_1013/H%CE%BBlf-Life%20Residual%20Life/Residual%20Point%20%282020%29.zip
+kind   zip
+size   132205623
+md5    900f065941541595aeb97ef75ca2fcf9
+root   rp_v1_pub_final1
+
+mod    shall
+# Contents at the archive root, like noffice. Carries the packager's SAVE/ and
+# config.cfg, which the existing exclusion pass already refuses to copy.
+url    http://archive.org/download/swiss-cheese-halloween/swiss_cheese_halloween_201.zip
+kind   zip
+size   78383657
+md5    9d1c9a5b02b1af9aebad2a48e7f47dc5
+root   .
+
+mod    Zombie-X-DLE
+url    http://archive.org/download/half-lifeseriesmods_20191215_1013/Zombie-X/Zombie-X%20Dynamic%20Lighting%20Editon.zip
+kind   zip
+size   152814109
+md5    d8b2e2af0cbcfb9da0d7621bd4035a72
+root   Zombie-X-DLE
+
+# ===========================================================================
+# NOT LISTED, AND WHY. These are not omissions to be filled in later without
+# checking; each one was looked for and the reason it is absent is specific.
+# The app must say so per mod rather than silently installing fewer than the 25
+# in mods.map, and Choose... remains the route for all of them.
+# ===========================================================================
+#
+# aom       Afraid of Monsters. Every copy found is a Clickteam Install Creator
+#           .exe. That is a proprietary installer format with no open extractor,
+#           so there is nothing we can unpack on a Mac. Confirmed on the
+#           runthinkshootlive copy and on archive.org's `afraidof-monsters`.
+#
+# eftd      Escape from the Darkness. Only copy found wraps an installer .exe of
+#           unidentified type. Not unpackable.
+#
+# vendetta  Poke646 Vendetta. runthinkshootlive ships a bare
+#           poke646_vendetta.exe; 7-Zip itself cannot open it and it carries no
+#           recognisable installer signature. No archive form found anywhere.
+#
+# TheGate   The Gate. No source found at all. Both runthinkshootlive slugs that
+#           match are other mods (The Gate 2, an HL2 Episode 2 mod, and
+#           Gateway), and archive.org has nothing.
+#
+# bshift    Blue Shift, Opposing Force and Deathmatch Classic are Valve retail
+# gearbox   products, not free mods, and we will not fetch them from anywhere.
+# dmc       They are handled the other way round: if their content is ALREADY in
+#           the destination, the installer drops in the fat ppc + x86_64 dylibs
+#           and rewrites liblist.gam so they work, and downloads nothing. Same
+#           posture as valve/ - the player supplies content they own.
+#
+# tfc       Team Fortress Classic. No source exists to rebuild the game code
+#           from at all; see mods.map and GitHub issue #13.

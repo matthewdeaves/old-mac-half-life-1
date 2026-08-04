@@ -1,0 +1,136 @@
+// English dictionary for the Xash3D FWGS menu (mainui_cpp) coded tokens.
+//
+// WHY THIS FILE EXISTS
+// mainui asks the dictionary for coded tokens such as "GameUI_MouseSensitivity",
+// and MenuStrings.cpp L() returns its argument unchanged when the key is not
+// found. Plain-English keys like "Crosshair" therefore resolve to themselves and
+// look right, but a coded token resolves to its own name and is DRAWN THAT WAY.
+//
+// Retail Half-Life data carries no resource/*_english.txt at all: valve/resource
+// holds only GameUIScheme.res, and pak0.pak has nothing under resource/. mainui
+// does not bundle these either, because dictgen.py classifies the GameUI_ prefix
+// as nonfree, meaning it expects Valve's own GameUI translation files to supply
+// them. With neither present, tokens reached the screen verbatim.
+//
+// Visible cases included every checkbox and slider label in Options (Reverse
+// Mouse, Mouse Look, Mouse Filter, Auto-Aim, Raw Input, Mouse Sensitivity, the
+// three volume sliders, Gamma, Brightness, Vertical Sync), the column headings in
+// Controls, Load Game, Video Modes and Custom Game, the map-loading screen
+// ("GameUI_PrecachingResources" on every level change), and the status line under
+// the main-menu buttons. Pic-button LABELS were masked, because with retail art
+// present PicButton.cpp draws the bitmap from btns_main.bmp and never looks at the
+// name, so "New Game" and "Quit" always read correctly and hid how much else did
+// not.
+//
+// The parser accepts plain ASCII, as here, as well as UTF-16, and byte-swaps
+// UTF-16 on big-endian, so one file serves both PowerPC and Intel.
+//
+// Two prefixes appear. GameUI_ is used by both trees. Valve_ is used only by
+// the PowerPC menu fork, for the spray-paint colour names in Customize, and is
+// written there as "#Valve_Orange": L() strips a leading # before looking the
+// key up, so the key stored here carries none. dictgen.py puts both prefixes in
+// the same nonfree bucket, so neither will ever come from upstream.
+//
+// Only coded tokens belong here. Plain-English keys already resolve to
+// themselves, and StringsList_N keys come from mainui's built-in table.
+//
+// Shipped by scripts/make-universal.sh into the app's read-only game root at
+// valve/resource/, which is the lowest-priority search path, so a player who
+// supplies their own copy still wins.
+"lang"
+{
+"Language" "English"
+"Tokens"
+{
+"GameUI_Action"                  "Action"
+"GameUI_Alternate"               "Alternate"
+"GameUI_Apply"                   "Apply"
+"GameUI_Audio"                   "Audio"
+"GameUI_AutoAim"                 "Auto-Aim"
+"GameUI_AutoaimLabel"            "Auto-Aim"
+"GameUI_AutoSave"                "[Autosave]"
+"GameUI_Brightness"              "Brightness"
+"GameUI_Cancel"                  "Cancel"
+"GameUI_ChangeGame"              "Custom Game"
+"GameUI_Console"                 "Console"
+"GameUI_Disconnected"            "Disconnected"
+"GameUI_Easy"                    "Easy"
+"GameUI_ElapsedTime"             "Elapsed Time"
+"GameUI_EnableVoice"             "Enable Voice"
+"GameUI_EstablishingConnection"  "Establishing connection..."
+"GameUI_ForceGameRestart"        "This change requires the game to be restarted."
+"GameUI_Game"                    "Game"
+"GameUI_GameMenu_CreateServer"   "Create Server"
+"GameUI_GameMenu_Customize"      "Customize"
+"GameUI_GameMenu_Disconnect"     "Disconnect"
+"GameUI_GameMenu_Quit"           "Quit"
+"GameUI_GameMenu_ResumeGame"     "Resume Game"
+"GameUI_Gamma"                   "Gamma"
+"GameUI_Hard"                    "Difficult"
+"GameUI_HEVSuitVolume"           "HEV Suit Volume"
+"GameUI_HighModels"              "High Quality Models"
+"GameUI_Joystick"                "Joystick"
+"GameUI_JoystickLabel"           "Joystick"
+"GameUI_KeyboardSettingsText"    "Keyboard Settings"
+"GameUI_KeyButton"               "Key / Button"
+"GameUI_Load"                    "Load"
+"GameUI_LoadGame"                "Load Game"
+"GameUI_LoadGameHelp"            "Load a previously saved game."
+"GameUI_Map"                     "Map"
+"GameUI_MaxPlayers"              "Max Players"
+"GameUI_Medium"                  "Medium"
+"GameUI_MouseFilter"             "Mouse Filter"
+"GameUI_MouseFilterLabel"        "Mouse Filter"
+"GameUI_MouseLook"               "Mouse Look"
+"GameUI_MouseLookLabel"          "Mouse Look"
+"GameUI_MouseSensitivity"        "Mouse Sensitivity"
+"GameUI_MP3Volume"               "MP3 Volume"
+"GameUI_Multiplayer"             "Multiplayer"
+"GameUI_MultiplayerAdvanced"     "Advanced"
+"GameUI_NewGame"                 "New Game"
+"GameUI_OK"                      "OK"
+"GameUI_Options"                 "Options"
+"GameUI_ParseServerInfo"         "Parsing server info..."
+"GameUI_Password"                "Password"
+"GameUI_PasswordPrompt"          "This server requires a password to join."
+"GameUI_PlayerName"              "Player Name"
+"GameUI_PlayGame_Alt"            "Play Game"
+"GameUI_PrecachingResources"     "Precaching resources..."
+"GameUI_QuickSave"               "[Quick save]"
+"GameUI_QuitConfirmationText"    "Are you sure you want to quit?"
+"GameUI_RandomMap"               "Random Map"
+"GameUI_RawInput"                "Raw Input"
+"GameUI_RawInputLabel"           "Raw Input"
+"GameUI_Renderer"                "Renderer"
+"GameUI_Resolution"              "Resolution"
+"GameUI_ReverseMouse"            "Reverse Mouse"
+"GameUI_ReverseMouseLabel"       "Reverse Mouse"
+"GameUI_Save"                    "Save"
+"GameUI_SaveGame_Current"        "Current"
+"GameUI_SaveGame_New"            "New"
+"GameUI_SaveGame_NewSavedGame"   "New Saved Game"
+"GameUI_SaveGame"                "Save Game"
+"GameUI_SaveGameHelp"            "Save the current game."
+"GameUI_ServerName"              "Server Name"
+"GameUI_SoundEffectVolume"       "Sound Effect Volume"
+"GameUI_SpraypaintImage"         "Spray Paint Image"
+"GameUI_StartingServer"          "Starting server..."
+"GameUI_Time"                    "Time"
+"GameUI_TrainingRoom"            "Training"
+"GameUI_Type"                    "Type"
+"GameUI_UseDefaults"             "Use Defaults"
+"GameUI_Video"                   "Video"
+"GameUI_VoiceReceiveVolume"      "Voice Receive Volume"
+"GameUI_VoiceTransmitVolume"     "Voice Transmit Volume"
+"GameUI_VSync"                   "Vertical Sync"
+"Valve_Blue"                     "Blue"
+"Valve_Brown"                    "Brown"
+"Valve_Dkgray"                   "Dark Gray"
+"Valve_Green"                    "Green"
+"Valve_Ltblue"                   "Light Blue"
+"Valve_Ltgray"                   "Light Gray"
+"Valve_Orange"                   "Orange"
+"Valve_Red"                      "Red"
+"Valve_Yellow"                   "Yellow"
+}
+}

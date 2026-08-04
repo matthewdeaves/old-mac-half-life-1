@@ -1,0 +1,2 @@
+Single-player detective-flavoured
+mod with a self-contained story.

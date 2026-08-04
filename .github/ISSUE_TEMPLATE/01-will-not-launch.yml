@@ -1,0 +1,95 @@
+name: The game will not launch
+description: Half-Life.app does nothing, quits immediately, or shows an error before you reach the menu.
+labels: ["launch"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A slice is chosen by CPU alone and the OS version is ignored, so the
+        first thing to establish is which slice your Mac asked for and what OS
+        it is running. **Half-Life System Report.app** on the disk image answers
+        both, and runs on machines where the game does not.
+
+        Open it, press the button that copies the report, and paste it below.
+
+  - type: textarea
+    id: sysreport
+    attributes:
+      label: System Report output
+      description: The whole report, straight from Half-Life System Report.app. Do not trim it.
+      render: text
+      placeholder: |
+        Half-Life old-Mac port - system report
+        ======================================
+        ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: symptom
+    attributes:
+      label: What actually happens
+      options:
+        - Nothing at all, the icon does not bounce
+        - The icon bounces once or twice, then stops
+        - An error dialog appears
+        - A window opens then closes
+        - A black or blank screen, then back to the Finder
+        - Something else, described below
+    validations:
+      required: true
+
+  - type: textarea
+    id: errortext
+    attributes:
+      label: The exact wording of any error
+      description: >-
+        Type it out or paste it. A photo of the screen is fine if you cannot
+        copy the text; drag the image into this box.
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Which release
+      description: From the release you downloaded, or BUILD-INFO.txt on the disk image.
+      placeholder: v1.4.1
+    validations:
+      required: true
+
+  - type: textarea
+    id: layout
+    attributes:
+      label: Where the app and your valve folder are
+      description: >-
+        The full paths. Half-Life.app needs your own retail `valve` folder
+        sitting beside it in the same folder.
+      placeholder: |
+        /Users/me/Desktop/Half-Life/Half-Life.app
+        /Users/me/Desktop/Half-Life/valve/
+    validations:
+      required: true
+
+  - type: textarea
+    id: crashlog
+    attributes:
+      label: Crash report, if there is one
+      description: >-
+        From `~/Library/Logs/CrashReporter` on 10.3 to 10.5, or
+        `~/Library/Logs/DiagnosticReports` on newer systems. Anything in
+        Console.app from the moment you tried to launch is useful too.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: anythingelse
+    attributes:
+      label: Anything else
+      description: >-
+        Which edition of Half-Life the valve folder came from, whether an
+        earlier release worked, what you had already tried. Too much detail is
+        more useful than too little.
+    validations:
+      required: false

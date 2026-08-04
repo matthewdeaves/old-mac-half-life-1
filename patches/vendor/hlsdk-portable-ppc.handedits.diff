@@ -1,0 +1,30 @@
+diff --git a/public/build.h b/public/build.h
+index f544aff5..a7719384 100644
+--- a/public/build.h
++++ b/public/build.h
+@@ -204,7 +204,7 @@ Then you can use another oneliner to query all variables:
+ #elif defined __e2k__
+ 	#define XASH_64BIT 1
+ 	#define XASH_E2K 1
+-#elif defined __PPC__ || defined __powerpc__
++#elif defined __PPC__ || defined __powerpc__ || defined __ppc__ || defined __POWERPC__ // oldmac: Apple gcc-4.2 spells it __ppc__/__POWERPC__
+ 	#define XASH_PPC 1
+ 	#if defined __PPC64__ || defined __powerpc64__
+ 		#define XASH_64BIT 1
+diff --git a/wscript b/wscript
+index 6004eaaf..e02cbd28 100644
+--- a/wscript
++++ b/wscript
+@@ -122,6 +122,12 @@ def configure(conf):
+ 	cflags, linkflags = conf.get_optimization_flags()
+ 	cxxflags = list(cflags) # optimization flags are common between C and C++ but we need a copy
+ 
++	# oldmac: Apple ld (ld64) has no GNU '--no-undefined'; it's only added for the gcc
++	# path (our PowerPC gcc-4.2 cross-build). GoldSrc game dylibs resolve engine symbols
++	# at load via the function-pointer handoff, so undefined-symbol checking isn't needed.
++	if conf.env.DEST_OS == 'darwin' and '-Wl,--no-undefined' in linkflags:
++		linkflags.remove('-Wl,--no-undefined')
++
+ 	# on the Switch, allow undefined symbols by default, which is needed for libsolder to work
+ 	# we'll specifically disallow them for the engine executable
+ 	# additionally, shared libs are linked without standard libs, we'll add those back in the engine wscript

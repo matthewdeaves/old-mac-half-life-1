@@ -1,0 +1,84 @@
+name: A problem while playing
+description: The game launches, but something is wrong once you are in it: graphics, sound, input, saves, multiplayer.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Most of what makes an old-Mac bug reproducible is the machine it happened
+        on: CPU, OS, graphics chip and OpenGL limits. **Half-Life System
+        Report.app** on the disk image collects all of that in one press.
+
+  - type: textarea
+    id: sysreport
+    attributes:
+      label: System Report output
+      description: The whole report, straight from Half-Life System Report.app. Do not trim it.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: What sort of problem
+      options:
+        - Graphics, something looks wrong
+        - Performance, it runs too slowly
+        - Sound
+        - Keyboard or mouse
+        - Saving or loading a game
+        - Level change or a scripted sequence not happening
+        - Multiplayer
+        - The menu
+        - Something else, described below
+    validations:
+      required: true
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens, and what you expected instead
+      description: >-
+        If you can name the map and the point in it, do. `developer 1` in the
+        console, opened with the `~` key, prints more as you play.
+    validations:
+      required: true
+
+  - type: input
+    id: game
+    attributes:
+      label: Base game or a mod
+      description: If a mod, name it and say whether the base game does the same thing.
+      placeholder: Base game / Opposing Force / They Hunger
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Which release
+      placeholder: v1.4.1
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to see it happen
+      description: >-
+        The steps you would give someone else. If it only happens sometimes, say
+        roughly how often.
+    validations:
+      required: false
+
+  - type: textarea
+    id: shots
+    attributes:
+      label: Screenshots
+      description: >-
+        Drag images in. The console's `screenshot` command writes to your game
+        folder. For a graphics fault a picture usually settles it faster than a
+        description.
+    validations:
+      required: false
