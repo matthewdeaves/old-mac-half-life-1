@@ -3,7 +3,7 @@
 # the Panther/Tiger built-in `/usr/bin/sample` (no Xcode, no CHUD kext needed).
 #
 # It launches the deployed Half-Life.app headless, loads a map, runs a short
-# warmup `timerefresh` (added by patch-timerefresh.py), and the moment that
+# warmup `timerefresh` (a commit on our engine branch), and the moment that
 # warmup's result line appears - i.e. the map is loaded and we are about to
 # enter a long flat-out render - it fires `sample` at the live process for a
 # fixed window. The resulting symbol-level call tree lands in $OUT.

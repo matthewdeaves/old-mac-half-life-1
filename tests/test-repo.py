@@ -415,24 +415,34 @@ def test_drivers_refuse_a_tree_that_is_not_at_its_pin():
     check("every build driver reads the pins", not missing, "\n".join(missing))
 
 
-def test_no_script_calls_a_patch_script_that_is_gone():
-    """Deleting a retired patch script must not leave a driver calling it.
+def test_no_script_calls_a_helper_that_is_gone():
+    """Deleting a retired script must not leave a driver calling it.
 
-    Forty-three of them were removed when the port moved onto our own branches.
-    A driver still invoking one would fail at build time, which is loud and fine,
-    but a doc or a test still naming one is a quiet lie about how this builds.
+    Forty-five went when the port moved onto our own branches. This is not a
+    style check: build-mod.sh was left invoking scripts/graft-ppc-endian.sh after
+    it was deleted, which would have failed every mod build at the first branch.
+    The earlier version of this test looked only for patch-*.py and so did not
+    see it, which is why it now covers every script in scripts/ regardless of
+    extension.
+
+    Only real invocations count, not mentions: a comment explaining why something
+    was removed is exactly the thing worth writing.
     """
-    present = set(patch_scripts())
+    present = set(os.listdir(os.path.join(REPO, "scripts")))
     dangling = []
     for sh in shell_scripts():
         body = read(os.path.join("scripts", sh))
         cmds = shell_commands(body)
-        for name in set(re.findall(r'patch-[a-z0-9-]+\.py', body)):
-            if name in present:
+        # Anchored on "scripts/NAME", with no further path component allowed
+        # between them. Without that anchor this matched
+        # "$tree_p/scripts/waifulib/xcompile.py", which is a path INTO a mod's
+        # own source tree passed as an argument, not a script of ours.
+        for name in set(re.findall(r'scripts/([a-z0-9][a-z0-9._-]*\.(?:py|sh))\b', body)):
+            if name in present or name == sh:
                 continue
             if invocation_line(cmds, name) >= 0:
-                dangling.append("%s calls %s, which does not exist" % (sh, name))
-    check("no script invokes a deleted patch script", not dangling,
+                dangling.append("scripts/%s invokes %s, which does not exist" % (sh, name))
+    check("no script invokes a helper that has been deleted", not dangling,
           "\n".join(dangling))
 
 
@@ -530,7 +540,7 @@ def main():
                test_every_pin_is_a_full_commit,
                test_every_pin_has_a_url_and_a_branch,
                test_drivers_refuse_a_tree_that_is_not_at_its_pin,
-               test_no_script_calls_a_patch_script_that_is_gone,
+               test_no_script_calls_a_helper_that_is_gone,
                test_surviving_patch_scripts_are_still_wired,
                test_no_em_dashes,
                test_no_stray_tool_markup,

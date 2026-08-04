@@ -79,13 +79,20 @@ static BOOL om_is_heading( NSString *line );
 	[content addSubview:progress];
 
 	/*
-	 * Two buttons, not three. "Choose..." used to let the user point at a mod
-	 * folder they already had, which mattered when the content arrived as one
-	 * disk image somebody had to obtain separately. It does not now: the app
-	 * fetches every mod it knows how to fetch, and for the handful it cannot,
-	 * dropping the folder beside Half-Life.app and pressing Get Mods does the
-	 * same job with nothing to explain.
+	 * Three buttons. "Choose Folder..." exists because finding Half-Life.app is
+	 * a convenience, not a constraint: it decides where the panel OPENS, and
+	 * nothing more. Mods install wherever the user says, including a folder with
+	 * no Half-Life.app in it at all, which is a perfectly reasonable thing to
+	 * want. Somebody may keep mods on another volume, stage them before moving
+	 * them, or run more than one copy of the game.
+	 *
+	 * Without this button the destination could only ever be the one the search
+	 * happened to find, and the panel only appeared when the search FAILED, so a
+	 * wrong guess was unfixable from the UI.
 	 */
+	getButton    = [self buttonAt:NSMakeRect(  56, 330, 160, 32 ) title:@"Choose Folder..." action:@selector(chooseDestination:)];
+	[content addSubview:getButton];
+	chooseButton = getButton;
 	getButton    = [self buttonAt:NSMakeRect( 228, 330, 160, 32 ) title:@"Get Mods" action:@selector(getMods:)];
 	cancelButton = [self buttonAt:NSMakeRect( 400, 330, 160, 32 ) title:@"Cancel"   action:@selector(cancel:)];
 	[cancelButton setEnabled:NO];
@@ -181,13 +188,15 @@ static BOOL om_is_heading( NSString *line );
 	{
 		[self omLog:@"Could not find Half-Life.app automatically."];
 		[self omLog:@"Searched: this folder, Desktop, Games, /Applications, Home."];
-		[self omLog:@"You will be asked to locate it when you start."];
-		[self omStatus:@"Half-Life.app not found."];
+		[self omLog:@"You will be asked where to install when you start."];
+		[self omLog:@"Or press Choose Folder... to pick one now."];
+		[self omStatus:@"Choose a folder to install into."];
 	}
 	else
 	{
 		[self omLog:[NSString stringWithFormat:@"Half-Life.app found in: %@", destRoot]];
-		[self omLog:@"Mods will be installed alongside it."];
+		[self omLog:@"Mods will be installed there. Press Choose Folder... to"];
+		[self omLog:@"install somewhere else instead."];
 		[self omStatus:@"Ready."];
 	}
 	[self omLog:[NSString stringWithFormat:@"Log: %@", logPath]];

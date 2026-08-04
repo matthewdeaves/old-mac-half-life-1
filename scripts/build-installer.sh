@@ -71,8 +71,8 @@ SOURCES="$SRC/main.m $SRC/OMController.m $SRC/OMInstaller.m $SRC/OMDownload.m $S
 # both.
 ZLIB="$ROOT/vendor/zlib-installer"
 LZMA="$ROOT/vendor/lzma-installer/C"
-[ -d "$ZLIB" ] || { echo "ERROR: missing zlib at $ZLIB - run scripts/bootstrap-vendor.sh" >&2; exit 1; }
-[ -d "$LZMA" ] || { echo "ERROR: missing LZMA SDK at $LZMA - run scripts/bootstrap-vendor.sh" >&2; exit 1; }
+[ -d "$ZLIB" ] || { echo "ERROR: missing zlib at $ZLIB - run scripts/fetch-sources.sh" >&2; exit 1; }
+[ -d "$LZMA" ] || { echo "ERROR: missing LZMA SDK at $LZMA - run scripts/fetch-sources.sh" >&2; exit 1; }
 [ -f "$ZLIB/zconf.h" ] || cp "$ZLIB/zconf.h.in" "$ZLIB/zconf.h"
 
 # inflate only: we never compress, so deflate.c, trees.c and the gz* wrappers are
@@ -112,7 +112,7 @@ ARCHIVE_FLAGS="-I$ZLIB -I$LZMA -DZ7_ST -D_7ZIP_ST"
 # rather than excluded: om_mbedtls_config.h selects MBEDTLS_PLATFORM_MS_TIME_ALT
 # and OMTLS.m supplies the function from gettimeofday.
 MBEDTLS="$ROOT/vendor/mbedtls-installer"
-[ -d "$MBEDTLS/library" ] || { echo "ERROR: missing mbedTLS at $MBEDTLS - run scripts/bootstrap-vendor.sh" >&2; exit 1; }
+[ -d "$MBEDTLS/library" ] || { echo "ERROR: missing mbedTLS at $MBEDTLS - run scripts/fetch-sources.sh" >&2; exit 1; }
 
 MBED_SRC=""
 for f in "$MBEDTLS"/library/*.c; do

@@ -56,6 +56,16 @@ run() {
 	"$@" > "$log" 2>&1
 	rc=$?
 
+	# waf EXITS 0 ON A FAILED TASK and the install step then ships stale objects
+	# from the previous build. The exit code is therefore not evidence, and this
+	# script trusted it once: both PowerPC slices failed to compile, waf returned
+	# 0, and the run reported every step ok while the artifacts were the previous
+	# build's. Read the log as well, always. .claude/rules/build-verification.md
+	if [ "$rc" -eq 0 ] && grep -q '^Build failed' "$log" 2>/dev/null; then
+		echo "FAILED (waf said Build failed, then exited $rc)"
+		rc=1
+	fi
+
 	STEPS+=( "$label" )
 	STATUS+=( "$rc" )
 

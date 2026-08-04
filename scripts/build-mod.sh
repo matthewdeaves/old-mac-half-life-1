@@ -304,10 +304,23 @@ for branch in "$@"; do
 	fi
 	echo "  gamedir=$gamedir  server=$svname  ($svdir/, $cldir/)"
 
-	# PPC needs the big-endian game-code fixes; the script picks modern vs legacy.
-	if ! "$ROOT/scripts/graft-ppc-endian.sh" "$tree_p" | sed 's/^/  /'; then
-		echo "  !! endian graft failed" >&2; failed="$failed $branch"; continue
-	fi
+	# No big-endian graft. There used to be one here, and removing it is a fix
+	# rather than a simplification.
+	#
+	# It chose between two treatments per branch. The "legacy" one was a full
+	# graft for branches predating upstream's endian work, and it never ran: the
+	# test is whether dlls/util.cpp has ULittleToHostSW, and all 25 branches we
+	# build have it. So the only thing the script actually did was apply a swap of
+	# the studio model animation offsets and values in the client renderer.
+	#
+	# That swap is wrong, on mods for the same reason it was wrong on the base
+	# game. The engine already swaps that data, in Mod_LoadCacheFile and
+	# R_StudioLoadHeader, and it does so for mods exactly as for the base game.
+	# Applying it again in the client is a second swap, which is the identity
+	# undone: the offsets go back to little-endian and the pointer arithmetic in
+	# StudioCalcBonePosition walks off the model. It crashed the base game on
+	# every PowerPC machine as soon as a real map loaded a studio model.
+	# docs/port/PPC-PORT-NOTES.md
 	"$PY" "$ROOT/scripts/patch-hlsdk-xcompile-ppc.py" "$tree_p/scripts/waifulib/xcompile.py" | sed 's/^/  /'
 	# hlsdk assumes "darwin implies clang"; we build darwin/ppc with gcc, which needs
 	# the GNU-only -Wl,--no-undefined dropped and build.h taught Apple's PPC macros.

@@ -2,7 +2,7 @@
 # bench.sh - deterministic Half-Life FPS benchmark for the old-Mac fleet.
 #
 # Runs the engine's demo-free `timerefresh` command (added by
-# scripts/patch-timerefresh.py) against the deployed Half-Life.app on THIS
+# our engine branch) against the deployed Half-Life.app on THIS
 # machine, forcing a fixed renderer + resolution + windowed mode + map + frame
 # count so results are reproducible and comparable across the whole fleet.
 #
