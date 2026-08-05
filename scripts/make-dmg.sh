@@ -192,25 +192,39 @@ GETINFO="Half-Life-OldMac $PORTVER ($BUILD_ONELINE)"
 APPRES="$IMG/Half-Life.app/Contents/Resources"
 provenance_table "$OURHASH" "$BUILDDATE" "$PORTVER" | tee "$IMG/BUILD-INFO.txt" > "$APPRES/BUILD-INFO.txt"
 
-# Ship the repo's canonical icon (source of truth), regardless of what the build
-# box baked into the app - so an icon fix reaches the DMG without a full rebuild.
-if [ -f "$REPO_ROOT/MacOSX/Half-Life.icns" ]; then
-  cp "$REPO_ROOT/MacOSX/Half-Life.icns" "$APPRES/Half-Life.icns"
+# Ship the repo's canonical icons (source of truth), regardless of what the build
+# box baked into the apps - so an icon fix reaches the DMG without a full rebuild.
+#
+# ALL THREE apps, not just the game. This used to refresh Half-Life.app only and
+# merely VERIFY the other two, so the mod installer and the system report kept
+# whatever icon was baked in whenever they were last built. New artwork landed,
+# the game got it, and those two silently shipped icons weeks older. Their build
+# dirs are not rebuilt by build-all.sh either, so nothing else would have caught
+# it.
+for pair in "Half-Life.app:Half-Life.icns" \
+            "Half-Life Mods.app:Half-Life-Mods.icns" \
+            "Half-Life System Report.app:Half-Life-SysReport.icns"; do
+  appname="${pair%%:*}"; icnsname="${pair##*:}"
+  [ -d "$IMG/$appname" ] || continue
+  [ -f "$REPO_ROOT/MacOSX/$icnsname" ] || continue
+  cp "$REPO_ROOT/MacOSX/$icnsname" "$IMG/$appname/Contents/Resources/$icnsname"
   # Copying the file is NOT enough: without CFBundleIconFile the Finder ignores
   # it entirely and draws the blank generic app icon. make-app.sh only wrote that
   # key when it was handed an icon argument, so a bundle assembled without one
   # shipped iconless and looked like an icon-rendering bug rather than a missing
   # plist entry. Set it here too, so the release is right regardless of how the
   # bundle was assembled.
-  /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile Half-Life.icns" "$IMG/Half-Life.app/Contents/Info.plist" 2>/dev/null \
-    || /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string Half-Life.icns" "$IMG/Half-Life.app/Contents/Info.plist"
-  echo "[make-dmg] icon: Half-Life.icns + CFBundleIconFile set"
-fi
+  /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile $icnsname" "$IMG/$appname/Contents/Info.plist" 2>/dev/null \
+    || /usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string $icnsname" "$IMG/$appname/Contents/Info.plist"
+  echo "[make-dmg] icon refreshed from repo: $appname -> $icnsname"
+done
 
 # Refuse to ship an app that will draw as a blank generic icon. Both halves have
 # to be true - the .icns present in Resources AND named by CFBundleIconFile - and
 # it is exactly the combination that failed silently before.
-for pair in "Half-Life.app:Half-Life.icns" "Half-Life Mods.app:Half-Life-Mods.icns"; do
+for pair in "Half-Life.app:Half-Life.icns" \
+            "Half-Life Mods.app:Half-Life-Mods.icns" \
+            "Half-Life System Report.app:Half-Life-SysReport.icns"; do
   appname="${pair%%:*}"; icnsname="${pair##*:}"
   [ -d "$IMG/$appname" ] || continue
   [ -f "$IMG/$appname/Contents/Resources/$icnsname" ] || {
