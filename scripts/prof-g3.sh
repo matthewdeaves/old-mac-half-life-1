@@ -85,6 +85,23 @@ rm -f "$LOG" "$OUT"
 	echo quit
 } > "$CFG"
 
+# Snapshot the archived config and put it back afterwards. gl_vsync is archived,
+# so profiling would otherwise leave the machine with vsync off permanently, and
+# any cvar set here becomes that machine's new default. bench.sh carries the same
+# guard for the same reason: a measurement tool must not mutate what it measures.
+SAVED_CFG_DIR=$(mktemp -d /tmp/profcfg.XXXXXX 2>/dev/null || echo /tmp/profcfg.$$)
+mkdir -p "$SAVED_CFG_DIR"
+for f in opengl.cfg video.cfg config.cfg; do
+	[ -f "$VALVE/$f" ] && cp -p "$VALVE/$f" "$SAVED_CFG_DIR/$f" 2>/dev/null
+done
+restore_cfg () {
+	for f in opengl.cfg video.cfg config.cfg; do
+		[ -f "$SAVED_CFG_DIR/$f" ] && cp -p "$SAVED_CFG_DIR/$f" "$VALVE/$f" 2>/dev/null
+	done
+	rm -rf "$SAVED_CFG_DIR" 2>/dev/null
+}
+trap 'restore_cfg' EXIT INT TERM
+
 cd "$BASE" || exit 1
 
 # The launcher writes the engine's output to <basedir>/last-run.log itself, so
