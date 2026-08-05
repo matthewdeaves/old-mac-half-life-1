@@ -279,7 +279,13 @@ if [ -f "$STAMP_FILE" ]; then
 	fi
 	echo "[make-dmg] build stamp verified against the pin: $( short "$APP_STAMP" )"
 else
-	echo "[make-dmg] NOTE: the app carries no BUILD-STAMP (built before make-app.sh copied it)" >&2
+	echo "[make-dmg] FATAL: the app carries no BUILD-STAMP." >&2
+	echo "           Every app built by the current make-app.sh has one, so this bundle" >&2
+	echo "           is stale. This is not hypothetical: SRC_HOST is chosen as the first" >&2
+	echo "           build host that HAPPENS to hold an app, so a mini left holding an" >&2
+	echo "           older dist/ gets picked over the one that just built. Re-run" >&2
+	echo "           scripts/build-all.sh on the host you mean, or set SRC_HOST." >&2
+	exit 1
 fi
 
 echo "[make-dmg] build id - $BUILD_ONELINE"
