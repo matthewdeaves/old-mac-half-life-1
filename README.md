@@ -7,8 +7,7 @@ Intel Mac, picks the right code and display settings for whatever machine it
 finds itself on, and plays 25 Half-Life mods as well as the base game. This repo
 holds the porting glue, not the game: no Valve assets, no upstream source.
 
-**Mac OS X and macOS only, 10.3.9 up. Not Mac OS 9 / Classic**, at least not yet
-([#23](https://github.com/matthewdeaves/old-mac-halflife/issues/23)).
+**Mac OS X and macOS only, 10.3.9 up. Not Mac OS 9 / Classic.**
 
 **How this is built.** Development is a fully automated AI loop: implement,
 deploy to real hardware, test on it, iterate. The fleet is a rack of actual old
@@ -50,7 +49,7 @@ is useful:
 
 | CPU | macOS | What should happen |
 |---|---|---|
-| G5 | 10.3, 10.4 | the same `ppc7400` slice a G4 takes ([#14](https://github.com/matthewdeaves/old-mac-halflife/issues/14)) |
+| G5 | 10.3, 10.4 | the same `ppc7400` slice a G4 takes |
 | G4 | 10.3.9 | its own `ppc7400` slice, which needs nothing 10.3 lacks |
 | G3 | 10.5 | `ppc750`, which targets 10.3 |
 | any PowerPC | 10.6 PPC builds | graded by subtype; every target is older than 10.6 |
@@ -85,8 +84,7 @@ It deliberately reaches lower than the game, because the machines worth hearing
 about are the ones the game will not start on. It carries three slices: PowerPC
 from 10.3, 32-bit Intel from 10.4 and 64-bit Intel from 10.5, against the game's
 10.3.9 and 10.7. So it still runs on a Core Solo or Core Duo, and on 64-bit Intel
-under 10.6, which are the two cases the game has no slice for
-([#24](https://github.com/matthewdeaves/old-mac-halflife/issues/24)). It can do
+under 10.6, which are the two cases the game has no slice for. It can do
 that because it is plain Objective-C against Cocoa: the game's Intel floor comes
 from the menu needing libc++, and this has no C++ in it at all. On an Apple
 Silicon Mac it reports the machine as arm64 under Rosetta 2 rather than as Intel.
@@ -165,8 +163,7 @@ the game code it needs.
 
 **Team Fortress Classic** cannot be done at all.
 No open TFC server implementation exists anywhere, in any language, for GoldSrc,
-so there is nothing to rebuild from
-([#13](https://github.com/matthewdeaves/old-mac-halflife/issues/13)).
+so there is nothing to rebuild from.
 See [`docs/MODS.md`](docs/MODS.md) to build them yourself, and
 [`docs/MOD-AUDIT.md`](docs/MOD-AUDIT.md) for the source audit of them all.
 
@@ -281,8 +278,7 @@ carries Panther and Tiger on separate partitions. So it takes a row per OS
 rather than one row for the machine, and each row moves into the table above
 once that partition has actually run the game. All three take the `ppc7400`
 slice, the same one a G4 takes, since there is no `ppc970` slice; 10.3 and 10.4
-on a G5 are the untested case listed further up
-([#14](https://github.com/matthewdeaves/old-mac-halflife/issues/14)).
+on a G5 are the untested case listed further up.
 
 | Machine | CPU | GPU | macOS |
 |---|---|---|---|

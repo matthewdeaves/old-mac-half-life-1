@@ -31,7 +31,7 @@ XASH_VERSION="0.21"
 # Fork of FWGS/xash3d-fwgs, branched at f0ea3a19.
 PIN_ENGINE_URL="https://github.com/matthewdeaves/xash3d-fwgs.git"
 PIN_ENGINE_BRANCH="oldmac"
-PIN_ENGINE_COMMIT="a52cea7ccf59614e55b86497bb5faf68b94a3ba6"
+PIN_ENGINE_COMMIT="a95988c86230df501b14a3e399c142de36a3b0f1"
 PIN_ENGINE_UPSTREAM="FWGS/xash3d-fwgs@f0ea3a19"
 
 # --- menu: submodule of the engine, re-pointed by our engine branch ----------
