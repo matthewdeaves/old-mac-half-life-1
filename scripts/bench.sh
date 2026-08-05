@@ -166,6 +166,30 @@ rm -f "$LOG" "$KEEP"
 
 TOTAL=$((WARMUPS + RUNS))
 
+# ---- protect the machine's archived config ----------------------------------
+# Anything -x sets that carries FCVAR_ARCHIVE or FCVAR_GLCONFIG is WRITTEN BACK to
+# valve/*.cfg when the engine exits, so a one-off A/B silently becomes that
+# machine's new permanent default.
+#
+# That is not hypothetical. Benchmarking `-x "gl_singlepass_bmodels 0"` on the G3
+# archived the 0, and every later run on that machine, including runs with no -x
+# at all, then measured 27.4 fps instead of 30.0 and looked exactly like a
+# performance regression in the build. It cost a rebuild and a fleet redeploy to
+# chase. A measurement tool must not mutate the thing it measures.
+#
+# So snapshot the archived configs and put them back afterwards, whatever happens.
+SAVED_CFG_DIR=$(mktemp -d /tmp/benchcfg.XXXXXX 2>/dev/null || echo /tmp/benchcfg.$$)
+mkdir -p "$SAVED_CFG_DIR"
+for f in opengl.cfg video.cfg config.cfg; do
+	[ -f "$VALVE/$f" ] && cp -p "$VALVE/$f" "$SAVED_CFG_DIR/$f" 2>/dev/null
+done
+restore_cfg () {
+	for f in opengl.cfg video.cfg config.cfg; do
+		[ -f "$SAVED_CFG_DIR/$f" ] && cp -p "$SAVED_CFG_DIR/$f" "$VALVE/$f" 2>/dev/null
+	done
+	rm -rf "$SAVED_CFG_DIR" 2>/dev/null
+}
+
 # ---- launch -----------------------------------------------------------------
 # cd to the BASEDIR, not to Contents/MacOS: the launcher derives everything from
 # its own location, and the engine's working directory should be the folder that
@@ -188,6 +212,7 @@ PID=$!
 # running fullscreen with nobody watching it, and the next thing to use this Mac
 # goes fullscreen on top of it - the Rage 128 / R300 wedge. TERM, wait, then KILL.
 bench_cleanup () {
+	restore_cfg
 	kill -0 $PID 2>/dev/null || return 0
 	kill -TERM $PID 2>/dev/null
 	killall -TERM xash3d.bin xash3d 2>/dev/null
@@ -245,6 +270,7 @@ cp "$PLAIN" "$KEEP" 2>/dev/null
 # assertion here corresponds to a way a run has actually gone wrong on this
 # fleet, so each one is cheap insurance against a fabricated result.
 bench_fail () {
+	restore_cfg
 	echo "bench.sh: $1" >&2
 	echo "---- last 20 lines of $LOG ----" >&2
 	tail -20 "$PLAIN" >&2
@@ -304,6 +330,7 @@ FMAX=$(echo "$SORTED" | tail -1)
 FMED=$(echo "$SORTED" | awk '{a[NR]=$1} END{ if(NR%2){print a[(NR+1)/2]} else {printf "%.3f", (a[NR/2]+a[NR/2+1])/2} }')
 RUNSCSV=$(echo "$MEAS" | tr '\n' '|' | sed 's/|$//')
 
+restore_cfg
 rm -f "$PLAIN"
 echo "[$HOSTN] $REND ${W}x${H} $SCREENMODE (actual ${MODE:-?}) map=$MAP frames=$FRAMES${EXTRA:+ [$EXTRA]} : median ${FMED} fps  (runs: $RUNSCSV)  GPU=${GLREND:-n/a}" >&2
 echo "$HOSTN,$REND,${W}x${H},$SCREENMODE,$MAP,$FRAMES,$FMIN,$FMED,$FMAX,$RUNSCSV"
