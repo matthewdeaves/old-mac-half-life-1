@@ -41,11 +41,20 @@ fi
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT" || exit 1
 
-# Only what the build reads. Deliberately NOT vendor/ (hand-modified trees live
+# Only what the build reads, INCLUDING the app artwork. make-app.sh stamps the
+# icon into the bundle on the build host, so a host with stale MacOSX/*.icns
+# produces an app carrying the wrong picture even when every script is current.
+# Measured 2026-08-05: a build made minutes after new artwork landed still had
+# the previous icon, because this list covered scripts/ and VERSION only.
+#
+# Deliberately NOT vendor/ (hand-modified trees live
 # there, and an rsync --delete once came within one command of destroying the
 # SDL2 tree that is statically linked into both shipped PowerPC slices) and NOT
 # dist/ (that is output, and it is where the previous build's artifacts live).
 FILES="VERSION
+MacOSX/Half-Life.icns
+MacOSX/Half-Life-Mods.icns
+MacOSX/Half-Life-SysReport.icns
 scripts/driver-manifest.md5
 scripts/build-all.sh
 scripts/build-pins.sh
