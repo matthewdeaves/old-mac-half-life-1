@@ -34,7 +34,7 @@ set -u
 HOST="${1:-}"
 MODE="${2:-}"
 if [ -z "$HOST" ]; then
-	echo "usage: sync-build-host.sh HOST [--check]" >&2
+	echo "usage: sync-build-host.sh HOST [--check|--all]" >&2
 	exit 2
 fi
 
@@ -70,6 +70,41 @@ scripts/make-app.sh"
 remote_md5 () {
 	ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" "md5 -q ~/oldmac/$1 2>/dev/null" 2>/dev/null
 }
+
+
+# --- full tracked-tree mode ------------------------------------------------
+#
+# The file list below covers what the ENGINE build reads. It does not cover the
+# mod installer or the system report app, which are built from installer/ and
+# sysreport/ sources and their own artwork, and those drifted too: a deployed
+# Half-Life Mods.app was found carrying an About picture weeks older than the
+# repo's, because nothing shipped installer/ to the build host and make-dmg only
+# refreshes icons.
+#
+# --all syncs every TRACKED file via git archive. That is exactly the repo
+# contents, so it cannot pick up local junk, and it never deletes, so vendor/ and
+# dist/ on the host are untouched. vendor/ in particular holds hand-modified
+# trees including the SDL2 that is statically linked into both PowerPC slices,
+# and an rsync --delete once came within one command of destroying it.
+if [ "$MODE" = "--all" ]; then
+	echo "== syncing every tracked file to $HOST =="
+	tmp="/tmp/oldmac-tree-$$.tar"
+	git archive --format=tar HEAD > "$tmp" || { echo "!! git archive failed" >&2; exit 1; }
+	if ! ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" "mkdir -p oldmac && tar xf - -C oldmac" < "$tmp"; then
+		echo "!! failed to unpack the tree on $HOST" >&2
+		rm -f "$tmp"; exit 1
+	fi
+	rm -f "$tmp"
+	# Verify the same way the per-file path does: checksum, do not trust exit codes.
+	bad=0
+	for f in $FILES; do
+		l=$(md5 -q "$f" 2>/dev/null)
+		r=$(remote_md5 "$f")
+		[ "$l" = "$r" ] || { echo "!! $f did not take"; bad=1; }
+	done
+	[ "$bad" -eq 0 ] && echo "== $HOST now has this repo's tracked tree ==" || exit 1
+	exit 0
+fi
 
 drift=0
 for f in $FILES; do
