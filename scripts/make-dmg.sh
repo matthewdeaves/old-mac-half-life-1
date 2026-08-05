@@ -264,6 +264,24 @@ for b in "Half-Life.app" "Half-Life Mods.app" "Half-Life System Report.app"; do
   $PB -c "Set :LSMinimumSystemVersion 10.3.9" "$PLIST" 2>/dev/null || $PB -c "Add :LSMinimumSystemVersion string 10.3.9" "$PLIST"
   echo "[make-dmg] stamped $b: $PORTVER"
 done
+# Last chance to catch a stale build before a disk image exists. make-app.sh
+# copied in the stamp make-universal.sh wrote after reading it back from all three
+# slices, so if it disagrees with build-pins.sh here then the app being packaged
+# was not built from the pinned source, whatever the mtimes say.
+STAMP_FILE="$IMG/Half-Life.app/Contents/Resources/BUILD-STAMP"
+if [ -f "$STAMP_FILE" ]; then
+	APP_STAMP="$( tr -d " \t\n" < "$STAMP_FILE" )"
+	if [ "$APP_STAMP" != "$PIN_ENGINE_COMMIT" ]; then
+		echo "[make-dmg] FATAL: the app was built from $APP_STAMP" >&2
+		echo "           build-pins.sh says            $PIN_ENGINE_COMMIT" >&2
+		echo "           Re-run scripts/build-all.sh on the build host." >&2
+		exit 1
+	fi
+	echo "[make-dmg] build stamp verified against the pin: $( short "$APP_STAMP" )"
+else
+	echo "[make-dmg] NOTE: the app carries no BUILD-STAMP (built before make-app.sh copied it)" >&2
+fi
+
 echo "[make-dmg] build id - $BUILD_ONELINE"
 
 # ---- user-facing README inside the image ------------------------------------

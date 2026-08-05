@@ -86,6 +86,12 @@ for d in "$PANTHER" "$TIGER" "$LION"; do
 	fi
 done
 echo "    ok  all three at $( short "$PIN_ENGINE_COMMIT" )"
+# Carry the agreed stamp forward. Up to now it lived only in the per-slice
+# staging dirs, so once the fat bundle was assembled there was nothing left in
+# the artifact itself saying what it came from, and make-dmg.sh had to take the
+# build on trust. The value written is the one just READ BACK from the slices and
+# checked against build-pins.sh, not the pin copied straight out of the file.
+FUSED_STAMP="$( stamp_of "$LION" )"
 SDLX86="$ROOT/sdl2-x86_64/lib/libSDL2-2.0.0.dylib"
 OUT="$ROOT/dist/universal"                    # flat fat bundle (feed to make-app.sh)
 
@@ -168,6 +174,11 @@ if [ -d "$ROOT/installer/artwork" ]; then
 	cp "$ROOT/installer/descriptions"/*.txt "$OUT/gamedata/gfx/shell/mods/" 2>/dev/null || true
 	echo "    mod artwork: $(ls "$OUT/gamedata/gfx/shell/mods" | wc -l | tr -d ' ') files"
 fi
+
+# Record what this fat bundle was fused from, beside the binaries, so the
+# artifact carries its own provenance rather than relying on staging dirs that
+# the next build overwrites.
+printf '%s\n' "$FUSED_STAMP" > "$OUT/BUILD-STAMP"
 
 echo
 echo "== universal flat bundle ready: $OUT =="

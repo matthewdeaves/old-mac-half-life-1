@@ -36,6 +36,63 @@ cd "$ROOT"
 LOGDIR="${OLDMAC_LOGDIR:-/tmp/oldmac-build}"
 mkdir -p "$LOGDIR"
 
+# --- refuse to build with drivers that are not the repo's ---------------------
+#
+# ~/oldmac on a build mini is a hand-managed tree, not a clone. Nothing pulls, so
+# it drifts from the repo silently and every driver still reports ok.
+#
+# Measured on 2026-08-05: mini-intel had FIVE stale drivers and had just produced
+# a full universal build with a build-lion.sh that never cleared its destdir, a
+# make-universal.sh that swallowed an install_name_tool failure, and both PowerPC
+# drivers writing BUILD-STAMP from the pin rather than from the tree, so the stamp
+# that exists to catch a stale build was itself stale. mini-intel2 was missing
+# build-all.sh and fetch-sources.sh outright. Which host the picker handed out
+# decided which build you got.
+#
+# There is no git on these boxes, so the check is a checksum manifest carried in
+# the repo. tests/test-repo.py asserts the manifest matches the files, so it
+# cannot go stale unnoticed: edit a driver without running --update-manifest and
+# the repo tests fail.
+MANIFEST="$ROOT/scripts/driver-manifest.md5"
+
+manifest_check() {
+	local bad=0 line sum name have
+	[ -f "$MANIFEST" ] || { echo "!! $MANIFEST missing" >&2; return 1; }
+	while read -r sum name; do
+		[ -n "$name" ] || continue
+		if [ ! -f "$ROOT/scripts/$name" ]; then
+			echo "!! scripts/$name is MISSING on this host" >&2
+			bad=1; continue
+		fi
+		have=$( md5 -q "$ROOT/scripts/$name" 2>/dev/null || md5sum "$ROOT/scripts/$name" 2>/dev/null | cut -d' ' -f1 )
+		if [ "$have" != "$sum" ]; then
+			echo "!! scripts/$name differs from the repo's version" >&2
+			bad=1
+		fi
+	done < "$MANIFEST"
+	return $bad
+}
+
+if [ "${1:-}" = "--update-manifest" ]; then
+	: > "$MANIFEST"
+	for f in build-all.sh build-pins.sh fetch-sources.sh build-lion.sh \
+	         build-ppc-tiger.sh build-ppc-panther.sh make-universal.sh make-app.sh; do
+		printf '%s  %s\n' "$( md5 -q "$ROOT/scripts/$f" )" "$f" >> "$MANIFEST"
+	done
+	echo "wrote $MANIFEST"
+	exit 0
+fi
+
+if ! manifest_check; then
+	echo "" >&2
+	echo "This host's build scripts are NOT the repo's. Refusing to build, because" >&2
+	echo "the result would not be reproducible and the stamps would assert a tree" >&2
+	echo "that was never built. From the workstation run:" >&2
+	echo "    scripts/sync-build-host.sh <host>" >&2
+	echo "and then start this again." >&2
+	exit 1
+fi
+
 FETCH=1
 [ "${1:-}" = "--no-fetch" ] && FETCH=0
 

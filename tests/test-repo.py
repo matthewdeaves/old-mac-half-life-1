@@ -548,6 +548,47 @@ def test_issue_templates_reference_real_labels():
 
 # -------------------------------------------------------------------- main --
 
+
+def test_driver_manifest_is_current():
+    """scripts/driver-manifest.md5 must match the drivers it lists.
+
+    build-all.sh refuses to run on a build host whose drivers do not match this
+    manifest, which is how a mini that has silently drifted from the repo is
+    caught. That protection is only worth anything if the manifest itself is
+    current, so editing a driver without running
+
+        scripts/build-all.sh --update-manifest
+
+    has to fail here rather than on a build box at midnight.
+    """
+    import hashlib
+    man = os.path.join(REPO, "scripts", "driver-manifest.md5")
+    if not os.path.exists(man):
+        check("driver manifest exists", False,
+              "scripts/driver-manifest.md5 is missing")
+        return
+    bad = []
+    listed = []
+    with io.open(man, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            sum_, name = line.split(None, 1)
+            listed.append(name)
+            path = os.path.join(REPO, "scripts", name)
+            if not os.path.exists(path):
+                bad.append("%s: listed but missing" % name)
+                continue
+            with open(path, "rb") as fh:
+                have = hashlib.md5(fh.read()).hexdigest()
+            if have != sum_:
+                bad.append("%s: manifest %s, file %s" % (name, sum_[:8], have[:8]))
+    check("driver manifest matches the drivers it lists",
+          not bad,
+          "; ".join(bad) + "  (run scripts/build-all.sh --update-manifest)")
+
+
 def main():
     print("repo invariants (%s)" % REPO)
     for fn in (test_mod_tables_agree,
@@ -562,6 +603,7 @@ def main():
                test_drivers_refuse_a_tree_that_is_not_at_its_pin,
                test_no_script_calls_a_helper_that_is_gone,
                test_surviving_patch_scripts_are_still_wired,
+               test_driver_manifest_is_current,
                test_no_em_dashes,
                test_no_stray_tool_markup,
                test_issue_templates_reference_real_labels):

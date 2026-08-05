@@ -230,6 +230,14 @@ mkdir -p "$APP/Contents/Resources/Half-Life/valve"
 cp -R "$SRC/gamedata/." "$APP/Contents/Resources/Half-Life/valve/"
 find "$APP/Contents/Resources/Half-Life" -name '.DS_Store' -delete 2>/dev/null || true
 
+# Carry the fused bundle's provenance into the .app. make-universal.sh wrote this
+# after checking all three slices agreed with build-pins.sh, so it is a record of
+# what was actually built, not a restatement of what was asked for. make-dmg.sh
+# checks it against the pin, which is the last point before a disk image exists.
+if [ -f "$SRC/BUILD-STAMP" ]; then
+	cp "$SRC/BUILD-STAMP" "$APP/Contents/Resources/BUILD-STAMP"
+fi
+
 # Icon. Optional as an ARGUMENT, but default to the repo's canonical one rather
 # than shipping an iconless bundle: forgetting the third argument used to produce
 # an app with no CFBundleIconFile at all, which Finder renders as the blank
