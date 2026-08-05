@@ -1207,11 +1207,11 @@ static BOOL om_is_heading( NSString *line )
 		 * NSImage to them, so nothing is resampled on screen. That matters here:
 		 * none of the target machines has a HiDPI display, and 10.3's NSButton
 		 * has no image-scaling mode to fall back on. */
-		/* 124x240 keeps the artwork's own aspect (228x440 pixels, 0.518). The frame
+		/* 135x220 keeps the artwork's own aspect (269x440 pixels, 0.611). The frame
 		 * used to be 147x240 and setSize forced the image into it, stretching
 		 * Gordon horizontally by about 18 percent. scripts/make-about-art.py
 		 * prints the correct point size when it regenerates the file. */
-		gordon = [[[NSButton alloc] initWithFrame:NSMakeRect( 24, 30, 124, 240 )] autorelease];
+		gordon = [[[NSButton alloc] initWithFrame:NSMakeRect( 24, 30, 135, 220 )] autorelease];
 		[gordon setBordered:NO];
 		[gordon setTitle:@""];
 		[gordon setImagePosition:NSImageOnly];
@@ -1220,7 +1220,7 @@ static BOOL om_is_heading( NSString *line )
 			[[self resourcesPath] stringByAppendingPathComponent:@"About-Gordon.png"]] autorelease];
 		if( art != nil )
 		{
-			[art setSize:NSMakeSize( 124, 240 )];
+			[art setSize:NSMakeSize( 135, 220 )];
 			[gordon setImage:art];
 		}
 		[gordon setTarget:self];

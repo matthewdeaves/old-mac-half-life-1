@@ -46,6 +46,7 @@ cd "$ROOT" || exit 1
 # SDL2 tree that is statically linked into both shipped PowerPC slices) and NOT
 # dist/ (that is output, and it is where the previous build's artifacts live).
 FILES="VERSION
+scripts/driver-manifest.md5
 scripts/build-all.sh
 scripts/build-pins.sh
 scripts/fetch-sources.sh
