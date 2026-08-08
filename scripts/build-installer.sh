@@ -155,7 +155,15 @@ rm -rf "$BUILD"; mkdir -p "$BUILD/obj-ppc"
 # ever differed by -arch, and when they were spelled out separately the i386 one
 # would have been a fourth near-identical block to keep in step by hand.
 build_intel_slice() {
-	local arch="$1" obj="$BUILD/obj-$arch"
+	# TWO statements, not `local arch="$1" obj="$BUILD/obj-$arch"`. Lion's bash is
+	# 3.2, which expands every word of a `local` command BEFORE performing any of
+	# its assignments, so $arch is still unset while obj is being built and
+	# `set -u` kills the run with "arch: unbound variable". Modern bash assigns
+	# left to right and the one-liner works there, which is exactly why this has
+	# to be remembered rather than discovered: it passes every check on the dev
+	# box and fails on the only machine that runs it.
+	local arch="$1"
+	local obj="$BUILD/obj-$arch"
 	mkdir -p "$obj"
 	for f in $MBED_SRC; do
 		clang -arch "$arch" -isysroot "$SDK_INTEL" -mmacosx-version-min=$INTEL_MIN -std=gnu99 \

@@ -96,6 +96,34 @@
 #undef MBEDTLS_SELF_TEST
 
 /*
+ * 7. No AES-NI on i386.
+ *
+ * library/aesni.c uses the AES-NI intrinsics through MBEDTLS_AESNI_HAVE_CODE,
+ * whose "have intrinsics" arm is selected for any x86 target. Building the i386
+ * slice with Xcode 4.2's clang then fails 20 times over with
+ *
+ *   error: passing 'int' to parameter of incompatible type '__m128i'
+ *     rk[1] = aesni_set_rk_128(rk[0], _mm_aeskeygenassist_si128(rk[0], 0x01));
+ *
+ * because that compiler's <wmmintrin.h> declares _mm_aeskeygenassist_si128 as
+ * returning int in 32-bit mode. It is a compiler bug of that vintage, not
+ * anything mbedTLS is doing wrong.
+ *
+ * Undefining MBEDTLS_AESNI_C falls back to the portable C AES, which is what
+ * every other 32-bit target here already uses. No functional loss: the AES-NI
+ * path is a throughput optimisation, and the machines that take this slice are
+ * 2006 Core Solo and Core Duo parts that have no AES-NI instructions at all.
+ * Westmere, the first CPU with them, is 2010 and 64-bit.
+ *
+ * The engine hit exactly this and needed the same undef in a different file,
+ * xash_psa_config.h, because its mbedTLS is the 4.x line with the tf-psa-crypto
+ * split and putting it in the mbedtls config there has no effect at all.
+ */
+#if defined(__i386__)
+#undef MBEDTLS_AESNI_C
+#endif
+
+/*
  * WHAT IS DELIBERATELY LEFT ON, because the real endpoints need it.
  *
  * Certificate chains, measured against the live hosts:
