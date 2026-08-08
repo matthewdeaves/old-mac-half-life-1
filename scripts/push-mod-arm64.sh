@@ -96,7 +96,7 @@ fi
 if [ "$rc" -eq 0 ] && [ "$MODE" != "--check" ]; then
 	echo
 	echo "Now, ON $HOST:"
-	echo "  scripts/fuse-mod-arm64.sh    # adds arm64 to dist/mods/*/\*.dylib"
+	echo "  scripts/fuse-mod-arm64.sh    # adds arm64 to the mod dylibs in dist/mods"
 	echo "  scripts/build-installer.sh   # picks up dist/installer-arm64 by itself"
 fi
 exit "$rc"
