@@ -56,10 +56,14 @@ EXTRA=""
 # -r gl landing on Apple's software GL is a FAILURE by default, see assertion 5.
 # -S says you meant it, for the rare case of deliberately measuring software GL.
 ALLOW_SOFTGL=0
+# Identity for the CSV row. Defaults to the machine's own hostname, which is not
+# good enough on this fleet, see the note where HOSTN is set.
+NAME=""
 
-while getopts "r:W:H:f:n:w:m:a:t:s:x:S" opt 2>/dev/null; do
+while getopts "r:W:H:f:n:w:m:a:t:s:x:N:S" opt 2>/dev/null; do
 	case "$opt" in
 		r) REND=$OPTARG ;;
+		N) NAME=$OPTARG ;;
 		S) ALLOW_SOFTGL=1 ;;
 		W) W=$OPTARG ;;
 		H) H=$OPTARG ;;
@@ -137,7 +141,20 @@ if [ ! -d "$VALVE" ]; then
 	exit 1
 fi
 
-HOSTN=$(hostname -s 2>/dev/null || hostname)
+# Identity of the row. `hostname -s` is the wrong answer on this fleet and was
+# quietly producing misleading history: the G3 calls itself "macs-computer",
+# which names neither the machine nor, far worse, WHICH OS it booted. Two of
+# these machines multi-boot from one IP (the G3 does Panther and Tiger, the G5
+# does Panther, Tiger and Leopard) and both partitions answer `hostname` the
+# same way, so identical labels in benchmarks/results.csv can be different
+# operating systems. The ssh alias IS the unique name (yosemite vs
+# yosemite-tiger), so fleet-bench.sh passes it with -N and this is only the
+# fallback for a hand-run bench on the machine itself.
+if [ -n "$NAME" ]; then
+	HOSTN=$NAME
+else
+	HOSTN=$(hostname -s 2>/dev/null || hostname)
+fi
 CFG="$VALVE/bench_tr.cfg"
 # The LAUNCHER owns the engine's stdout: it ends with
 #   exec "$HERE/xash3d.bin" ... >> "$LOG" 2>&1

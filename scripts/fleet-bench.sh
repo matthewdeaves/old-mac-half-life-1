@@ -92,7 +92,12 @@ for h in $HOSTS; do
 	$SCP "$BENCH_SH" "$h:/tmp/bench.sh" >/dev/null 2>&1
 	$SSH "$h" 'chmod +x /tmp/bench.sh' 2>/dev/null
 	# run it; bench.sh prints one CSV line on stdout (and notes on stderr)
-	line=$($SSH "$h" "/tmp/bench.sh -r $REND -W $W -H $H -f $FRAMES -n $RUNS -w $WARMUPS -t $TIMEOUT -m $MAP -s $SCREENMODE -x '$EXTRA'" 2>/tmp/fleet_${h}.err)
+	# -N "$h": label the row with the ssh ALIAS, not the machine's own hostname.
+	# The alias is the only unique name here, because the G3 and the G5 each
+	# multi-boot several OSes from one IP and every partition answers `hostname`
+	# identically. Without this the G3 records as "macs-computer" whichever OS it
+	# is running, and two rows that look like the same machine are not.
+	line=$($SSH "$h" "/tmp/bench.sh -N $h -r $REND -W $W -H $H -f $FRAMES -n $RUNS -w $WARMUPS -t $TIMEOUT -m $MAP -s $SCREENMODE -x '$EXTRA'" 2>/tmp/fleet_${h}.err)
 	# bench.sh emits an ERR row rather than a number when its own assertions fail.
 	# Surface the reason here: an ERR row that scrolls past unexplained is how a
 	# broken harness gets mistaken for a broken build.
