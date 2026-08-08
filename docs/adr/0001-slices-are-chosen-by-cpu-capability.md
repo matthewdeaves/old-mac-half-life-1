@@ -157,14 +157,22 @@ assumed:
 | `mini-g4` | ppc7450 | 10.4.11 | `SLICE=ppc7400` | `SLICE=ppc7400` |
 | `quicksilver` | ppc7450 | 10.4.11 | `SLICE=ppc7400` | `SLICE=ppc7400` |
 | `g5-desktop` | ppc970 | 10.5.8 | `SLICE=ppc7400` | `SLICE=ppc7400` |
+| `g5-panther` | ppc970 | **10.3.9** | `SLICE=ppc7400` | `SLICE=ppc7400` |
 | `mini-sl` | x86_64 | 10.6.8 | ran | ran |
 | `mini-intel2` | x86_64 | 10.7.5 | ran | ran |
 
-Grading is identical in every case, including on the G3 under Tiger, which is
-the exact machine and OS the historical mis-grading fault belongs to.
+Grading is identical in every case. Two of those rows carry most of the weight:
+the G3 under Tiger is the exact machine and OS the historical mis-grading fault
+belongs to, and 10.3.9 Panther is the oldest dyld this project ships to. The G5
+was blessed into its Panther partition and rebooted specifically to get that last
+row, since it is the one that could have killed the feature.
 
-**Still untested: 10.3.9 Panther**, the oldest dyld shipped to. It needs the G3
-or the G5 blessed into its Panther partition and rebooted.
+Panther's lipo renders the same file as
+
+    ppc750 ppc7400 (cputype (16777223) cpusubtype (3)) (cputype (16777228) cpusubtype (0))
+
+naming neither x86_64 nor arm64. That is a correct fat binary, and a 2003 lipo
+reporting a 2020 architecture numerically is the expected outcome, not a fault.
 
 ### Lion's lipo can fuse arm64, it just cannot name it
 
