@@ -110,14 +110,27 @@ provenance_oneline() {
 		"$(short "$PIN_HLSDK_COMMIT")" "${1:-unknown}" "${2:-}"
 }
 
-# provenance_table <our-git-short> <date> <port-version> - the full BUILD-INFO body
+# provenance_table <our-git-short> <date> <port-version> <slices> - the BUILD-INFO body
+#
+# <slices> is MEASURED off the shipped binary by the caller and passed in. It used
+# to be a hardcoded literal here, and that is exactly how it went wrong: the line
+# read "ppc750 . ppc7400 . i386 . x86_64" on a five-slice release, so the one
+# document that tells a user what the download supports silently under-reported
+# arm64. A hand-maintained list of what a binary contains is a second source of
+# truth for something the binary already knows.
 provenance_table() {
-	local h="${1:-unknown}" d="${2:-}" ver="${3:-?}"
+	local h="${1:-unknown}"
+	local d="${2:-}"
+	local ver="${3:-?}"
+	local slices="${4:-}"
+	# Only ever a fallback for a caller that passes nothing, and deliberately says
+	# so rather than inventing a plausible list.
+	[ -n "$slices" ] || slices="not recorded"
 	cat <<EOF
 Half-Life-OldMac ${ver}
 =======================
 Our build id : old-mac-halflife git ${h} (${d})
-Fat slices   : ppc750 . ppc7400 . i386 . x86_64
+Fat slices   : ${slices}
 Base engine  : Xash3D FWGS ${XASH_VERSION}
 
 Every slice is built from our own branch of each upstream. The port is carried as

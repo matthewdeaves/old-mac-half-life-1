@@ -13,8 +13,10 @@
 #
 #   * a generic `ppc (ALL)` executable slice makes Tiger and Leopard mis-grade
 #     the fat and refuse to exec on a 750 host;
-#   * an x86_64 slice whose LC_VERSION_MIN drifts below 10.7 promises a
-#     Snow Leopard machine something libc++ cannot deliver;
+#   * an Intel slice whose LC_VERSION_MIN drifts promises a machine something the
+#     binary cannot deliver. This check once read "must be 10.7", because libc++
+#     arrived in 10.7; the Intel slices now link libstdc++ and the floor is 10.6,
+#     so the check asserts 10.6 and would catch a drift in either direction;
 #   * the game payload above the `valve/` level is invisible to
 #     Host_CheckGameLibraries and the engine aborts with "missing game library";
 #   * BUILD-INFO.txt naming a slice the binary does not carry is what v1.4.0
@@ -69,7 +71,11 @@ done
 
 # ---- executable slices ----------------------------------------------------
 BIN="$APP/Contents/MacOS/xash3d.bin"
-setis "engine executable is ppc750 ppc7400 x86_64" "ppc750 ppc7400 x86_64" "$BIN"
+# FIVE slices. i386 for the 2006 Core Solo and Core Duo, arm64 for Apple Silicon.
+# Spelled out rather than derived, because this is the check that says the release
+# supports what it claims to support, and deriving it from the file under test
+# would make it agree with whatever shipped.
+setis "engine executable is ppc750 ppc7400 i386 x86_64 arm64" "ppc750 ppc7400 i386 x86_64 arm64" "$BIN"
 
 # The exact-subtype rule. A generic ppc slice in the EXECUTABLE is the failure
 # mode that bricks a G3 on Tiger, so assert the absence explicitly rather than
@@ -91,7 +97,7 @@ fi
 for d in libxash libref_gl libref_soft libmenu filesystem_stdio; do
 	f="$APP/Contents/MacOS/$d.dylib"
 	[ -f "$f" ] || { bad "missing dylib: $d"; continue; }
-	setis "$d.dylib is ppc ppc7400 x86_64" "ppc ppc7400 x86_64" "$f"
+	setis "$d.dylib is ppc ppc7400 i386 x86_64 arm64" "ppc ppc7400 i386 x86_64 arm64" "$f"
 done
 
 # ---- OS floors ------------------------------------------------------------
@@ -99,7 +105,12 @@ done
 # LC_VERSION_MIN, which is why a PowerPC OS floor has to be established by
 # comparing undefined symbols instead. See docs/adr/0001.
 MINV="$(otool -arch x86_64 -l "$BIN" 2>/dev/null | awk '/LC_VERSION_MIN_MACOSX/{f=1} f&&/version/{print $2; exit}')"
-is "x86_64 slice targets 10.7" "10.7" "$MINV"
+# 10.6, not 10.7. The floor came down when the Intel slices moved to libstdc++:
+# libstdc++.6.dylib has no file on disk on macOS 26 but still dlopens from the dyld
+# shared cache, so one slice covers 10.6.8 through macOS 26. See docs/adr/0010.
+is "x86_64 slice targets 10.6" "10.6" "$MINV"
+MINI="$(otool -arch i386 -l "$BIN" 2>/dev/null | awk '/LC_VERSION_MIN_MACOSX/{f=1} f&&/version/{print $2; exit}')"
+is "i386 slice targets 10.6" "10.6" "$MINI"
 for a in ppc750 ppc7400; do
 	if otool -arch "$a" -l "$BIN" 2>/dev/null | grep -q LC_VERSION_MIN_MACOSX; then
 		bad "$a slice has an LC_VERSION_MIN" "PowerPC slices should carry none"

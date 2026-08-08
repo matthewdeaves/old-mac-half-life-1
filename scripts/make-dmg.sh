@@ -254,7 +254,19 @@ BUILD_ONELINE="$(provenance_oneline "$OURHASH" "$BUILDDATE")"
 GETINFO="Half-Life-OldMac $PORTVER ($BUILD_ONELINE)"
 
 APPRES="$IMG/Half-Life.app/Contents/Resources"
-provenance_table "$OURHASH" "$BUILDDATE" "$PORTVER" | tee "$IMG/BUILD-INFO.txt" > "$APPRES/BUILD-INFO.txt"
+
+# The slice list is MEASURED off the binary that is about to ship, not declared.
+# $ARCHS came from `lipo -info "$BIN"` above, and this script runs on the dev box,
+# whose lipo can name every architecture we build; the old-lipo cputype fallbacks
+# exist for the build hosts, not here. Normalised to the " . " separator the rest
+# of BUILD-INFO uses, and any trailing "(cputype ...)" noise dropped.
+#
+# It was a hardcoded literal in build-pins.sh until it under-reported arm64 on a
+# five-slice release. tests/test-artifact.sh compares this line against lipo, and
+# that is the check that caught it.
+SLICE_LINE="$(printf '%s' "$ARCHS" | sed 's/(cputype[^)]*)*//g; s/  */ /g; s/^ //; s/ $//; s/ / . /g')"
+provenance_table "$OURHASH" "$BUILDDATE" "$PORTVER" "$SLICE_LINE" \
+	| tee "$IMG/BUILD-INFO.txt" > "$APPRES/BUILD-INFO.txt"
 
 # Ship the repo's canonical icons (source of truth), regardless of what the build
 # box baked into the apps - so an icon fix reaches the DMG without a full rebuild.
