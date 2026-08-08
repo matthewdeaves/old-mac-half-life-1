@@ -92,14 +92,43 @@ trap 'rm -rf "$STAGE"' EXIT
 IMG="$STAGE/img"
 mkdir -p "$IMG"
 
+# Fetch a tree from the build host, and survive the link dropping mid-transfer.
+#
+# This is not defensive programming for its own sake. The path from a build mini
+# to this box was measured at ~0.55 MB/s (docs/apple-silicon-arm64.md in the
+# build-host repo), and a fetch HAS hung here, at 54 MB of 138, and had to be
+# killed and restarted by hand. The payload has since grown: the mod installer
+# carries four slices of 25 mod dylib pairs rather than two.
+#
+# --partial keeps what arrived so a retry resumes rather than starting again, and
+# ServerAliveInterval makes a dead link fail in seconds instead of hanging until
+# TCP gives up. The outbound leg to the packaging host already had a retry loop;
+# this is the same treatment for the leg that actually failed.
+fetch_tree() {
+  src="$1"; dst="$2"; what="$3"
+  attempt=1
+  while [ "$attempt" -le 3 ]; do
+    if rsync -a --partial -e 'ssh -o ServerAliveInterval=15 -o ServerAliveCountMax=4' \
+         "$src" "$dst"; then
+      return 0
+    fi
+    echo "[make-dmg] $what: transfer failed (attempt $attempt/3), retrying" >&2
+    attempt=$(( attempt + 1 ))
+    sleep 5
+  done
+  echo "[make-dmg] FATAL: could not fetch $what from $SRC_HOST after 3 attempts" >&2
+  exit 1
+}
+
 echo "[make-dmg] fetch built app from $SRC_HOST"
 # The app is self-contained now - our game code rides inside it under
 # Contents/Resources/Half-Life, so there is no second payload to fetch and no
 # symlink to preserve.
-rsync -a -e ssh "$SRC_HOST:$SRC_APP/" "$IMG/Half-Life.app/"
+fetch_tree "$SRC_HOST:$SRC_APP/" "$IMG/Half-Life.app/" "Half-Life.app"
 
-# The mod installer ("Half-Life Mods.app", fat ppc+x86_64, ~130 MB because it
-# carries our prebuilt game dylibs for all 25 mods). OPTIONAL: an engine-only
+# The mod installer ("Half-Life Mods.app", fat ppc + i386 + x86_64 + arm64, and
+# by far the largest thing on the image because it carries our prebuilt game
+# dylibs for all 25 mods at every one of those slices). OPTIONAL: an engine-only
 # release is still a valid thing to cut, so a missing installer is a loud note
 # rather than an error. Present => it is verified byte-for-byte like everything
 # else shipped.
@@ -117,7 +146,7 @@ SRC_MODS_APP="${SRC_MODS_APP:-oldmac/dist/Half-Life Mods.app}"
 SHIP_MODS_APP=no
 if ssh -o ConnectTimeout=6 -o BatchMode=yes "$SRC_HOST" "test -e \"$SRC_MODS_APP\"" 2>/dev/null; then
   echo "[make-dmg] including the mod installer from $SRC_HOST"
-  rsync -a -e ssh "$SRC_HOST:$SRC_MODS_APP/" "$IMG/Half-Life Mods.app/"
+  fetch_tree "$SRC_HOST:$SRC_MODS_APP/" "$IMG/Half-Life Mods.app/" "Half-Life Mods.app"
   SHIP_MODS_APP=yes
 else
   echo "[make-dmg] NOTE: no mod installer at $SRC_HOST:$SRC_MODS_APP - shipping engine only"
@@ -132,7 +161,7 @@ SRC_SR_APP="${SRC_SR_APP:-oldmac/dist/Half-Life System Report.app}"
 SHIP_SR_APP=no
 if ssh -o ConnectTimeout=6 -o BatchMode=yes "$SRC_HOST" "test -e \"$SRC_SR_APP\"" 2>/dev/null; then
   echo "[make-dmg] including the system report app from $SRC_HOST"
-  rsync -a -e ssh "$SRC_HOST:$SRC_SR_APP/" "$IMG/Half-Life System Report.app/"
+  fetch_tree "$SRC_HOST:$SRC_SR_APP/" "$IMG/Half-Life System Report.app/" "Half-Life System Report.app"
   SHIP_SR_APP=yes
 else
   echo "[make-dmg] NOTE: no system report app at $SRC_HOST:$SRC_SR_APP"
