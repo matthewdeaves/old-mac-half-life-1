@@ -77,7 +77,8 @@ on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
   `build-ppc-panther.sh` (G3), `build-ppc-tiger.sh` (G4 and G5), fused by
   `make-universal.sh` and `make-app.sh`. `docs/adr/0005`
 - **TWO interchangeable Intel build minis**, either builds any slice:
-  `mini-intel` (10.188.1.190), `mini-intel2` (10.188.1.216), same Macmini2,1 /
+  `mini-intel` (10.188.1.190, wifi), `mini-intel2` (10.188.1.164, **wired**,
+  server room, wifi disabled), same Macmini2,1 /
   10.7.5 / toolchain. Ask `scripts/pick-build-host.sh` (`--status`,
   `--acquire LABEL`, `--release HOST`), never hardcode: a host is busy if it
   holds `/tmp/.retro-build-lock` or is compiling, so hand-started builds count.
