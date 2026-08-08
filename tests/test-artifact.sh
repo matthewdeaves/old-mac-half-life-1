@@ -110,24 +110,31 @@ done
 
 # ---- the System Report app reaches further than the game ------------------
 # It exists for the machine nobody in the fleet has, so it must run where the
-# game cannot: 32-bit-only Intel, and 64-bit Intel below 10.7. See issue #24.
+# game cannot: 64-bit Intel below the game's own floor. See issue #24.
+#
+# The game's Intel floor has since come DOWN, from 10.7 to 10.6, which narrows
+# the gap this app exists to cover rather than removing it: 10.5 is still below
+# 10.6. The threshold below is spelled as the game's floor so that lowering the
+# game again fails here with the reason, rather than silently leaving the report
+# app with nothing to add.
+GAME_INTEL_FLOOR=1006
 SRBIN="$SR/Contents/MacOS/HalfLifeSystemReport"
 if [ -f "$SRBIN" ]; then
-	setis "report app is ppc i386 x86_64" "i386 ppc x86_64" "$SRBIN"
+	setis "report app is ppc i386 x86_64 arm64" "i386 ppc x86_64 arm64" "$SRBIN"
 	for pair in i386:10.4 x86_64:10.5; do
 		a="${pair%%:*}"; want="${pair##*:}"
 		got="$(otool -arch "$a" -l "$SRBIN" 2>/dev/null \
 			| awk '/LC_VERSION_MIN_MACOSX/{f=1} f&&/version/{print $2; exit}')"
 		is "report app $a slice targets $want" "$want" "$got"
 		# Compare against the game's Intel floor as a number, so that raising
-		# either floor to 10.7 fails here with the reason rather than only as a
-		# mismatched literal above. 10.4 -> 1004, 10.7 -> 1007.
+		# this app's floor fails here with the reason rather than only as a
+		# mismatched literal above. 10.4 -> 1004, 10.6 -> 1006.
 		n=$( echo "$got" | awk -F. '{ printf "%d", ($1 * 100) + $2 }' )
-		if [ -n "$got" ] && [ "$n" -ge 1000 ] && [ "$n" -lt 1007 ] 2>/dev/null; then
-			ok "report app $a floor is below the game's 10.7"
+		if [ -n "$got" ] && [ "$n" -ge 1000 ] && [ "$n" -lt "$GAME_INTEL_FLOOR" ] 2>/dev/null; then
+			ok "report app $a floor is below the game's"
 		else
 			bad "report app $a floor is '$got'" \
-			    "not below the game's 10.7, so it adds nothing on the machines it exists for"
+			    "not below the game's, so it adds nothing on the machines it exists for"
 		fi
 	done
 	# The PowerPC slice must carry no floor, same as the game's.
@@ -179,13 +186,20 @@ else
 fi
 
 # ---- the mod installer ----------------------------------------------------
-# The report app is checked further up, where its three slices and their floors
-# are asserted together. This one stays two slices: it needs the game's floors,
-# not lower ones, because a machine that cannot run the game has nothing to
-# install mods for.
+# The report app is checked further up, where its slices and its deliberately
+# lower floors are asserted together. This one needs the GAME's floors, not
+# lower ones, because a machine that cannot run the game has nothing to install
+# mods for. That is a statement about the FLOORS and it stayed true; what did
+# not was the conclusion once drawn from it, that two slices were therefore
+# enough.
+#
+# They were not. The game grew an i386 slice for the 2006 Core Solo and Core Duo
+# Macs and the mod dylibs followed, so on one of those machines the game ran,
+# every mod ran, and the app that installs them would not launch. The check that
+# should have caught it asserted the shape it already had.
 MODSBIN="$MODS/Contents/MacOS/HalfLifeMods"
 if [ -f "$MODSBIN" ]; then
-	setis "Mods app is ppc x86_64" "ppc x86_64" "$MODSBIN"
+	setis "Mods app is ppc i386 x86_64 arm64" "ppc i386 x86_64 arm64" "$MODSBIN"
 else
 	bad "missing binary: Mods"
 fi
@@ -197,12 +211,17 @@ if [ -d "$MODDIR" ]; then
 	# mods.map is keyed by gamedir but built per branch, so count the branches.
 	BRANCHES="$(awk '!/^[[:space:]]*(#|$)/{print $2}' "$REPO/installer/mods.map" | sort -u | wc -l | tr -d ' ')"
 	is "mods/ holds one directory per branch" "$BRANCHES" "$(ls "$MODDIR" | wc -l | tr -d ' ')"
+	# Four slices, and no ppc750/ppc7400 split: these are dlopened rather than
+	# exec'd, and dlopen grades a generic `ppc (ALL)` slice correctly on a 750.
+	# Only the engine EXECUTABLE needs exact cpusubtypes.
+	WANT_MOD="$(printf '%s\n' arm64 i386 ppc x86_64 | sort | tr '\n' ' ' | sed 's/ *$//')"
 	THIN=""
 	for m in "$MODDIR"/*/*.dylib; do
 		[ -f "$m" ] || continue
-		[ "$(archs "$m")" = "ppc x86_64" ] || THIN="$THIN $(basename "$(dirname "$m")")/$(basename "$m")"
+		[ "$(archs "$m")" = "$WANT_MOD" ] || THIN="$THIN $(basename "$(dirname "$m")")/$(basename "$m")($(archs "$m"))"
 	done
-	[ -z "$THIN" ] && ok "every mod dylib is fat ppc x86_64" || bad "mod dylibs not fat:" "$THIN"
+	[ -z "$THIN" ] && ok "every mod dylib is fat ppc i386 x86_64 arm64" \
+	                || bad "mod dylibs have the wrong slices:" "$THIN"
 	# Artwork and blurbs are what make a mod look installed rather than broken.
 	for sub in artwork descriptions; do
 		n="$(ls "$MODS/Contents/Resources/$sub" 2>/dev/null | wc -l | tr -d ' ')"
