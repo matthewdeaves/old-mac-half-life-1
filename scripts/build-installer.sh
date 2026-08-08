@@ -47,6 +47,21 @@ export PATH="$XCBIN:$DEVELOPER_DIR/usr/bin:$PATH"
 SDK_INTEL="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk"
 SDK_PPC=/Developer/SDKs/MacOSX10.3.9.sdk
 
+# Intel floor, matching the game (scripts/build-lion.sh). The SDK stays at 10.7,
+# because the SDK is not the floor: -mmacosx-version-min is.
+#
+# This app needs none of the libc++ reasoning the engine needed. It is pure
+# Objective-C with no C++ at all: nm -u on the shipped v1.5.7 binary finds zero
+# __Z, __cxa or operator-new symbols, and it links only Cocoa, Foundation,
+# AppKit, CoreFoundation, libSystem and libobjc, every one of which is on 10.6.
+# The source uses no 10.7-only API (checked for NSRegularExpression,
+# NSJSONSerialization, NSOrderedSet, NSPopover, autolayout, NSURLSession,
+# full-screen and friends) and no ARC.
+#
+# It was left at 10.7 only because the engine was. Once the game reached 10.6 a
+# 10.6 owner would have had the game and no mod installer.
+INTEL_MIN="${OLDMAC_INTEL_MIN:-10.6}"
+
 [ -d "$SDK_INTEL" ] || { echo "ERROR: missing 10.7 SDK: $SDK_INTEL" >&2; exit 1; }
 [ -d "$SDK_PPC" ]   || { echo "ERROR: missing 10.3.9 SDK: $SDK_PPC" >&2; exit 1; }
 
@@ -128,16 +143,16 @@ MBED_FLAGS="-I$MBEDTLS/include -I$MBEDTLS/library -I$SRC -DMBEDTLS_USER_CONFIG_F
 
 rm -rf "$BUILD"; mkdir -p "$BUILD/obj-x86_64" "$BUILD/obj-ppc"
 
-echo "==> [1/4] compiling x86_64 (clang, 10.7 SDK)"
+echo "==> [1/4] compiling x86_64 (clang, 10.7 SDK, floor $INTEL_MIN)"
 for f in $MBED_SRC; do
-	clang -arch x86_64 -isysroot "$SDK_INTEL" -mmacosx-version-min=10.7 -std=gnu99 \
+	clang -arch x86_64 -isysroot "$SDK_INTEL" -mmacosx-version-min=$INTEL_MIN -std=gnu99 \
 		$MBED_FLAGS -O2 -c "$f" -o "$BUILD/obj-x86_64/$(basename "$f" .c).o"
 done
 for f in $ZLIB_SRC $LZMA_SRC; do
-	clang -arch x86_64 -isysroot "$SDK_INTEL" -mmacosx-version-min=10.7 -std=gnu99 \
+	clang -arch x86_64 -isysroot "$SDK_INTEL" -mmacosx-version-min=$INTEL_MIN -std=gnu99 \
 		$ARCHIVE_FLAGS -O2 -c "$f" -o "$BUILD/obj-x86_64/$(basename "$f" .c).o"
 done
-clang -arch x86_64 -isysroot "$SDK_INTEL" -mmacosx-version-min=10.7 \
+clang -arch x86_64 -isysroot "$SDK_INTEL" -mmacosx-version-min=$INTEL_MIN \
 	-framework Cocoa -framework Foundation \
 	-Wall -Wno-deprecated-declarations -O2 -o "$BUILD/installer-x86_64" \
 	$SOURCES "$BUILD"/obj-x86_64/*.o -I"$SRC" -I"$MBEDTLS/include" $ARCHIVE_FLAGS
@@ -160,6 +175,31 @@ gcc-4.0 -arch ppc -isysroot "$SDK_PPC" -mmacosx-version-min=10.3 \
 echo "==> [3/4] lipo"
 lipo -create "$BUILD/installer-ppc" "$BUILD/installer-x86_64" -output "$BUILD/installer"
 lipo -info "$BUILD/installer"
+
+# The floor is a claim until something reads it back off the Mach-O. Same reason
+# as in build-lion.sh: a slice that quietly kept the build box's own version
+# compiles, links, lipos and ships, and only fails on the one machine the floor
+# was lowered for.
+#
+# Only the x86_64 slice is checked. The ppc one targets 10.3, which predates
+# LC_VERSION_MIN_MACOSX, so it legitimately carries no such load command and
+# there is nothing to read.
+echo "==> verifying the x86_64 floor"
+GOTMIN="$( otool -arch x86_64 -l "$BUILD/installer" \
+	| awk '/LC_VERSION_MIN_MACOSX/{g=1} g&&/^ *version /{print $2; exit}' )"
+if [ "$GOTMIN" != "$INTEL_MIN" ]; then
+	echo "!! x86_64 slice says version-min '${GOTMIN:-none}', wanted $INTEL_MIN" >&2
+	exit 1
+fi
+# This app has no C++ at all, so any C++ runtime turning up means something was
+# linked that should not have been, and libc++ specifically does not exist below
+# 10.7.
+if otool -arch x86_64 -L "$BUILD/installer" | grep -qE 'libc\+\+|libstdc\+\+'; then
+	echo "!! x86_64 slice links a C++ runtime; this app is pure Objective-C" >&2
+	otool -arch x86_64 -L "$BUILD/installer" >&2
+	exit 1
+fi
+echo "    ok  x86_64 version-min $INTEL_MIN, no C++ runtime"
 
 echo "==> [4/4] assembling $OUT"
 rm -rf "$OUT"

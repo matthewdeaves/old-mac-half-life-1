@@ -66,7 +66,9 @@ scripts/build-lion.sh
 scripts/build-ppc-tiger.sh
 scripts/build-ppc-panther.sh
 scripts/make-universal.sh
-scripts/make-app.sh"
+scripts/make-app.sh
+scripts/build-installer.sh
+scripts/build-sysreport.sh"
 
 # md5 is the one digest spelling present on 10.3 through modern macOS. `md5 -q`
 # exists on all of them; md5sum does not exist on any of them by default.
@@ -163,8 +165,12 @@ done
 # with every mod added. Compared instead by a fingerprint over names AND contents
 # in ONE round trip: contents alone would miss a rename, names alone would miss
 # an edited blurb.
-DIRS="installer/artwork
-installer/descriptions"
+# installer/ covers artwork/ and descriptions/ as well as the Objective-C source
+# that build-installer.sh compiles, so it is listed whole rather than as three
+# overlapping entries. Same for sysreport/. Neither app is built by build-all.sh
+# yet, which is why their sources went unsynced for so long without it showing.
+DIRS="installer
+sysreport"
 
 # LC_ALL=C is NOT decoration. sort's collation is locale-dependent, and this box
 # and the build minis disagree: with names like Hunger.tga, TheGate.tga and

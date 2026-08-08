@@ -622,8 +622,13 @@ def test_every_repo_path_a_driver_reads_is_synced():
         if m:
             covered += [ln.strip() for ln in m.group(1).splitlines() if ln.strip()]
 
+    # build-installer.sh and build-sysreport.sh count too. They are not called by
+    # build-all.sh yet, which is exactly why their sources went unsynced for so
+    # long without anything showing: the Mods app and the System Report app were
+    # being compiled on the build host from whatever was there.
     drivers = ["build-lion.sh", "build-ppc-tiger.sh", "build-ppc-panther.sh",
-               "make-universal.sh", "make-app.sh"]
+               "make-universal.sh", "make-app.sh",
+               "build-installer.sh", "build-sysreport.sh"]
     skip = ("dist/", "dist-ppc", "vendor/", "sdl2-")
     wanted = set()
     for d in drivers:
