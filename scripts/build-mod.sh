@@ -476,4 +476,27 @@ echo "================================================================"
 echo "built:  ${built:-<none>}"
 echo "FAILED: ${failed:-<none>}"
 echo "================================================================"
+
+# arm64 is the one slice that cannot be built here at all, so it is not built
+# above with the others: it is produced on the Apple Silicon box by
+# scripts/build-mod-arm64.sh, carried over by scripts/push-mod-arm64.sh, and
+# fused in by scripts/fuse-mod-arm64.sh.
+#
+# That fuse is invoked from here rather than left as a step to remember, because
+# a mod dylib without an arm64 slice still installs, still loads and still plays
+# (under Rosetta 2), so forgetting it is invisible. It is a separate script
+# because the same code has to be able to retro-fit mods built before their
+# arm64 slice existed, without rebuilding them.
+if [ -d "$ROOT/dist/mods-arm64" ]; then
+	echo
+	echo "== fusing the arm64 slices =="
+	"$ROOT/scripts/fuse-mod-arm64.sh" || echo "!! arm64 fuse failed; the mods above have no arm64 slice" >&2
+else
+	echo
+	echo "NOTE: no dist/mods-arm64 on this host, so these dylibs have NO arm64 slice."
+	echo "      They will run under Rosetta 2 on Apple Silicon. To include one, from"
+	echo "      the Apple Silicon box: scripts/build-mod-arm64.sh --all then"
+	echo "      scripts/push-mod-arm64.sh $(hostname -s)"
+fi
+
 [ -z "$failed" ]

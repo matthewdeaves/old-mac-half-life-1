@@ -71,6 +71,7 @@ scripts/make-app.sh
 scripts/build-installer.sh
 scripts/build-sysreport.sh
 scripts/build-mod.sh
+scripts/fuse-mod-arm64.sh
 scripts/patch-hlsdk-mod-bugs.py
 scripts/patch-hlsdk-mod-gcc4.py
 scripts/patch-hlsdk-ppc-darwin.py

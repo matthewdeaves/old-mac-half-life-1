@@ -1,24 +1,25 @@
 #!/bin/bash
-# build-installer.sh - build "Half-Life Mods.app", the fat ppc + x86_64 installer.
+# build-installer.sh - build "Half-Life Mods.app", the fat installer.
 #
 #   ./build-installer.sh [output.app]
 #
 # RUN THIS ON AN INTEL LION MINI, same as every other build here. It compiles the
-# Cocoa app twice - once with Apple gcc-4.0 against the 10.3.9 SDK for PowerPC,
-# once with Xcode clang against the 10.7 SDK for x86_64 - then lipos the two into
-# one binary and wraps it in a bundle.
+# Cocoa app once per architecture - Apple gcc-4.0 against the 10.3.9 SDK for
+# PowerPC, Xcode clang against the 10.7 SDK for each Intel one - then lipos them
+# into one binary and wraps it in a bundle.
 #
-# WHY COCOA, AND WHY ONLY TWO SLICES
+# WHY COCOA
 #   Carbon was never ported to 64-bit, so a Carbon app could not produce our
 #   x86_64 slice at all. Cocoa has everything this UI needs as far back as 10.3
 #   (NSProgressIndicator, NSTextView, NSImageView, real buttons), and the PowerPC
 #   Objective-C path is already proven on this toolchain - panther-sdl2 is a
 #   native-Cocoa build.
 #
-#   Note this app carries ONE ppc slice, unlike the game. The hard rule against a
-#   generic `ppc (ALL)` slice exists because Tiger and Leopard mis-grade a fat
-#   containing SEVERAL ppc slices on a 750 host. A plain [ppc, x86_64] fat is the
-#   ordinary 2006 case and grades correctly on G3, G4, G5 and Intel alike.
+# WHY ONE ppc SLICE, UNLIKE THE GAME
+#   The hard rule against a generic `ppc (ALL)` slice exists because Tiger and
+#   Leopard mis-grade a fat containing SEVERAL ppc slices on a 750 host. One
+#   generic ppc slice alongside the Intel ones is the ordinary 2006 case and
+#   grades correctly on G3, G4, G5 and Intel alike.
 #
 # WHAT GETS BUNDLED (and why as much as possible is)
 #   Contents/Resources/mods/<branch>/{server,client}.dylib   our fat game code
@@ -141,21 +142,39 @@ done
 # only takes things away and the stock, upstream-tested configuration stands.
 MBED_FLAGS="-I$MBEDTLS/include -I$MBEDTLS/library -I$SRC -DMBEDTLS_USER_CONFIG_FILE=\"om_mbedtls_config.h\""
 
-rm -rf "$BUILD"; mkdir -p "$BUILD/obj-x86_64" "$BUILD/obj-ppc"
+# Which Intel architectures. i386 is for the 2006 Core Solo and Core Duo Macs,
+# the only Intel Macs with no 64-bit mode, and it is a correctness gap rather
+# than a nicety: the game grew an i386 slice and so did the mod dylibs, so
+# without this an owner of one of those machines could run Half-Life and could
+# run every mod, but could not launch the app that installs them.
+INSTALLER_INTEL_ARCHES="${OLDMAC_INSTALLER_ARCHES:-x86_64 i386}"
 
-echo "==> [1/4] compiling x86_64 (clang, 10.7 SDK, floor $INTEL_MIN)"
-for f in $MBED_SRC; do
-	clang -arch x86_64 -isysroot "$SDK_INTEL" -mmacosx-version-min=$INTEL_MIN -std=gnu99 \
-		$MBED_FLAGS -O2 -c "$f" -o "$BUILD/obj-x86_64/$(basename "$f" .c).o"
+rm -rf "$BUILD"; mkdir -p "$BUILD/obj-ppc"
+
+# One function rather than a copy per architecture. The three compile steps only
+# ever differed by -arch, and when they were spelled out separately the i386 one
+# would have been a fourth near-identical block to keep in step by hand.
+build_intel_slice() {
+	local arch="$1" obj="$BUILD/obj-$arch"
+	mkdir -p "$obj"
+	for f in $MBED_SRC; do
+		clang -arch "$arch" -isysroot "$SDK_INTEL" -mmacosx-version-min=$INTEL_MIN -std=gnu99 \
+			$MBED_FLAGS -O2 -c "$f" -o "$obj/$(basename "$f" .c).o"
+	done
+	for f in $ZLIB_SRC $LZMA_SRC; do
+		clang -arch "$arch" -isysroot "$SDK_INTEL" -mmacosx-version-min=$INTEL_MIN -std=gnu99 \
+			$ARCHIVE_FLAGS -O2 -c "$f" -o "$obj/$(basename "$f" .c).o"
+	done
+	clang -arch "$arch" -isysroot "$SDK_INTEL" -mmacosx-version-min=$INTEL_MIN \
+		-framework Cocoa -framework Foundation \
+		-Wall -Wno-deprecated-declarations -O2 -o "$BUILD/installer-$arch" \
+		$SOURCES "$obj"/*.o -I"$SRC" -I"$MBEDTLS/include" $ARCHIVE_FLAGS
+}
+
+for a in $INSTALLER_INTEL_ARCHES; do
+	echo "==> [1/4] compiling $a (clang, 10.7 SDK, floor $INTEL_MIN)"
+	build_intel_slice "$a"
 done
-for f in $ZLIB_SRC $LZMA_SRC; do
-	clang -arch x86_64 -isysroot "$SDK_INTEL" -mmacosx-version-min=$INTEL_MIN -std=gnu99 \
-		$ARCHIVE_FLAGS -O2 -c "$f" -o "$BUILD/obj-x86_64/$(basename "$f" .c).o"
-done
-clang -arch x86_64 -isysroot "$SDK_INTEL" -mmacosx-version-min=$INTEL_MIN \
-	-framework Cocoa -framework Foundation \
-	-Wall -Wno-deprecated-declarations -O2 -o "$BUILD/installer-x86_64" \
-	$SOURCES "$BUILD"/obj-x86_64/*.o -I"$SRC" -I"$MBEDTLS/include" $ARCHIVE_FLAGS
 
 echo "==> [2/4] compiling ppc (gcc-4.0, 10.3.9 SDK)"
 # -Wno-long-double: the 10.3.9 SDK headers still use it and gcc-4.0 warns loudly.
@@ -173,7 +192,26 @@ gcc-4.0 -arch ppc -isysroot "$SDK_PPC" -mmacosx-version-min=10.3 \
 	$SOURCES "$BUILD"/obj-ppc/*.o -I"$SRC" -I"$MBEDTLS/include" $ARCHIVE_FLAGS
 
 echo "==> [3/4] lipo"
-lipo -create "$BUILD/installer-ppc" "$BUILD/installer-x86_64" -output "$BUILD/installer"
+# arm64 is OPTIONAL and comes from elsewhere, exactly as it does for the engine.
+# Xcode 4.6 on Lion predates the architecture by seven years and cannot target
+# it at all, so the slice is built on the Apple Silicon box by
+# scripts/build-installer-arm64.sh and carried here by push-mod-arm64.sh.
+# Without it the app still runs on Apple Silicon, under Rosetta 2 via the x86_64
+# slice, so a missing slice is a downgrade and not a failure. Which is precisely
+# why this SAYS which case it is: a four-slice and a five-slice app look
+# identical until someone looks.
+SLICES="$BUILD/installer-ppc"
+for a in $INSTALLER_INTEL_ARCHES; do SLICES="$SLICES $BUILD/installer-$a"; done
+ARM64_SLICE="$ROOT/dist/installer-arm64/installer"
+if [ -f "$ARM64_SLICE" ]; then
+	SLICES="$SLICES $ARM64_SLICE"
+	echo "    arm64 slice present, fusing it in ($ARM64_SLICE)"
+else
+	echo "    NO arm64 slice; Apple Silicon will run this under Rosetta 2"
+fi
+lipo -create $SLICES -output "$BUILD/installer"
+# Lion's lipo cannot NAME arm64 and prints its raw cputype, which is correct
+# output and not an error. See docs/apple-silicon-arm64.md in old-mac-build-host.
 lipo -info "$BUILD/installer"
 
 # The floor is a claim until something reads it back off the Mach-O. Same reason
@@ -181,25 +219,31 @@ lipo -info "$BUILD/installer"
 # compiles, links, lipos and ships, and only fails on the one machine the floor
 # was lowered for.
 #
-# Only the x86_64 slice is checked. The ppc one targets 10.3, which predates
+# Every Intel slice is checked, not just x86_64. Checking one and assuming the
+# other is exactly the mistake that put a 10.7 mod dylib beside a 10.6 game.
+# The ppc slice is not checked: it targets 10.3, which predates
 # LC_VERSION_MIN_MACOSX, so it legitimately carries no such load command and
-# there is nothing to read.
-echo "==> verifying the x86_64 floor"
-GOTMIN="$( otool -arch x86_64 -l "$BUILD/installer" \
-	| awk '/LC_VERSION_MIN_MACOSX/{g=1} g&&/^ *version /{print $2; exit}' )"
-if [ "$GOTMIN" != "$INTEL_MIN" ]; then
-	echo "!! x86_64 slice says version-min '${GOTMIN:-none}', wanted $INTEL_MIN" >&2
-	exit 1
-fi
-# This app has no C++ at all, so any C++ runtime turning up means something was
-# linked that should not have been, and libc++ specifically does not exist below
-# 10.7.
-if otool -arch x86_64 -L "$BUILD/installer" | grep -qE 'libc\+\+|libstdc\+\+'; then
-	echo "!! x86_64 slice links a C++ runtime; this app is pure Objective-C" >&2
-	otool -arch x86_64 -L "$BUILD/installer" >&2
-	exit 1
-fi
-echo "    ok  x86_64 version-min $INTEL_MIN, no C++ runtime"
+# there is nothing to read. The arm64 slice is not checked either, and cannot be:
+# Lion's otool has no arm64 in its architecture table and refuses the flag. It is
+# verified on the machine that built it instead.
+for a in $INSTALLER_INTEL_ARCHES; do
+	echo "==> verifying the $a floor"
+	GOTMIN="$( otool -arch "$a" -l "$BUILD/installer" \
+		| awk '/LC_VERSION_MIN_MACOSX/{g=1} g&&/^ *version /{print $2; exit}' )"
+	if [ "$GOTMIN" != "$INTEL_MIN" ]; then
+		echo "!! $a slice says version-min '${GOTMIN:-none}', wanted $INTEL_MIN" >&2
+		exit 1
+	fi
+	# This app has no C++ at all, so any C++ runtime turning up means something was
+	# linked that should not have been, and libc++ specifically does not exist below
+	# 10.7.
+	if otool -arch "$a" -L "$BUILD/installer" | grep -qE 'libc\+\+|libstdc\+\+'; then
+		echo "!! $a slice links a C++ runtime; this app is pure Objective-C" >&2
+		otool -arch "$a" -L "$BUILD/installer" >&2
+		exit 1
+	fi
+	echo "    ok  $a version-min $INTEL_MIN, no C++ runtime"
+done
 
 echo "==> [4/4] assembling $OUT"
 rm -rf "$OUT"
