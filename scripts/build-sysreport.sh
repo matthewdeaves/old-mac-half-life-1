@@ -79,8 +79,25 @@ clang -arch x86_64 -isysroot "$SDK_X64" -mmacosx-version-min=10.5 \
 	-Wall -Wno-deprecated-declarations -O2 -o "$BUILD/sysreport-x86_64" $SOURCES -I"$SRC"
 
 echo "==> [4/5] lipo"
-lipo -create "$BUILD/sysreport-ppc" "$BUILD/sysreport-i386" "$BUILD/sysreport-x86_64" \
-	-output "$BUILD/sysreport"
+# arm64 is OPTIONAL and comes from elsewhere, as it does for the engine and the
+# Mods app: Lion cannot target the architecture at all, so the slice is built by
+# scripts/build-sysreport-arm64.sh on the Apple Silicon box and carried here by
+# push-mod-arm64.sh. Without it the app still runs on Apple Silicon under
+# Rosetta 2, and still reports the machine correctly, because SRController.m
+# checks sysctl.proc_translated rather than believing the cputype it is handed.
+# So a missing slice is a downgrade, not a fault, which is exactly why this says
+# out loud which case it is.
+SLICES="$BUILD/sysreport-ppc $BUILD/sysreport-i386 $BUILD/sysreport-x86_64"
+ARM64_SLICE="$ROOT/dist/sysreport-arm64/sysreport"
+if [ -f "$ARM64_SLICE" ]; then
+	SLICES="$SLICES $ARM64_SLICE"
+	echo "    arm64 slice present, fusing it in"
+else
+	echo "    NO arm64 slice; Apple Silicon will run this under Rosetta 2"
+fi
+lipo -create $SLICES -output "$BUILD/sysreport"
+# Lion's lipo cannot NAME arm64 and prints its raw cputype (16777228). That is
+# correct output, not an error.
 lipo -info "$BUILD/sysreport"
 
 # Verify the floors landed, rather than trusting the flags. Lion's otool reads

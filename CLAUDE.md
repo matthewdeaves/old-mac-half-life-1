@@ -21,8 +21,9 @@ scripts/pick-build-host.sh --release $HOST
 scripts/build-arm64.sh                         # engine, Apple Silicon box only
 scripts/build-mod-arm64.sh --all               # the 25 mod dylib pairs
 scripts/build-installer-arm64.sh               # the Mods app's own slice
+scripts/build-sysreport-arm64.sh               # the System Report app's
 scripts/push-arm64-slice.sh $HOST              # carries the engine over, verifies by md5
-scripts/push-mod-arm64.sh $HOST                # carries the other two over
+scripts/push-mod-arm64.sh $HOST                # carries the other three over
 
 scripts/make-dmg.sh [version-label]      # Tiger G4 ONLY, see the hard rules
 scripts/deploy-dmg.sh HOST [version]     # install on a bench box as a user would
@@ -75,15 +76,23 @@ on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
   MacBook 1,1, MacBook Pro 1,1), the sole Intel Macs with no 64-bit mode. Built
   by `OLDMAC_INTEL_ARCH=i386 build-lion.sh`.
 - **`arm64` is built on THIS box, not a mini**: Xcode 4.6 predates it by seven
-  years. THREE drivers, one per app: `build-arm64.sh` (engine),
-  `build-mod-arm64.sh` (the 25 mod dylib pairs), `build-installer-arm64.sh` (the
-  Mods app). Lion's lipo can still FUSE arm64, so every fuse stays on the mini;
-  it only fails to NAME the slice, printing `cputype (16777228)`, while `otool`
-  and `install_name_tool` refuse the whole file. The engine slice links libc++
-  and a current SDL2, both deliberately unlike the Intel slices, and 11.0 is
-  simply the floor because Apple Silicon shipped with Big Sur. Never write "not
-  for Apple Silicon". The System Report app has always shipped i386 from 10.4
-  and x86_64 from 10.5, deliberately below the game. `docs/adr/0010`
+  years. FOUR drivers, one per shipped Mach-O product: `build-arm64.sh`
+  (engine), `build-mod-arm64.sh` (the 25 mod dylib pairs),
+  `build-installer-arm64.sh` (Mods app), `build-sysreport-arm64.sh` (System
+  Report). Lion's lipo can still FUSE arm64, so every fuse stays on the mini; it
+  only fails to NAME the slice, printing `cputype (16777228)`, while `otool` and
+  `install_name_tool` refuse the whole file. The engine slice links libc++ and a
+  current SDL2, both deliberately unlike the Intel slices, and 11.0 is simply
+  the floor because Apple Silicon shipped with Big Sur. Never write "not for
+  Apple Silicon". `docs/adr/0010`
+- **Every shipped app runs natively on every CPU the project supports.** Game:
+  `ppc750 ppc7400 i386 x86_64 arm64`. Mod dylibs: `ppc i386 x86_64 arm64`, no
+  ppc split because `dlopen` grades generic `ppc` correctly on a 750. Mods app
+  and System Report: the same four. The System Report app's Intel floors are
+  deliberately LOWER than the game's, 10.4 for i386 and 10.5 for x86_64, so a
+  machine the game refuses can still say why; it also detects Rosetta 2 through
+  `sysctl.proc_translated` rather than believing the cputype, so it reports an
+  Apple Silicon Mac correctly whether translated or native. `docs/adr/0010`
 - **Never put `compat-include/` on a MODERN compiler's include path.** It supplies
   `<cstdint>` and `<cinttypes>` to header sets predating C++11, and `-isystem`
   puts it AHEAD of libc++, so on current clang the shim SHADOWS the real header

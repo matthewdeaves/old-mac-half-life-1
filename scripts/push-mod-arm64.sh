@@ -10,10 +10,15 @@
 # to go stale. Nothing pulls, so the two ends drift silently and the drift does
 # not show up in any build output.
 #
-# It carries two things, both optional at the far end and both therefore able to
+# It carries three things, all optional at the far end and all therefore able to
 # be missing without anything failing loudly:
 #   dist/mods-arm64/       25 thin arm64 mod dylib pairs, fused by fuse-mod-arm64.sh
-#   dist/installer-arm64/  the Mods app's own arm64 slice, fused by build-installer.sh
+#   dist/installer-arm64/  the Mods app's arm64 slice, fused by build-installer.sh
+#   dist/sysreport-arm64/  the System Report app's, fused by build-sysreport.sh
+#
+# The engine's own arm64 slice is NOT here: it is a whole staged tree rather than
+# one binary, with its own BUILD-STAMP that make-universal.sh checks, so it has
+# its own carrier in scripts/push-arm64-slice.sh.
 set -u
 
 HOST="${1:-}"
@@ -43,7 +48,7 @@ fp_remote () {
 rc=0
 any=0
 
-for rel in dist/mods-arm64 dist/installer-arm64; do
+for rel in dist/mods-arm64 dist/installer-arm64 dist/sysreport-arm64; do
 	src="$ROOT/$rel"
 	if [ ! -d "$src" ]; then
 		echo "-- $rel: not built on this box, skipping"
@@ -90,6 +95,7 @@ if [ "$any" -eq 0 ]; then
 	echo "   Build the arm64 slices on this box first:"
 	echo "     scripts/build-mod-arm64.sh --all"
 	echo "     scripts/build-installer-arm64.sh"
+	echo "     scripts/build-sysreport-arm64.sh"
 	exit 1
 fi
 
@@ -98,5 +104,6 @@ if [ "$rc" -eq 0 ] && [ "$MODE" != "--check" ]; then
 	echo "Now, ON $HOST:"
 	echo "  scripts/fuse-mod-arm64.sh    # adds arm64 to the mod dylibs in dist/mods"
 	echo "  scripts/build-installer.sh   # picks up dist/installer-arm64 by itself"
+	echo "  scripts/build-sysreport.sh   # picks up dist/sysreport-arm64 by itself"
 fi
 exit "$rc"
