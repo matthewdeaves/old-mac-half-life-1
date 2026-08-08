@@ -60,3 +60,8 @@ timestamp,label,host,renderer,resolution,screenmode,map,frames,fps_min,fps_med,f
 2026-08-08T16:38:45,v1.6.0-intel-10.6-floor,g5-desktop,gl,800x600,fullscreen,c0a0,300,209.294,209.477,209.548,209.294|209.548|209.477
 2026-08-08T16:38:45,v1.6.0-intel-10.6-floor,mini-intel2,gl,800x600,fullscreen,c0a0,300,88.022,88.027,88.112,88.112|88.022|88.027
 2026-08-08T16:47:41,CONTROL-intel-10.7-libcxx,mini-intel2,gl,800x600,fullscreen,c0a0,300,87.602,87.633,87.802,87.633|87.602|87.802
+2026-08-08T19:11:08,v1.6.0-five-slice,yosemite-tiger,gl,800x600,fullscreen,c0a0,300,29.895,30.003,30.072,29.895|30.003|30.072
+2026-08-08T19:11:08,v1.6.0-five-slice,mini-g4,gl,800x600,fullscreen,c0a0,300,91.169,91.192,91.204,91.169|91.204|91.192
+2026-08-08T19:11:08,v1.6.0-five-slice,quicksilver,gl,800x600,fullscreen,c0a0,300,60.476,60.827,60.875,60.827|60.476|60.875
+2026-08-08T19:11:08,v1.6.0-five-slice,g5-panther,gl,800x600,fullscreen,c0a0,300,209.858,210.315,210.325,209.858|210.325|210.315
+2026-08-08T19:11:08,v1.6.0-five-slice,mini-intel2,gl,800x600,fullscreen,c0a0,300,86.538,86.587,86.609,86.538|86.609|86.587
