@@ -191,16 +191,37 @@ def test_no_ppc970_in_shipped_strings():
           "\n".join(offenders))
 
 
-def test_build_info_slice_line():
-    """BUILD-INFO.txt must name the slices the binary actually has."""
+def test_build_info_slice_line_is_measured():
+    """BUILD-INFO.txt must name the slices the binary actually has.
+
+    This used to assert the literal list in build-pins.sh, and that is precisely
+    how the line went wrong: it was a hardcoded "ppc750 . ppc7400 . i386 .
+    x86_64" that stayed put when arm64 landed, so the one document telling a user
+    what the download supports under-reported it, and this test agreed because
+    both sides were the same stale literal.
+
+    A declared list of what a binary contains is a second source of truth for
+    something the binary already knows. So the template takes the list as a
+    parameter now, and what is worth checking is the WIRING: that build-pins.sh
+    interpolates it rather than spelling it out, and that make-dmg.sh derives
+    what it passes from lipo.
+    """
     body = read("scripts/build-pins.sh")
     m = re.search(r"^Fat slices\s*:\s*(.+)$", body, re.M)
     check("build-pins.sh has a Fat slices line", m is not None)
-    if not m:
-        return
-    named = [t.strip() for t in m.group(1).split(".") if t.strip()]
-    check("BUILD-INFO slice line is exactly %s" % " . ".join(EXEC_SLICES),
-          named == EXEC_SLICES, "found: %s" % named)
+    if m:
+        check("the Fat slices line is a parameter, not a hardcoded list",
+              "${slices}" in m.group(1),
+              "found: %s" % m.group(1).strip())
+
+    dmg = read("scripts/make-dmg.sh")
+    check("make-dmg.sh passes a slice list to provenance_table",
+          re.search(r"provenance_table[^\n]*\$SLICE_LINE", dmg) is not None)
+    # The value must come from the binary, not from a constant somewhere else.
+    m2 = re.search(r"^SLICE_LINE=(.+)$", dmg, re.M)
+    check("SLICE_LINE is derived from the measured ARCHS", 
+          m2 is not None and "$ARCHS" in m2.group(1),
+          "found: %s" % (m2.group(1).strip() if m2 else "no SLICE_LINE"))
 
 
 def test_menu_dictionary_is_shipped_and_sane():
@@ -663,7 +684,7 @@ def main():
                test_every_branch_is_pinned,
                test_mod_count_is_consistent,
                test_no_ppc970_in_shipped_strings,
-               test_build_info_slice_line,
+               test_build_info_slice_line_is_measured,
                test_menu_dictionary_is_shipped_and_sane,
                test_invocation_matcher_rejects_a_mention,
                test_every_pin_is_a_full_commit,
