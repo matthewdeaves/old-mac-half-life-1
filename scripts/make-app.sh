@@ -1,9 +1,15 @@
 #!/bin/bash
-# Assemble Half-Life.app (universal ppc + x86_64) from the flat fat bundle produced
-# by the build, plus a legacy .icns from scripts/make-icon.py. Run this ON A MAC that
-# has the fat bundle and SetFile (the Lion mini). The result is a double-click app that
-# works on 10.3 through 10.5 PPC and 10.7 Intel from one binary - no cwd
-# dependence (the game_launch fix resolves libxash next to the executable).
+# Assemble Half-Life.app (universal, up to five slices) from the flat fat bundle
+# produced by the build, plus a legacy .icns from scripts/make-icon.py. Run this ON A
+# MAC that has the fat bundle and SetFile (the Lion mini). The result is a double-click
+# app that works on 10.3.9 PowerPC through macOS 26 on Apple Silicon from one binary -
+# no cwd dependence (the game_launch fix resolves libxash next to the executable).
+#
+# This script does not know or care which slices are in the binary; make-universal.sh
+# fuses whatever it was given and says so. The launcher below picks a display profile
+# by CPU, and its one CPU-specific branch is gated on `uname -p = powerpc`, so an
+# architecture that did not exist when it was written falls through to the Intel
+# path, which is the right default rather than an accident.
 #
 #   ./make-app.sh <flat-bundle-dir> <output.app> [icon.icns]
 #
@@ -48,7 +54,8 @@ PORTVER="${VERSION:-}"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources/Half-Life"
 
-# engine executable + fat dylibs + x86_64 SDL2 (ppc links SDL statically; harmless on ppc)
+# engine executable + fat dylibs + the fat SDL2. PowerPC links SDL statically, so the
+# SDL dylib carries only the slices that need it and is harmless on a PowerPC machine.
 cp "$SRC"/xash3d "$SRC"/*.dylib "$APP/Contents/MacOS/"
 mv "$APP/Contents/MacOS/xash3d" "$APP/Contents/MacOS/xash3d.bin"
 
