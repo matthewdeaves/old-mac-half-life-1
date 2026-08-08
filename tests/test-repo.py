@@ -589,6 +589,69 @@ def test_driver_manifest_is_current():
           "; ".join(bad) + "  (run scripts/build-all.sh --update-manifest)")
 
 
+def test_every_repo_path_a_driver_reads_is_synced():
+    """Anything a build driver reads out of the repo must be in the sync list.
+
+    The drivers run ON a build mini, against a hand-managed ~/oldmac that nothing
+    pulls. scripts/sync-build-host.sh is the only thing that puts this repo's
+    files there, so a path a driver reads that is NOT in its FILES or DIRS list
+    is read from whatever happens to be on that host, silently, and the build
+    still says ok.
+
+    That is not theoretical. compat-include/ was added to build-lion.sh and the
+    build would have used a stale copy; configs/userconfig.cfg and
+    configs/gameui_english.txt are copied into the shipped app by
+    make-universal.sh and were never in the list at all; and the header of
+    sync-build-host.sh already records a deployed Mods.app that carried an About
+    picture weeks older than the repo's for exactly this reason.
+
+    dist/, vendor/ and sdl2-* are excluded: those are build OUTPUT or vendored
+    source, and are deliberately not synced.
+    """
+    sync = os.path.join(REPO, "scripts", "sync-build-host.sh")
+    if not os.path.exists(sync):
+        check("sync-build-host.sh exists", False, "missing")
+        return
+    with io.open(sync, encoding="utf-8") as f:
+        sync_src = f.read()
+
+    # The two here-doc style lists: FILES="..." and DIRS="..."
+    covered = []
+    for var in ("FILES", "DIRS"):
+        m = re.search(r'^%s="(.*?)"' % var, sync_src, re.S | re.M)
+        if m:
+            covered += [ln.strip() for ln in m.group(1).splitlines() if ln.strip()]
+
+    drivers = ["build-lion.sh", "build-ppc-tiger.sh", "build-ppc-panther.sh",
+               "make-universal.sh", "make-app.sh"]
+    skip = ("dist/", "dist-ppc", "vendor/", "sdl2-")
+    wanted = set()
+    for d in drivers:
+        p = os.path.join(REPO, "scripts", d)
+        if not os.path.exists(p):
+            continue
+        with io.open(p, encoding="utf-8") as f:
+            for ref in re.findall(r'\$ROOT/([A-Za-z0-9_./-]+)', f.read()):
+                ref = ref.rstrip('./')
+                if not ref or ref.startswith(skip):
+                    continue
+                # Only care about paths that really exist in the repo.
+                if os.path.exists(os.path.join(REPO, ref)):
+                    wanted.add(ref)
+
+    missing = []
+    for ref in sorted(wanted):
+        ok = any(c == ref or c.startswith(ref + "/") or ref.startswith(c + "/")
+                 for c in covered)
+        if not ok:
+            missing.append(ref)
+
+    check("every repo path a driver reads is in the sync list",
+          not missing,
+          "not synced to build hosts: %s  (add to FILES or DIRS in "
+          "scripts/sync-build-host.sh)" % ", ".join(missing))
+
+
 def main():
     print("repo invariants (%s)" % REPO)
     for fn in (test_mod_tables_agree,
@@ -604,6 +667,7 @@ def main():
                test_no_script_calls_a_helper_that_is_gone,
                test_surviving_patch_scripts_are_still_wired,
                test_driver_manifest_is_current,
+               test_every_repo_path_a_driver_reads_is_synced,
                test_no_em_dashes,
                test_no_stray_tool_markup,
                test_issue_templates_reference_real_labels):

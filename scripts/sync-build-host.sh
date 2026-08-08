@@ -55,6 +55,9 @@ FILES="VERSION
 MacOSX/Half-Life.icns
 MacOSX/Half-Life-Mods.icns
 MacOSX/Half-Life-SysReport.icns
+compat-include/cinttypes
+configs/userconfig.cfg
+configs/gameui_english.txt
 scripts/driver-manifest.md5
 scripts/build-all.sh
 scripts/build-pins.sh
@@ -124,6 +127,14 @@ for f in $FILES; do
 		fi
 		continue
 	fi
+	# The file list is no longer flat (compat-include/, MacOSX/, scripts/), and scp
+	# does not create intermediate directories: it fails with "No such file or
+	# directory" on a host that has never had that folder. Make it first.
+	d=$(dirname "$f")
+	if [ "$d" != "." ]; then
+		ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" "mkdir -p oldmac/$d" || {
+			printf '%-34s COULD NOT MAKE oldmac/%s\n' "$f" "$d"; exit 1; }
+	fi
 	if scp -q "$f" "$HOST:oldmac/$f"; then
 		# Verify the copy rather than trusting scp's exit code.
 		r2=$(remote_md5 "$f")
@@ -135,6 +146,70 @@ for f in $FILES; do
 		fi
 	else
 		printf '%-34s SCP FAILED\n' "$f"
+		exit 1
+	fi
+done
+
+# --- directories a driver reads WHOLESALE ------------------------------------
+#
+# make-universal.sh copies every file in these into the app bundle (the Custom
+# Game artwork and blurbs for all 25 mods). They obey exactly the same rule as
+# FILES: read from the repo at build time, therefore able to drift, therefore
+# able to ship something nobody chose. This is not hypothetical, it is the fault
+# recorded at the top of this file, where a deployed Half-Life Mods.app was found
+# carrying an About picture weeks older than the repo's.
+#
+# They are not listed by name because there are 50 of them and the count grows
+# with every mod added. Compared instead by a fingerprint over names AND contents
+# in ONE round trip: contents alone would miss a rename, names alone would miss
+# an edited blurb.
+DIRS="installer/artwork
+installer/descriptions"
+
+# LC_ALL=C is NOT decoration. sort's collation is locale-dependent, and this box
+# and the build minis disagree: with names like Hunger.tga, TheGate.tga and
+# Zombie-X-DLE.tga the two orders differ, so the same 25 identical files
+# fingerprint differently on each side and the directory reports drift forever.
+# A check that cries wolf is worse than no check, because it teaches you to run
+# the sync that silences it. Byte order on both sides, always.
+fp_local () {
+	( cd "$1" 2>/dev/null && find . -type f | LC_ALL=C sort | while read -r f; do
+		echo "$f $(md5 -q "$f")"; done ) | md5 -q
+}
+fp_remote () {
+	ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" \
+		'cd oldmac/'"$1"' 2>/dev/null && find . -type f | LC_ALL=C sort | while read -r f; do
+			echo "$f $(md5 -q "$f")"; done | md5 -q' 2>/dev/null
+}
+
+for d in $DIRS; do
+	if [ ! -d "$d" ]; then
+		echo "!! $d missing from this repo" >&2; drift=1; continue
+	fi
+	l=$(fp_local "$d")
+	r=$(fp_remote "$d")
+	n=$(find "$d" -type f | wc -l | tr -d ' ')
+	if [ "$l" = "$r" ]; then
+		printf '%-34s same (%s files)\n' "$d/" "$n"
+		continue
+	fi
+	drift=1
+	if [ "$MODE" = "--check" ]; then
+		printf '%-34s DIFFERS from %s\n' "$d/" "$HOST"
+		continue
+	fi
+	# tar, not scp: one connection regardless of file count, and it creates the
+	# directory on a host that has never had it. No --delete anywhere near it.
+	if tar cf - "$d" | ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" "mkdir -p oldmac && tar xf - -C oldmac"; then
+		r2=$(fp_remote "$d")
+		if [ "$l" = "$r2" ]; then
+			printf '%-34s updated (%s files)\n' "$d/" "$n"
+		else
+			printf '%-34s COPY DID NOT TAKE\n' "$d/"
+			exit 1
+		fi
+	else
+		printf '%-34s TAR FAILED\n' "$d/"
 		exit 1
 	fi
 done
