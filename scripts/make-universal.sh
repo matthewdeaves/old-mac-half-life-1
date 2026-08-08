@@ -155,12 +155,34 @@ FUSED_STAMP="$( stamp_of "$LION" )"
 #     looking for the wrong string
 # Reading the reference out of libxash cannot desync from what was linked,
 # because it IS what was linked.
-# One SDL per Intel architecture, each derived from the slice that links it.
+# One SDL per architecture, each derived from the slice that links it.
+#
+# EXCEPT arm64, which arrives pre-staged and already rewritten. This machine is
+# Lion, and its otool has no arm64 in its -arch table at all:
+#     otool: unknown architecture specification flag: -arch arm64
+# so it cannot select that slice out of a fat, and neither can its
+# install_name_tool. build-arm64.sh therefore does all the arm64 Mach-O surgery
+# on the Apple Silicon box, verifies the result depends on nothing outside /usr
+# and /System, and ships a libSDL2 already carrying @loader_path in its own
+# directory. All that is left to do here is lipo it in, which Lion's lipo can do.
 vmin_of() { otool -arch "$1" -l "$2" | awk '/LC_VERSION_MIN_MACOSX/{g=1} g&&/^ *version /{print $2; exit}'; }
 
 SDL_PATHS=()
+SDL_REWRITE=()          # paths install_name_tool must still fix in the fused libxash
 for i in "${!DYN_ARCHES[@]}"; do
 	a="${DYN_ARCHES[$i]}"; d="${DYN_DIRS[$i]}"
+
+	if [ "$a" = arm64 ]; then
+		[ -f "$d/libSDL2-2.0.0.dylib" ] || {
+			echo "!! the arm64 slice has no staged libSDL2-2.0.0.dylib" >&2
+			echo "   Re-run scripts/build-arm64.sh on the Apple Silicon box; it stages one." >&2
+			exit 1
+		}
+		echo "    SDL for arm64: pre-staged in the slice, already @loader_path"
+		SDL_PATHS+=( "$d/libSDL2-2.0.0.dylib" )
+		continue
+	fi
+
 	s="$( otool -arch "$a" -L "$d/libxash.dylib" | awk '/libSDL2/ { print $1; exit }' )"
 	case "$s" in
 		/*) ;;
@@ -189,6 +211,7 @@ for i in "${!DYN_ARCHES[@]}"; do
 	fi
 	echo "    SDL for $a: $s (version-min $sdlmin)"
 	SDL_PATHS+=( "$s" )
+	SDL_REWRITE+=( "$s" )
 done
 OUT="$ROOT/dist/universal"                    # flat fat bundle (feed to make-app.sh)
 
@@ -218,42 +241,75 @@ ALL_SLICES=( "$PANTHER" "$TIGER" "${DYN_DIRS[@]}" )
 echo "==> lipo engine executable (ppc750 + ppc7400 + ${DYN_ARCHES[*]})"
 lipo -create "${ALL_SLICES[@]/%//xash3d}" -output "$OUT/xash3d"
 
-echo "==> lipo engine dylibs"
+# --- every install_name_tool edit happens BEFORE the fuse, on thin files ------
+#
+# Lion's install_name_tool cannot parse a fat that contains arm64:
+#
+#   install_name_tool: for architecture cputype (16777228) cpusubtype (0)
+#     object: .../libSDL2-2.0.0.dylib malformed object (unknown load command 9)
+#
+# It has no arm64 in its architecture table, so it chokes on the whole file even
+# though the edit it was asked for concerns a different slice. lipo has no such
+# problem: it copies slices around without reading their load commands, which is
+# why the fuse can still be done here at all.
+#
+# So the order is inverted: fix each THIN slice first, then fuse. The arm64 thin
+# files are already correct, rewritten by build-arm64.sh on the Apple Silicon
+# box, which is the only machine that can read them.
+STAGE="$OUT/.stage"
+mkdir -p "$STAGE"
+
+echo "==> SDL2 (per-arch install name, then fuse; ppc links it statically)"
+sdl_thin=()
+for i in "${!DYN_ARCHES[@]}"; do
+	a="${DYN_ARCHES[$i]}"
+	t="$STAGE/libSDL2-$a.dylib"
+	cp "${SDL_PATHS[$i]}" "$t"; chmod u+w "$t"
+	if [ "$a" != arm64 ]; then
+		install_name_tool -id @loader_path/libSDL2-2.0.0.dylib "$t"
+	fi
+	sdl_thin+=( "$t" )
+done
+lipo -create "${sdl_thin[@]}" -output "$OUT/libSDL2-2.0.0.dylib"
+
+echo "==> libxash (rewrite each slice's SDL reference, then fuse)"
+# NOT optional and NOT silenced. Each slice was linked against its OWN SDL prefix
+# and carries a different absolute build-box path, so this is per slice. If it
+# were skipped the shipped binary would name a path that exists on no user
+# machine, and nothing downstream looks: make-dmg.sh md5s the file but never
+# reads its load commands.
+xash_thin=( "$PANTHER/libxash.dylib" "$TIGER/libxash.dylib" )
+for i in "${!DYN_ARCHES[@]}"; do
+	a="${DYN_ARCHES[$i]}"; d="${DYN_DIRS[$i]}"
+	t="$STAGE/libxash-$a.dylib"
+	cp "$d/libxash.dylib" "$t"; chmod u+w "$t"
+	if [ "$a" != arm64 ]; then
+		install_name_tool -change "${SDL_PATHS[$i]}" \
+			@loader_path/libSDL2-2.0.0.dylib "$t"
+		if otool -arch "$a" -L "$t" | grep -q "${SDL_PATHS[$i]}"; then
+			echo "!! $a libxash still references ${SDL_PATHS[$i]}" >&2
+			exit 1
+		fi
+	fi
+	xash_thin+=( "$t" )
+done
+lipo -create "${xash_thin[@]}" -output "$OUT/libxash.dylib"
+
+echo "==> lipo the remaining engine dylibs"
 for d in $ENGINE_DYLIBS; do
+	[ "$d" = libxash.dylib ] && continue      # done above, with its rewrite
 	lipo -create "${ALL_SLICES[@]/%//$d}" -output "$OUT/$d"
 done
 
-echo "==> SDL2 (Intel only; ppc links it statically)"
-# One libSDL2 fat containing every Intel architecture. The ppc slices have no SDL
-# load command at all, so they neither need nor get one.
-lipo -create "${SDL_PATHS[@]}" -output "$OUT/libSDL2-2.0.0.dylib"
-chmod u+w "$OUT/libSDL2-2.0.0.dylib" "$OUT/libxash.dylib"
-install_name_tool -id @loader_path/libSDL2-2.0.0.dylib "$OUT/libSDL2-2.0.0.dylib"
+rm -rf "$STAGE"
 
-# NOT optional, and NOT silenced. build-lion.sh rewrites the SDL install name only
-# on the copy it stages into dist/lion-play; the libxash.dylib fused here still
-# carries the build box's absolute path to libSDL2. If this fails, the shipped
-# Intel slice references a path that exists on no user machine, and nothing
-# downstream looks: make-dmg.sh md5s the file but never reads its load commands.
-#
-# One -change per architecture: each Intel slice was linked against its OWN SDL
-# prefix (sdl2-snow-x86_64 vs sdl2-snow-i386), so they carry DIFFERENT absolute
-# paths and a single rewrite would silently fix one and leave the other.
-for s in "${SDL_PATHS[@]}"; do
-	install_name_tool -change "$s" @loader_path/libSDL2-2.0.0.dylib "$OUT/libxash.dylib"
-done
-
-# Guard on the PROPERTY, not on one expected string: no x86_64 binary here may
-# DEPEND on anything outside /usr and /System, because nothing else exists on a
-# player's machine. The previous version grepped for one hardcoded path and so
-# reported success when the binary named a different build path instead.
-#
-# A dylib's own install name (LC_ID_DYLIB, the first line otool -L prints) IS a
-# build path and is harmless, since the engine dlopen's these by path and nothing
-# links against them, so it is excluded rather than "fixed".
 echo "==> checking no Intel binary depends on a build-box path"
 dep_bad=0
 for a in "${DYN_ARCHES[@]}"; do
+	# arm64 cannot be inspected here: Lion's otool has no arm64 -arch. It was
+	# checked for exactly this property by build-arm64.sh on the machine that
+	# built it, which is the only machine that can read it.
+	[ "$a" = arm64 ] && { echo "    arm64: checked upstream by build-arm64.sh"; continue; }
 	for f in "$OUT/xash3d" "$OUT"/*.dylib; do
 		# libSDL2 is Intel-only and every other file here is fat, so skip anything
 		# that has no slice for this architecture rather than reporting a fault.

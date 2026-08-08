@@ -202,6 +202,53 @@ done
 [ "$bad" -eq 0 ] || { echo "!! build-arm64: the slice does not match what it claims" >&2; exit 1; }
 echo "    ok  every artifact $ARCH, floor macOS $ARM64_MIN"
 
+# --- stage a self-contained SDL, and do the install-name surgery HERE ---------
+#
+# For the other four slices make-universal.sh copies the SDL and rewrites
+# libxash's reference to it. It cannot do that for arm64, because the machine it
+# runs on is Lion:
+#
+#   $ otool -arch arm64 -L libxash.dylib
+#   otool: unknown architecture specification flag: -arch arm64
+#   otool: known architecture flags are: any little big ppc64 x86_64 ... arm
+#
+# arm64 is not in that build of otool's architecture table at all, and neither
+# lipo nor install_name_tool can select the slice inside a fat. Lion's lipo CAN
+# fuse arm64, which is the one thing make-universal.sh actually needs from it.
+#
+# So everything that requires understanding arm64 load commands happens here,
+# with a current toolchain, and the directory that gets carried over is already
+# self-contained. make-universal.sh then only has to lipo it in.
+echo "==> staging a self-contained libSDL2 for the arm64 slice"
+cp "$SDLPREFIX/lib/libSDL2-2.0.0.dylib" "$OUT/"
+chmod u+w "$OUT/libSDL2-2.0.0.dylib" "$OUT/libxash.dylib"
+install_name_tool -id @loader_path/libSDL2-2.0.0.dylib "$OUT/libSDL2-2.0.0.dylib"
+install_name_tool -change "$SDLPREFIX/lib/libSDL2-2.0.0.dylib" \
+	@loader_path/libSDL2-2.0.0.dylib "$OUT/libxash.dylib"
+
+# Same property the fused bundle is checked for: nothing may depend on a path
+# that exists only on a build machine. Checked here because it cannot be checked
+# on the mini.
+echo "==> checking the arm64 slice depends on nothing outside /usr and /System"
+dep_bad=0
+for f in "$OUT/xash3d" "$OUT"/*.dylib "$OUT"/valve/*/*.dylib; do
+	[ -e "$f" ] || continue
+	own="$( otool -D "$f" 2>/dev/null | sed 1d )"
+	while read -r dep; do
+		case "$dep" in
+			""|@*|/usr/*|/System/*) continue ;;
+			"$own") continue ;;
+		esac
+		echo "    !! $(basename "$f") depends on $dep"
+		dep_bad=1
+	done < <( otool -L "$f" 2>/dev/null | sed 1d | awk '{print $1}' )
+done
+[ "$dep_bad" -eq 0 ] || {
+	echo "!! build-arm64: the slice references paths that exist only on this box" >&2
+	exit 1
+}
+echo "    ok  self-contained"
+
 # --- build stamp -------------------------------------------------------------
 # MEASURED from the tree, not copied from the pin, for the reason recorded in the
 # other drivers: a stamp that restates the pin cannot detect a tree that moved.
