@@ -35,10 +35,13 @@ tests/test-artifact.sh                   # checks a built artifact
 
 `build-all.sh` runs `fetch-sources.sh`, the FOUR slice drivers it can run
 (`build-lion.sh` twice, for x86_64 and for i386, then both PowerPC ones),
-`make-universal.sh` and `make-app.sh`, in that order, checking each exit code.
-It does NOT build arm64, which no mini can, and `make-universal.sh` fuses
-whatever slices it finds: an arm64 slice that was never pushed is simply absent
-from the release, which is why the fuse SAYS so either way.
+`make-universal.sh`, `make-app.sh`, then `build-installer.sh` and
+`build-sysreport.sh`, in that order, checking each exit code. It does NOT build
+arm64, which no mini can, and every fuse takes whatever slices it finds: a slice
+that was never pushed is simply absent from the release, which is why each fuse
+SAYS so either way. It does NOT build the 25 mod dylibs either: that is
+`build-mod.sh`, it takes hours, and its output is an INPUT to
+`build-installer.sh`.
 **Do not run those steps chained by hand.** A pipeline returns its LAST command's
 status, so `driver.sh 2>&1 | tail -25 && next.sh` reads `tail`'s status, and
 `tail` always succeeds. That has already happened here: all three drivers

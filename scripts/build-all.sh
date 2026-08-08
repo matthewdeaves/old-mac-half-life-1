@@ -183,6 +183,22 @@ run ppc-panther scripts/build-ppc-panther.sh
 run universal scripts/make-universal.sh
 run app       scripts/make-app.sh dist/universal dist/universal-app/Half-Life.app
 
+# The other two shipped apps. These were left out for a long time on the grounds
+# that they change rarely, and that turned out to be the wrong reason: a thing
+# nobody rebuilds is a thing nobody re-checks. Both drifted, and one of them
+# drifted into a real hole. When the game grew an i386 slice for the 2006 Core
+# Solo and Core Duo Macs, and the mod dylibs followed, the Mods app did not: on
+# one of those machines the game ran, every mod ran, and the app that installs
+# them would not launch. Nothing in the release process was looking.
+#
+# Both are cheap. They compile a few Objective-C files and, in the installer's
+# case, copy already-built mod dylibs; neither goes near hlsdk or the engine.
+# Building the 25 MOD DYLIBS is the expensive part and stays out of here
+# deliberately: it takes hours, it is driven per-branch by scripts/build-mod.sh,
+# and its output is an input to the step below rather than part of it.
+run installer scripts/build-installer.sh
+run sysreport scripts/build-sysreport.sh
+
 summary
 echo "All steps completed. This says the drivers succeeded, NOT that the result is"
 echo "correct: verify slices and strings on the dev box, never on Lion."
