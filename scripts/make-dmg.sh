@@ -145,16 +145,22 @@ BIN="$IMG/Half-Life.app/Contents/MacOS/xash3d.bin"
 # ppc970 is deliberately absent since v1.4.0: the G5 takes ppc7400. See
 # docs/adr/0001-slices-are-chosen-by-cpu-capability.md.
 #
-# This used `lipo -archs`, WHICH DOES NOT EXIST ON TIGER. Measured on mini-g4
-# (10.4.11): "lipo: unknown flag: -archs". So ARCHS came back empty and the very
-# next line exited claiming a missing ppc7400 slice, on the one machine the hard
-# rules say a release must be cut on. `lipo -info` is present everywhere.
+# This used `lipo -archs`, which works HERE and only here. This script runs on
+# the dev box and stages into a local temp dir, so the lipo that reads $BIN is
+# the modern one; the Tiger host is only ever handed the finished tree to run
+# hdiutil on. That is why releases have been cutting cleanly.
 #
-# Tiger's lipo also cannot NAME the x86_64 slice. On a correct fat it prints
+# It is still worth not depending on: `lipo -archs` DOES NOT EXIST ON TIGER
+# (measured on mini-g4, 10.4.11: "lipo: unknown flag: -archs"), so the moment
+# anyone runs this on the packaging host to debug something, ARCHS comes back
+# empty and the next line reports a missing ppc7400 slice on a perfectly good
+# binary. `lipo -info` is present everywhere.
+#
+# Old lipo also cannot NAME every slice. Tiger prints a correct fat as
 #   ppc750 ppc7400 i386 (cputype (16777223) cpusubtype (-2147483645))
-# which reads like a broken slice and is not. It names ppc750, ppc7400 and i386
-# quite happily; only cputypes it predates come out as numbers. So match on the
-# name first and fall back to the cputype for those.
+# naming ppc750, ppc7400 and i386 happily while showing x86_64 as a number, and
+# Lion does the same for arm64. So match on the name first and fall back to the
+# cputype for the ones a given lipo predates.
 ARCHS="$(lipo -info "$BIN" 2>/dev/null | sed 's/.*: //')"
 echo "[make-dmg] fat slices: ${ARCHS:-<none>}"
 
