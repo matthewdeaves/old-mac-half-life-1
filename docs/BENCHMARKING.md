@@ -77,8 +77,10 @@ scripts/fleet-bench.sh [-l label] [-r gl|soft] [-W w] [-H h]
                        [-m map] [host ...]
 ```
 
-Default fleet: `yosemite quicksilver mini-g4 imac-g5 mini-intel`. `-l` tags a run
-so before/after rows diff easily:
+Default fleet: `yosemite quicksilver mini-g4 imac-g5 mini-intel`. Name hosts
+explicitly to bench whichever partitions are actually booted, since the G3 and
+the G5 answer on one IP per machine and only one OS at a time is up. `-l` tags a
+run so before/after rows diff easily:
 
 ```
 scripts/fleet-bench.sh -l baseline      -r gl -W 800 -H 600 yosemite
@@ -87,19 +89,39 @@ scripts/fleet-bench.sh -l fix-invalidenum -r gl -W 800 -H 600 yosemite
 
 ## Machines (SSH aliases)
 
-| alias        | machine                    | GPU                  | OS      |
-|--------------|----------------------------|----------------------|---------|
-| `yosemite`   | Power Mac G3 (ppc750)      | ATI Rage 128 (GL1.1) | 10.3.9  |
-| `quicksilver`| Power Mac G4 Quicksilver   | -                    | 10.4    |
-| `mini-g4`    | Mac mini G4                | -                    | 10.4    |
-| `imac-g5`    | iMac G5                    | ATI Radeon 9600      | 10.5    |
-| `g5-panther` | Power Mac G5 dual 2.7 GHz, partition 1 | ATI Radeon 9650 | 10.3.9 |
-| `g5-tiger`   | Power Mac G5 dual 2.7 GHz, partition 2 | ATI Radeon 9650 | 10.4.11 |
-| `g5-desktop` | Power Mac G5 dual 2.7 GHz, partition 3 | ATI Radeon 9650 | 10.5.8 |
-| `mini-intel` | Mac mini (Intel, Lion)     | Intel                | 10.7    |
+| alias            | machine                    | GPU                  | OS      | hw GL |
+|------------------|----------------------------|----------------------|---------|-------|
+| `yosemite`       | Power Mac G3 (ppc750)      | ATI Rage 128 (GL1.1) | 10.3.9  | yes   |
+| `yosemite-tiger` | Power Mac G3, partition 2  | ATI Rage 128         | 10.4.11 | yes   |
+| `quicksilver`    | Power Mac G4 Quicksilver   | -                    | 10.4    | yes   |
+| `mini-g4`        | Mac mini G4 (ppc7450)      | ATI Radeon 9200 (RV280) | 10.4.11 | yes |
+| `imac-g5`        | iMac G5                    | ATI Radeon 9600      | 10.5    | yes   |
+| `g5-panther`     | Power Mac G5 dual 2.7 GHz, partition 1 | ATI Radeon 9650 | 10.3.9 | yes |
+| `g5-tiger`       | Power Mac G5 dual 2.7 GHz, partition 2 | ATI Radeon 9650 | 10.4.11 | yes |
+| `g5-desktop`     | Power Mac G5 dual 2.7 GHz, partition 3 | ATI Radeon 9650 (RV351) | 10.5.8 | yes |
+| `mini-intel`     | Mac mini (Intel, Lion)     | Intel GMA 950        | 10.7    | yes   |
+| `mini-intel2`    | Mac mini (Macmini2,1)      | Intel GMA 950        | 10.7.5  | yes   |
+| `mini-sl`        | Mac mini (Macmini3,1)      | NVIDIA GeForce 9400  | 10.6.8  | **no**|
 
 PowerPC aliases are bench and test targets only; all three slices cross-compile on
 the Intel Lion minis.
+
+**`mini-sl` cannot produce a valid GL benchmark as currently wired.** It has no
+display attached and its NVIDIA 9400 will not hand out an accelerated context
+without one, so `GL_RENDERER` comes back `Apple Software Renderer` and the number
+is 5 to 10 times too low. `bench.sh` fails the run rather than printing it (pass
+`-S` if software GL is the point). This is not simply a headless rule: measured
+2026-08-08 over the same ssh path, `mini-intel2` is equally headless and its GMA
+950 gives hardware GL quite happily, while `mini-g4` has a monitor and is fine. A
+DVI/HDMI dummy EDID plug on `mini-sl` would fix it. It remains a perfectly good
+FUNCTIONAL test target for the 10.6 floor, which is what it is there for.
+
+Rows are labelled with the **ssh alias**, not the machine's own hostname, because
+the G3 and the G5 each multi-boot several OSes from one IP and every partition
+answers `hostname` identically. Rows written before 2026-08-08 carry hostnames
+instead: `macs-Computer` is the G3 on whichever OS it had booted,
+`intelmacmini233` is `mini-intel`, `g4-mini-1` is `mini-g4`. They are left as
+measured.
 
 The dual G5 (10.188.1.188, short name `powermacg5`) boots 10.3, 10.4 and 10.5 one
 at a time, so like `yosemite` / `yosemite-tiger` it gets **one alias per partition
