@@ -628,7 +628,7 @@ def test_every_repo_path_a_driver_reads_is_synced():
     # being compiled on the build host from whatever was there.
     drivers = ["build-lion.sh", "build-ppc-tiger.sh", "build-ppc-panther.sh",
                "make-universal.sh", "make-app.sh",
-               "build-installer.sh", "build-sysreport.sh"]
+               "build-installer.sh", "build-sysreport.sh", "build-mod.sh"]
     skip = ("dist/", "dist-ppc", "vendor/", "sdl2-")
     wanted = set()
     for d in drivers:

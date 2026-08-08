@@ -1,0 +1,25 @@
+// <cstdint> for a pre-C++11 header set.
+//
+// Companion to compat-include/cinttypes; see that file for the full reasoning.
+// The short version is that both the 10.3.9 SDK's C++ headers (GCC 4.0) and the
+// libstdc++ the Intel slices link (GCC 4.2) predate C++11, so neither ships this
+// header, and code that includes it fails on a compiler that is otherwise
+// perfectly able to compile it.
+//
+// <stdint.h> is C99 and present on every OS this port targets, back to 10.3.
+// C++11 says <cstdint> also puts the fixed-width types in namespace std;
+// nothing here uses std::int32_t and friends, so pulling them into the global
+// namespace is enough. If that stops being true the failure is a loud compile
+// error naming the missing name.
+//
+// Reached with -isystem, by scripts/build-mod.sh for the mod dylibs and by
+// scripts/build-lion.sh on the libstdc++ path. It is a build include path, not
+// a patch to a vendored tree, so docs/adr/0012 still holds.
+//
+// This file is TRACKED and synced to the build hosts. It used to be generated
+// at build time by build-mod.sh, which meant two things owned one path and
+// silently overwrote each other's copy.
+
+#pragma once
+
+#include <stdint.h>

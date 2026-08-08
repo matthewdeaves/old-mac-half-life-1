@@ -56,6 +56,7 @@ MacOSX/Half-Life.icns
 MacOSX/Half-Life-Mods.icns
 MacOSX/Half-Life-SysReport.icns
 compat-include/cinttypes
+compat-include/cstdint
 configs/userconfig.cfg
 configs/gameui_english.txt
 scripts/driver-manifest.md5
@@ -68,7 +69,13 @@ scripts/build-ppc-panther.sh
 scripts/make-universal.sh
 scripts/make-app.sh
 scripts/build-installer.sh
-scripts/build-sysreport.sh"
+scripts/build-sysreport.sh
+scripts/build-mod.sh
+scripts/patch-hlsdk-mod-bugs.py
+scripts/patch-hlsdk-mod-gcc4.py
+scripts/patch-hlsdk-ppc-darwin.py
+scripts/patch-hlsdk-shared-clientbugs.py
+scripts/patch-hlsdk-xcompile-ppc.py"
 
 # md5 is the one digest spelling present on 10.3 through modern macOS. `md5 -q`
 # exists on all of them; md5sum does not exist on any of them by default.
