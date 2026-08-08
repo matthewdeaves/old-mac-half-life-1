@@ -108,21 +108,59 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 # fails to load on the machine it was lowered for.
 INTEL_MIN="${OLDMAC_INTEL_MIN:-10.6}"
 case "$INTEL_MIN" in
-	10.6) CXXLIB="libstdc++"; SDLPREFIX="$ROOT/sdl2-snow-x86_64" ;;
-	10.7) CXXLIB="libc++";    SDLPREFIX="$ROOT/sdl2-x86_64" ;;
+	10.6) CXXLIB="libstdc++" ;;
+	10.7) CXXLIB="libc++"    ;;
 	*)    echo "!! OLDMAC_INTEL_MIN must be 10.6 or 10.7, got '$INTEL_MIN'" >&2; exit 2 ;;
 esac
 export MACOSX_DEPLOYMENT_TARGET="$INTEL_MIN"
 
-# SDL is built per floor and kept in its own prefix. A 10.7 libSDL2 dropped into
-# a 10.6 build links and installs without complaint and then refuses to load on
-# 10.6, so the two must never share a directory.
+# --- which Intel architecture ------------------------------------------------
+# x86_64 is every Intel Mac from 2006's Core 2 Duo onwards. i386 exists solely
+# for the 2006 Core Solo and Core Duo machines (Mac mini 1,1, iMac 4,1,
+# MacBook 1,1, MacBook Pro 1,1), which have no 64-bit mode at all and cap at
+# 10.6.8. They are the last Intel machines the x86_64 slice can never reach.
+#
+# A fat may hold both: they are different cputypes, so this is additive and
+# cannot disturb the grading of the existing slices, which was measured
+# separately on the G3, both G4s, the G5 and both Intel minis.
+INTEL_ARCH="${OLDMAC_INTEL_ARCH:-x86_64}"
+# The game dylib NAMES are not "the architecture with an underscore in front".
+# COM_GenerateLibraryName (3rdparty/library_suffix) special-cases 32-bit x86 on
+# Windows, Linux and Apple:
+#
+#     if( arch == ARCHITECTURE_X86 )
+#         snprintf( out, size, "%s%s.%s", prefix, name, ext );      // hl.dylib
+#     else
+#         snprintf( out, size, "%s%s_%s.%s", prefix, name, arch, ext );
+#
+# because 32-bit x86 was Half-Life's original platform and its libraries have
+# never carried a suffix. So i386 is hl.dylib and client.dylib, with no _i386
+# anywhere, while ppc, amd64 and arm64 all take the suffixed form. Getting this
+# wrong is not cosmetic: the engine dlopen's these BY NAME, so a suffixed i386
+# pair would simply never be found.
+case "$INTEL_ARCH" in
+	x86_64) GAME_CL=client_amd64.dylib ; GAME_SV=hl_amd64.dylib ;;
+	i386)   GAME_CL=client.dylib       ; GAME_SV=hl.dylib       ;;
+	*) echo "!! OLDMAC_INTEL_ARCH must be x86_64 or i386, got '$INTEL_ARCH'" >&2; exit 2 ;;
+esac
+
+# SDL is built per floor AND per architecture, each in its own prefix. A 10.7
+# libSDL2 dropped into a 10.6 build links and installs without complaint and then
+# refuses to load on 10.6; an x86_64 one in an i386 build does not link at all,
+# which is at least loud. Keep them apart either way.
+case "$INTEL_MIN" in
+	10.6) SDLPREFIX="$ROOT/sdl2-snow-$INTEL_ARCH" ;;
+	10.7) SDLPREFIX="$ROOT/sdl2-$INTEL_ARCH" ;;
+esac
+# The historical x86_64 prefixes have no -x86_64 suffix problem: sdl2-x86_64 and
+# sdl2-snow-x86_64 are exactly the names that were already there.
+
 ENGINE="$ROOT/vendor/xash3d-fwgs"             # our branch of FWGS/xash3d-fwgs
 HLSDK="$ROOT/vendor/hlsdk-portable"           # our branch of FWGS/hlsdk-portable
-OUT="$ROOT/dist/lion-x86_64"
+OUT="$ROOT/dist/lion-$INTEL_ARCH"
 SDL_VER=2.0.22
 
-echo "==> Intel slice: x86_64, floor $INTEL_MIN, C++ runtime $CXXLIB"
+echo "==> Intel slice: $INTEL_ARCH, floor $INTEL_MIN, C++ runtime $CXXLIB"
 
 # --- pre-flight: every tree must be at the commit build-pins.sh names ---------
 # The port is not applied at build time any more, so a tree at the wrong commit
@@ -196,10 +234,10 @@ if [ ! -x "$SDLPREFIX/bin/sdl2-config" ]; then
 	# reused. Start it clean.
 	( cd "$SRC"
 	  make distclean >/dev/null 2>&1 || true
-	  CC="clang -isysroot $SDK -arch x86_64 -mmacosx-version-min=$INTEL_MIN" \
-	  CFLAGS="-isysroot $SDK -arch x86_64 -mmacosx-version-min=$INTEL_MIN" \
-	  LDFLAGS="-isysroot $SDK -arch x86_64 -mmacosx-version-min=$INTEL_MIN" \
-	  ./configure --prefix="$SDLPREFIX" --build=x86_64-apple-darwin11 \
+	  CC="clang -isysroot $SDK -arch $INTEL_ARCH -mmacosx-version-min=$INTEL_MIN" \
+	  CFLAGS="-isysroot $SDK -arch $INTEL_ARCH -mmacosx-version-min=$INTEL_MIN" \
+	  LDFLAGS="-isysroot $SDK -arch $INTEL_ARCH -mmacosx-version-min=$INTEL_MIN" \
+	  ./configure --prefix="$SDLPREFIX" --build="$INTEL_ARCH-apple-darwin11" \
 	              --disable-render-metal --disable-video-x11
 	  make -j"$(sysctl -n hw.ncpu)"
 	  make install )
@@ -224,10 +262,29 @@ esac
 # MACOSX_DEPLOYMENT_TARGET. waf spawns compilers through several paths and an
 # exported variable is easy to lose; the flag is not. If the two ever disagree
 # the flag wins, which is the safe direction.
-export CFLAGS="-isysroot $SDK -mmacosx-version-min=$INTEL_MIN"
-export CXXFLAGS="-isysroot $SDK -mmacosx-version-min=$INTEL_MIN -stdlib=$CXXLIB -isystem $CXXINC"
-export LINKFLAGS="-isysroot $SDK -mmacosx-version-min=$INTEL_MIN -stdlib=$CXXLIB"
-export LDFLAGS="-isysroot $SDK -mmacosx-version-min=$INTEL_MIN -stdlib=$CXXLIB"
+# -arch goes in CC and CXX, NOT only in CFLAGS. This is the whole reason the
+# first i386 attempt was wrong.
+#
+# waf probes the target CPU by compiling a small program with the BARE compiler
+# and reading its predefined macros. It never sees CFLAGS during that probe, so
+# with -arch only in CFLAGS it reported "Target CPU: x86_64" while actually
+# emitting i386 objects. That is not cosmetic: DEST_CPU decides the game dylib
+# NAME, so hlsdk would have written hl_amd64.dylib containing i386 code, and the
+# i386 engine would then have looked for hl_i386.dylib at runtime and found
+# nothing. It also drives compiler_optimizations.py, which appends x86_64 -march
+# flags.
+#
+# Both PowerPC drivers already do it this way (CC="gcc-4.0 $ARCHFLAGS"), which is
+# exactly why they detect ppc correctly and this did not. Our engine branch even
+# carries an oldmac_fixup_dest_cpu for the ppc case; putting -arch where waf can
+# see it means no equivalent hack is needed for i386.
+export CC="clang -arch $INTEL_ARCH"
+export CXX="clang++ -arch $INTEL_ARCH"
+
+export CFLAGS="-isysroot $SDK -arch $INTEL_ARCH -mmacosx-version-min=$INTEL_MIN"
+export CXXFLAGS="-isysroot $SDK -arch $INTEL_ARCH -mmacosx-version-min=$INTEL_MIN -stdlib=$CXXLIB -isystem $CXXINC"
+export LINKFLAGS="-isysroot $SDK -arch $INTEL_ARCH -mmacosx-version-min=$INTEL_MIN -stdlib=$CXXLIB"
+export LDFLAGS="-isysroot $SDK -arch $INTEL_ARCH -mmacosx-version-min=$INTEL_MIN -stdlib=$CXXLIB"
 
 ln -sfn "../$(basename "$HLSDK")" "$ENGINE/hlsdk"
 
@@ -244,12 +301,12 @@ ln -sfn "../$(basename "$HLSDK")" "$ENGINE/hlsdk"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
-echo "==> [1/3] game dylibs (hlsdk-portable, x86_64/$INTEL_MIN)"
+echo "==> [1/3] game dylibs (hlsdk-portable, $INTEL_ARCH/$INTEL_MIN)"
 # The shared-client fixes, the same ones the mods carry, are commits on our own
 # hlsdk-portable branch, checked out by scripts/fetch-sources.sh.
 ( cd "$ENGINE/hlsdk" && rm -rf build && python ./waf configure build install --destdir="$OUT" )
 
-echo "==> [2/3] engine + renderers + menu (x86_64/$INTEL_MIN)"
+echo "==> [2/3] engine + renderers + menu ($INTEL_ARCH/$INTEL_MIN)"
 ( cd "$ENGINE"
   # Always from scratch, for the reason recorded in the PowerPC drivers: waf
   # reused a stale object across a commit change and shipped code that was not
@@ -276,11 +333,21 @@ done
 echo "==> verifying every artifact really targets $INTEL_MIN"
 floor_bad=0
 for f in xash3d libxash.dylib libref_gl.dylib libref_soft.dylib libmenu.dylib \
-         filesystem_stdio.dylib valve/cl_dlls/client_amd64.dylib valve/dlls/hl_amd64.dylib \
+         filesystem_stdio.dylib "valve/cl_dlls/$GAME_CL" \
+         "valve/dlls/$GAME_SV" \
          "$SDLPREFIX/lib/libSDL2-2.0.0.dylib"; do
 	case "$f" in /*) p="$f" ;; *) p="$OUT/$f" ;; esac
 	if [ ! -s "$p" ]; then
 		echo "    !! $f missing"; floor_bad=1; continue
+	fi
+	# The architecture is checked as well as the floor. -arch is passed
+	# explicitly, but the compiler's default here is x86_64, so a flag lost
+	# anywhere in waf's spawn paths would produce a perfectly good x86_64 build
+	# in dist/lion-i386 that only fails much later, at lipo, with a confusing
+	# "duplicate architecture" rather than anything naming the real cause.
+	got_arch="$( lipo -info "$p" 2>/dev/null | sed 's/.*: //' | tr -d ' ' )"
+	if [ "$got_arch" != "$INTEL_ARCH" ]; then
+		echo "    !! $(basename "$f"): built $got_arch, wanted $INTEL_ARCH"; floor_bad=1
 	fi
 	vm="$( otool -l "$p" 2>/dev/null | awk '/LC_VERSION_MIN_MACOSX/{g=1} g&&/^ *version /{print $2; exit}' )"
 	if [ "$vm" != "$INTEL_MIN" ]; then
@@ -296,7 +363,7 @@ if [ "$floor_bad" -ne 0 ]; then
 	echo "!! build-lion: the Intel slice does not match the floor it claims" >&2
 	exit 1
 fi
-echo "    ok  every artifact version-min $INTEL_MIN, C++ runtime $CXXLIB"
+echo "    ok  every artifact $INTEL_ARCH, version-min $INTEL_MIN, C++ runtime $CXXLIB"
 
 # --- build stamp -------------------------------------------------------------
 # Record what this slice was actually built from. make-universal.sh refuses to

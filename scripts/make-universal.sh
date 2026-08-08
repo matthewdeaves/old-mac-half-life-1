@@ -51,7 +51,56 @@ export PATH="$DEVELOPER_DIR/Toolchains/XcodeDefault.xctoolchain/usr/bin:$DEVELOP
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 PANTHER="$ROOT/dist/ppc-panther-app"          # generic ppc  (G3, 10.3, panther-sdl2)
 TIGER="$ROOT/dist/ppc-tiger-app"              # ppc7400       (G4, 10.4, panther-sdl2)
-LION="$ROOT/dist/lion-x86_64"                 # x86_64        (Intel, 10.7)
+LION="$ROOT/dist/lion-x86_64"                 # x86_64        (Intel, 10.6)
+LION32="$ROOT/dist/lion-i386"                 # i386          (Core Solo/Duo, 10.6)
+ARM64="$ROOT/dist/arm64"                      # arm64         (Apple Silicon, 11.0)
+
+# The i386 slice is OPTIONAL. It exists only for the 2006 Core Solo and Core Duo
+# machines, which have no 64-bit mode, and it is built by a separate run of
+# build-lion.sh with OLDMAC_INTEL_ARCH=i386. Fuse it when it is there and say so
+# when it is not, rather than either requiring it or silently dropping it: a
+# release that quietly lost a slice looks exactly like one that never had it.
+DYN_ARCHES=( x86_64 )
+DYN_DIRS=( "$LION" )
+# The game dylib FILE NAMES, not arch tokens. COM_GenerateLibraryName
+# (3rdparty/library_suffix) special-cases 32-bit x86 on Apple, Windows and
+# Linux and gives it NO suffix, because that was Half-Life's original
+# platform: i386 is hl.dylib and client.dylib, while ppc, amd64 and arm64 all
+# take the _<arch> form. The engine dlopen's these by name, so a suffixed
+# i386 pair would simply never be found.
+DYN_GAMECL=( client_amd64.dylib )
+DYN_GAMESV=( hl_amd64.dylib )
+if [ -d "$LION32" ]; then
+	DYN_ARCHES+=( i386 )
+	DYN_DIRS+=( "$LION32" )
+	DYN_GAMECL+=( client.dylib )
+	DYN_GAMESV+=( hl.dylib )
+	echo "==> i386 slice present, it will be fused in"
+else
+	echo "==> no i386 slice at $LION32, building without it"
+	echo "    (OLDMAC_INTEL_ARCH=i386 scripts/build-lion.sh makes one)"
+fi
+
+# arm64 is optional in the same way, but arrives differently: it is the one slice
+# that CANNOT be built on this machine, because Xcode 4.6 predates arm64 by seven
+# years. It is built on the Apple Silicon box with scripts/build-arm64.sh and
+# carried here by scripts/push-arm64-slice.sh, which verifies the copy by
+# checksum. Everything after this point treats it exactly like the others.
+#
+# Lion's lipo can fuse it. It cannot NAME the slice, printing "cputype
+# (16777228)" instead of arm64, which is the same cosmetic quirk as Panther's
+# lipo and x86_64; the fat it writes is correct, and was verified on the dev box
+# and by running the arm64 slice natively.
+if [ -d "$ARM64" ]; then
+	DYN_ARCHES+=( arm64 )
+	DYN_DIRS+=( "$ARM64" )
+	DYN_GAMECL+=( client_arm64.dylib )
+	DYN_GAMESV+=( hl_arm64.dylib )
+	echo "==> arm64 slice present, it will be fused in"
+else
+	echo "==> no arm64 slice at $ARM64, building without it"
+	echo "    (build it on the Apple Silicon box, then scripts/push-arm64-slice.sh $(hostname -s))"
+fi
 
 # --- refuse to fuse slices that were not all built from the same source -------
 #
@@ -75,8 +124,8 @@ stamp_of() {
 	cat "$1/BUILD-STAMP"
 }
 
-echo "==> checking all three slices were built from the same commit"
-for d in "$PANTHER" "$TIGER" "$LION"; do
+echo "==> checking every slice was built from the same commit"
+for d in "$PANTHER" "$TIGER" "${DYN_DIRS[@]}"; do
 	got="$( stamp_of "$d" )"
 	if [ "$got" != "$PIN_ENGINE_COMMIT" ]; then
 		echo "!! $d was built from $got" >&2
@@ -85,7 +134,7 @@ for d in "$PANTHER" "$TIGER" "$LION"; do
 		exit 1
 	fi
 done
-echo "    ok  all three at $( short "$PIN_ENGINE_COMMIT" )"
+echo "    ok  every slice at $( short "$PIN_ENGINE_COMMIT" )"
 # Carry the agreed stamp forward. Up to now it lived only in the per-slice
 # staging dirs, so once the fat bundle was assembled there was nothing left in
 # the artifact itself saying what it came from, and make-dmg.sh had to take the
@@ -106,27 +155,41 @@ FUSED_STAMP="$( stamp_of "$LION" )"
 #     looking for the wrong string
 # Reading the reference out of libxash cannot desync from what was linked,
 # because it IS what was linked.
-SDLX86="$( otool -arch x86_64 -L "$LION/libxash.dylib" | awk '/libSDL2/ { print $1; exit }' )"
-case "$SDLX86" in
-	/*) ;;
-	*)  echo "!! libxash.dylib names no absolute libSDL2 path (got '${SDLX86:-nothing}')" >&2
-	    echo "   Expected the build-box path that install_name_tool must rewrite." >&2
-	    exit 1 ;;
-esac
-[ -f "$SDLX86" ] || { echo "!! libxash was linked against $SDLX86, which is not there now" >&2; exit 1; }
-echo "    SDL for the Intel slice: $SDLX86"
+# One SDL per Intel architecture, each derived from the slice that links it.
+vmin_of() { otool -arch "$1" -l "$2" | awk '/LC_VERSION_MIN_MACOSX/{g=1} g&&/^ *version /{print $2; exit}'; }
 
-# The SDL and the engine slice must agree on the floor. A 10.7 libSDL2 beside a
-# 10.6 engine links fine, installs fine, and fails to load on 10.6.
-vmin_of() { otool -l "$1" | awk '/LC_VERSION_MIN_MACOSX/{g=1} g&&/^ *version /{print $2; exit}'; }
-SDL_MIN="$( vmin_of "$SDLX86" )"
-LION_MIN="$( vmin_of "$LION/libxash.dylib" )"
-if [ "$SDL_MIN" != "$LION_MIN" ]; then
-	echo "!! floor mismatch: libxash targets $LION_MIN but its libSDL2 targets $SDL_MIN" >&2
-	echo "   Rebuild SDL for $LION_MIN, or the Intel slice cannot load it there." >&2
-	exit 1
-fi
-echo "    both at version-min $LION_MIN"
+SDL_PATHS=()
+for i in "${!DYN_ARCHES[@]}"; do
+	a="${DYN_ARCHES[$i]}"; d="${DYN_DIRS[$i]}"
+	s="$( otool -arch "$a" -L "$d/libxash.dylib" | awk '/libSDL2/ { print $1; exit }' )"
+	case "$s" in
+		/*) ;;
+		*)  echo "!! $a libxash.dylib names no absolute libSDL2 path (got '${s:-nothing}')" >&2
+		    echo "   Expected the build-box path that install_name_tool must rewrite." >&2
+		    exit 1 ;;
+	esac
+	[ -f "$s" ] || { echo "!! $a libxash was linked against $s, which is not there now" >&2; exit 1; }
+
+	# The SDL and the engine slice must agree on the floor. A 10.7 libSDL2 beside
+	# a 10.6 engine links fine, installs fine, and fails to load on 10.6.
+	sdlmin="$( vmin_of "$a" "$s" )"
+	engmin="$( vmin_of "$a" "$d/libxash.dylib" )"
+	if [ "$sdlmin" != "$engmin" ]; then
+		echo "!! $a floor mismatch: libxash targets $engmin but its libSDL2 targets $sdlmin" >&2
+		echo "   Rebuild SDL for $engmin, or that slice cannot load it there." >&2
+		exit 1
+	fi
+	# And it must really be that architecture. Two same-arch SDLs would fail at
+	# lipo with "duplicate architecture", which names neither the cause nor the
+	# prefix that produced it.
+	sdlarch="$( lipo -info "$s" | sed 's/.*: //' | tr -d ' ' )"
+	if [ "$sdlarch" != "$a" ]; then
+		echo "!! SDL at $s is $sdlarch, expected $a" >&2
+		exit 1
+	fi
+	echo "    SDL for $a: $s (version-min $sdlmin)"
+	SDL_PATHS+=( "$s" )
+done
 OUT="$ROOT/dist/universal"                    # flat fat bundle (feed to make-app.sh)
 
 ENGINE_DYLIBS="libxash.dylib libref_gl.dylib libref_soft.dylib libmenu.dylib filesystem_stdio.dylib"
@@ -144,33 +207,41 @@ for v in PANTHER TIGER; do
 	fi
 done
 
-for d in "$PANTHER" "$TIGER" "$LION"; do
+for d in "$PANTHER" "$TIGER" "${DYN_DIRS[@]}"; do
 	[ -d "$d" ] || { echo "MISSING slice dir: $d - run the matching build first" >&2; exit 1; }
 done
 
 rm -rf "$OUT"; mkdir -p "$OUT/gamedata/cl_dlls" "$OUT/gamedata/dlls"
 
-echo "==> lipo engine executable (ppc + ppc7400 + x86_64)"
-lipo -create "$PANTHER/xash3d" "$TIGER/xash3d" "$LION/xash3d" -output "$OUT/xash3d"
+ALL_SLICES=( "$PANTHER" "$TIGER" "${DYN_DIRS[@]}" )
+
+echo "==> lipo engine executable (ppc750 + ppc7400 + ${DYN_ARCHES[*]})"
+lipo -create "${ALL_SLICES[@]/%//xash3d}" -output "$OUT/xash3d"
 
 echo "==> lipo engine dylibs"
 for d in $ENGINE_DYLIBS; do
-	lipo -create "$PANTHER/$d" "$TIGER/$d" "$LION/$d" -output "$OUT/$d"
+	lipo -create "${ALL_SLICES[@]/%//$d}" -output "$OUT/$d"
 done
 
-echo "==> SDL2 (x86_64-only; ppc is static)"
-cp "$SDLX86" "$OUT/libSDL2-2.0.0.dylib"
+echo "==> SDL2 (Intel only; ppc links it statically)"
+# One libSDL2 fat containing every Intel architecture. The ppc slices have no SDL
+# load command at all, so they neither need nor get one.
+lipo -create "${SDL_PATHS[@]}" -output "$OUT/libSDL2-2.0.0.dylib"
 chmod u+w "$OUT/libSDL2-2.0.0.dylib" "$OUT/libxash.dylib"
-# Make the x86_64 slice self-contained: reference SDL next to the binary, not by the
-# build-box absolute path. install_name_tool touches only the x86_64 slice (the ppc
-# slices have no SDL load command, so they are left untouched).
 install_name_tool -id @loader_path/libSDL2-2.0.0.dylib "$OUT/libSDL2-2.0.0.dylib"
+
 # NOT optional, and NOT silenced. build-lion.sh rewrites the SDL install name only
 # on the copy it stages into dist/lion-play; the libxash.dylib fused here still
 # carries the build box's absolute path to libSDL2. If this fails, the shipped
-# x86_64 slice references a path that exists on no user machine, and nothing
+# Intel slice references a path that exists on no user machine, and nothing
 # downstream looks: make-dmg.sh md5s the file but never reads its load commands.
-install_name_tool -change "$SDLX86" @loader_path/libSDL2-2.0.0.dylib "$OUT/libxash.dylib"
+#
+# One -change per architecture: each Intel slice was linked against its OWN SDL
+# prefix (sdl2-snow-x86_64 vs sdl2-snow-i386), so they carry DIFFERENT absolute
+# paths and a single rewrite would silently fix one and leave the other.
+for s in "${SDL_PATHS[@]}"; do
+	install_name_tool -change "$s" @loader_path/libSDL2-2.0.0.dylib "$OUT/libxash.dylib"
+done
 
 # Guard on the PROPERTY, not on one expected string: no x86_64 binary here may
 # DEPEND on anything outside /usr and /System, because nothing else exists on a
@@ -182,21 +253,26 @@ install_name_tool -change "$SDLX86" @loader_path/libSDL2-2.0.0.dylib "$OUT/libxa
 # links against them, so it is excluded rather than "fixed".
 echo "==> checking no Intel binary depends on a build-box path"
 dep_bad=0
-for f in "$OUT/xash3d" "$OUT"/*.dylib; do
-	# -arch x86_64 matters: these are fat, and otool -D on a fat prints a stanza
-	# per architecture, so an unqualified read would not give one clean value.
-	own="$( otool -arch x86_64 -D "$f" 2>/dev/null | sed 1d )"
-	while read -r dep; do
-		case "$dep" in
-			""|@*|/usr/*|/System/*) continue ;;
-			"$own") continue ;;
-		esac
-		echo "    !! $(basename "$f") depends on $dep"
-		dep_bad=1
-	# Process substitution, not a pipe: a pipe would run the loop in a subshell
-	# and dep_bad would not survive it, so a real fault would be found and then
-	# discarded.
-	done < <( otool -arch x86_64 -L "$f" 2>/dev/null | sed 1d | awk '{print $1}' )
+for a in "${DYN_ARCHES[@]}"; do
+	for f in "$OUT/xash3d" "$OUT"/*.dylib; do
+		# libSDL2 is Intel-only and every other file here is fat, so skip anything
+		# that has no slice for this architecture rather than reporting a fault.
+		lipo -info "$f" 2>/dev/null | grep -q "$a" || continue
+		# -arch matters: these are fat, and otool -D on a fat prints a stanza per
+		# architecture, so an unqualified read would not give one clean value.
+		own="$( otool -arch "$a" -D "$f" 2>/dev/null | sed 1d )"
+		while read -r dep; do
+			case "$dep" in
+				""|@*|/usr/*|/System/*) continue ;;
+				"$own") continue ;;
+			esac
+			echo "    !! [$a] $(basename "$f") depends on $dep"
+			dep_bad=1
+		# Process substitution, not a pipe: a pipe would run the loop in a subshell
+		# and dep_bad would not survive it, so a real fault would be found and then
+		# discarded.
+		done < <( otool -arch "$a" -L "$f" 2>/dev/null | sed 1d | awk '{print $1}' )
+	done
 done
 if [ "$dep_bad" -ne 0 ]; then
 	echo "!! the Intel slice references paths that exist only on the build box." >&2
@@ -208,8 +284,16 @@ echo "    ok  every dependency is @loader_path, /usr or /System"
 echo "==> game dylibs (both arch sets; generic-ppc pair serves G3/G4/G5)"
 cp "$PANTHER/valve/cl_dlls/client_ppc.dylib" "$OUT/gamedata/cl_dlls/"
 cp "$PANTHER/valve/dlls/hl_ppc.dylib"        "$OUT/gamedata/dlls/"
-cp "$LION/valve/cl_dlls/client_amd64.dylib"  "$OUT/gamedata/cl_dlls/"
-cp "$LION/valve/dlls/hl_amd64.dylib"         "$OUT/gamedata/dlls/"
+# These stay THIN and side by side rather than being lipo'd together, because the
+# engine dlopen's them by architecture NAME (3rdparty/library_suffix): hl_ppc,
+# hl_amd64, hl_i386. A fat game dylib would be looked for under a name nothing
+# generates.
+for i in "${!DYN_ARCHES[@]}"; do
+	d="${DYN_DIRS[$i]}"; cl="${DYN_GAMECL[$i]}"; sv="${DYN_GAMESV[$i]}"
+	cp "$d/valve/cl_dlls/$cl" "$OUT/gamedata/cl_dlls/"
+	cp "$d/valve/dlls/$sv"    "$OUT/gamedata/dlls/"
+	echo "    ${DYN_ARCHES[$i]}: $cl, $sv"
+done
 
 echo "==> sticky fleet config (blocky-texture fix + single-pass)"
 cp "$ROOT/configs/userconfig.cfg" "$OUT/gamedata/userconfig.cfg"

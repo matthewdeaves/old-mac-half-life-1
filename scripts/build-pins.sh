@@ -31,7 +31,7 @@ XASH_VERSION="0.21"
 # Fork of FWGS/xash3d-fwgs, branched at f0ea3a19.
 PIN_ENGINE_URL="https://github.com/matthewdeaves/xash3d-fwgs.git"
 PIN_ENGINE_BRANCH="oldmac"
-PIN_ENGINE_COMMIT="327336b544828a24cbbb9cdf37ba76b08bffa23c"
+PIN_ENGINE_COMMIT="2584d6f89e27b80026c61dd0f81d67cc75bbec30"
 PIN_ENGINE_UPSTREAM="FWGS/xash3d-fwgs@f0ea3a19"
 
 # --- menu: submodule of the engine, re-pointed by our engine branch ----------
@@ -117,7 +117,7 @@ provenance_table() {
 Half-Life-OldMac ${ver}
 =======================
 Our build id : old-mac-halflife git ${h} (${d})
-Fat slices   : ppc750 . ppc7400 . x86_64
+Fat slices   : ppc750 . ppc7400 . i386 . x86_64
 Base engine  : Xash3D FWGS ${XASH_VERSION}
 
 Every slice is built from our own branch of each upstream. The port is carried as

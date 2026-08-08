@@ -20,7 +20,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Slices actually shipped. The executable carries exact subtypes; the dylibs
 # carry generic ppc deliberately, because dlopen grades those fine on a 750.
-EXEC_SLICES = ["ppc750", "ppc7400", "x86_64"]
+EXEC_SLICES = ["ppc750", "ppc7400", "i386", "x86_64"]
 
 FAILED = []
 PASSED = []

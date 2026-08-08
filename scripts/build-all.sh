@@ -165,6 +165,19 @@ fi
 run pins scripts/fetch-sources.sh --status
 
 run lion      scripts/build-lion.sh
+# The i386 slice, for the 2006 Core Solo and Core Duo Macs, which have no 64-bit
+# mode and so can never run the x86_64 slice. Same driver, same sources, one
+# environment variable. It has to come BEFORE make-universal.sh, which fuses
+# whatever slices it finds: run it after and the release quietly ships without it.
+#
+# Exported and then unset rather than written as `VAR=x run ...`, because `run`
+# is a shell FUNCTION and bash's handling of an assignment prefixed to a function
+# call is not consistent about whether the variable survives the call. An
+# OLDMAC_INTEL_ARCH left set would make make-universal.sh and everything after it
+# run in a mode nobody asked for.
+export OLDMAC_INTEL_ARCH=i386
+run lion-i386 scripts/build-lion.sh
+unset OLDMAC_INTEL_ARCH
 run ppc-tiger scripts/build-ppc-tiger.sh
 run ppc-panther scripts/build-ppc-panther.sh
 run universal scripts/make-universal.sh

@@ -141,24 +141,53 @@ fi
 BIN="$IMG/Half-Life.app/Contents/MacOS/xash3d.bin"
 [ -f "$BIN" ] || { echo "[make-dmg] no xash3d.bin in fetched app - check SRC_APP" >&2; exit 1; }
 
-# Sanity: must be the 3-slice fat, not a stray single-arch binary. lipo -archs
-# reads the Mach header directly; tolerate ppc subtype naming (ppc / ppc750).
+# Sanity: must be the full fat, not a stray single-arch binary.
 # ppc970 is deliberately absent since v1.4.0: the G5 takes ppc7400. See
 # docs/adr/0001-slices-are-chosen-by-cpu-capability.md.
-ARCHS=$(lipo -archs "$BIN" 2>/dev/null || echo)
+#
+# This used `lipo -archs`, WHICH DOES NOT EXIST ON TIGER. Measured on mini-g4
+# (10.4.11): "lipo: unknown flag: -archs". So ARCHS came back empty and the very
+# next line exited claiming a missing ppc7400 slice, on the one machine the hard
+# rules say a release must be cut on. `lipo -info` is present everywhere.
+#
+# Tiger's lipo also cannot NAME the x86_64 slice. On a correct fat it prints
+#   ppc750 ppc7400 i386 (cputype (16777223) cpusubtype (-2147483645))
+# which reads like a broken slice and is not. It names ppc750, ppc7400 and i386
+# quite happily; only cputypes it predates come out as numbers. So match on the
+# name first and fall back to the cputype for those.
+ARCHS="$(lipo -info "$BIN" 2>/dev/null | sed 's/.*: //')"
 echo "[make-dmg] fat slices: ${ARCHS:-<none>}"
-for a in ppc7400 x86_64; do
-  case " $ARCHS " in *" $a "*) ;; *) echo "[make-dmg] fat binary missing $a slice (got: ${ARCHS:-none})" >&2; exit 1;; esac
+
+has_arch () {
+  case " $ARCHS " in *" $1 "*) return 0 ;; esac
+  case "$1" in
+    x86_64) case "$ARCHS" in *16777223*) return 0 ;; esac ;;   # CPU_TYPE_X86_64
+    arm64)  case "$ARCHS" in *16777228*) return 0 ;; esac ;;   # CPU_TYPE_ARM64
+  esac
+  return 1
+}
+
+# Every slice build-pins.sh declares on its "Fat slices" line must be here. i386
+# is for the 2006 Core Solo and Core Duo machines, which have no 64-bit mode.
+for a in ppc7400 i386 x86_64; do
+  has_arch "$a" || { echo "[make-dmg] fat binary missing $a slice (got: ${ARCHS:-none})" >&2; exit 1; }
 done
-case " $ARCHS " in *" ppc "*|*" ppc750 "*) ;; *) echo "[make-dmg] fat binary missing the generic ppc (G3) slice" >&2; exit 1;; esac
+has_arch ppc || has_arch ppc750 || { echo "[make-dmg] fat binary missing the generic ppc (G3) slice" >&2; exit 1; }
 
 # Confirm the game code for both endian families is present, INSIDE the bundle.
 # GAMEDATA sits under the engine's read-only root, which FS_AppleBundledGameRoot
 # finds by probing for a valve/ inside the bundle. If it is absent the engine has
 # no rodir at all and aborts at startup with "missing game library".
 GAMEDATA="Half-Life.app/Contents/Resources/Half-Life/valve"
-for g in cl_dlls/client_ppc.dylib cl_dlls/client_amd64.dylib \
-         dlls/hl_ppc.dylib dlls/hl_amd64.dylib; do
+# One pair per architecture the engine can dlopen: the engine asks for these BY
+# NAME (3rdparty/library_suffix), so an i386 engine looks for hl_i386.dylib and
+# nothing else will do.
+# NOTE the i386 pair has NO suffix. COM_GenerateLibraryName special-cases 32-bit
+# x86 on Apple/Windows/Linux and gives it none, because that was Half-Life's
+# original platform, so it is hl.dylib and client.dylib while every other
+# architecture takes the _<arch> form.
+for g in cl_dlls/client_ppc.dylib cl_dlls/client_amd64.dylib cl_dlls/client.dylib \
+         dlls/hl_ppc.dylib dlls/hl_amd64.dylib dlls/hl.dylib; do
   [ -f "$IMG/$GAMEDATA/$g" ] || { echo "[make-dmg] missing shipped game code: $GAMEDATA/$g" >&2; exit 1; }
 done
 # Nothing but the two apps and the text files may ship. A stray valve folder here
