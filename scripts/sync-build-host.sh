@@ -84,6 +84,30 @@ remote_md5 () {
 	ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" "md5 -q ~/oldmac/$1 2>/dev/null" 2>/dev/null
 }
 
+# Retry a transfer, because the link from this box drops.
+#
+# The dev box is on wifi and the build minis are wired; measured throughput to
+# them is ~0.55 MB/s and the connection intermittently dies outright, giving
+# "scp: Connection closed" or an ssh that reports "Host is down" while the mini
+# is up, idle and answering pings seconds later. Seen twice in one session: once
+# as a spurious "TAR FAILED" on a directory that had in fact transferred
+# correctly, once as an outright SCP FAILED.
+#
+# That matters more here than the lost time. This script exists to be the thing
+# that PROVES the build host matches the repo, so a false failure teaches you to
+# ignore it, and the file at the top of this script explains what ignoring it
+# costs. Every transfer is still verified by checksum afterwards; the retry only
+# stops a dropped link being reported as drift.
+retry3 () {
+	n=1
+	while [ "$n" -le 3 ]; do
+		"$@" && return 0
+		[ "$n" -lt 3 ] && sleep 5
+		n=$(( n + 1 ))
+	done
+	return 1
+}
+
 
 # --- full tracked-tree mode ------------------------------------------------
 #
@@ -145,7 +169,7 @@ for f in $FILES; do
 		ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" "mkdir -p oldmac/$d" || {
 			printf '%-34s COULD NOT MAKE oldmac/%s\n' "$f" "$d"; exit 1; }
 	fi
-	if scp -q "$f" "$HOST:oldmac/$f"; then
+	if retry3 scp -q "$f" "$HOST:oldmac/$f"; then
 		# Verify the copy rather than trusting scp's exit code.
 		r2=$(remote_md5 "$f")
 		if [ "$l" = "$r2" ]; then
@@ -214,7 +238,8 @@ for d in $DIRS; do
 	fi
 	# tar, not scp: one connection regardless of file count, and it creates the
 	# directory on a host that has never had it. No --delete anywhere near it.
-	if tar cf - "$d" | ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" "mkdir -p oldmac && tar xf - -C oldmac"; then
+	send_dir () { tar cf - "$1" | ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" "mkdir -p oldmac && tar xf - -C oldmac"; }
+	if retry3 send_dir "$d"; then
 		r2=$(fp_remote "$d")
 		if [ "$l" = "$r2" ]; then
 			printf '%-34s updated (%s files)\n' "$d/" "$n"
