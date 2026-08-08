@@ -27,7 +27,8 @@ slice it could not run and did not start at all. GitHub issue #14.
 
 ## Decision
 
-**Ship three slices: `ppc`, `ppc7400`, `x86_64`. The G5 uses `ppc7400`.**
+**Ship five slices: `ppc750`, `ppc7400`, `i386`, `x86_64`, `arm64`.**
+(Three until 2026-08-08; see the amendment at the end.) The G5 uses `ppc7400`.
 
 - `ppc` for the G3, which has no AltiVec unit
 - `ppc7400` for the G4 and the G5, which both do
@@ -122,3 +123,73 @@ one, compare its undefined symbols against a slice known to run on the target OS
 That settled the G4-on-Panther question: `ppc7400` imports exactly the same 332
 undefined symbols as `ppc` in `libxash.dylib`, and `ppc` is proven on 10.3.9 by
 the G3.
+
+## Amendment, 2026-08-08: two more slices, and the evidence that they are safe
+
+The decision above is unchanged. What grew is the SET of CPU capabilities worth a
+slice, once the last two gaps were closed:
+
+- **`i386`** for the 2006 Core Solo and Core Duo Macs (Mac mini 1,1, iMac 4,1,
+  MacBook 1,1, MacBook Pro 1,1). They have no 64-bit mode, so `x86_64` can never
+  reach them, and they cap at 10.6.8, which the lowered Intel floor now matches.
+- **`arm64`** for Apple Silicon, which until now ran `x86_64` under Rosetta 2.
+
+Both are additive: a different cputype cannot displace an existing slice.
+
+### The risk was mis-grading, not refusal
+
+Old `dyld` has previous form here. A fat of `[ppc ALL, ppc7400, ppc970]`
+mis-grades on a 750 host, which is why the executable's ppc slice is stamped to
+the exact subtype in the first place. So the question was never "will it run",
+it was "does adding a fourth cputype change which slice is chosen".
+
+Tested with two hand-built fats (`scripts/` has no copy; the throwaway builder is
+recorded in the task notes), identical except for the extra slice, in which
+**each ppc slice prints its own name** so the answer is observed rather than
+assumed:
+
+    control:  ppc750 + ppc7400 + x86_64
+    witharm:  ppc750 + ppc7400 + x86_64 + arm64
+
+| machine | CPU | OS | control | with arm64 |
+|---|---|---|---|---|
+| `yosemite-tiger` | ppc750 | 10.4.11 | `SLICE=ppc750` | `SLICE=ppc750` |
+| `mini-g4` | ppc7450 | 10.4.11 | `SLICE=ppc7400` | `SLICE=ppc7400` |
+| `quicksilver` | ppc7450 | 10.4.11 | `SLICE=ppc7400` | `SLICE=ppc7400` |
+| `g5-desktop` | ppc970 | 10.5.8 | `SLICE=ppc7400` | `SLICE=ppc7400` |
+| `mini-sl` | x86_64 | 10.6.8 | ran | ran |
+| `mini-intel2` | x86_64 | 10.7.5 | ran | ran |
+
+Grading is identical in every case, including on the G3 under Tiger, which is
+the exact machine and OS the historical mis-grading fault belongs to.
+
+**Still untested: 10.3.9 Panther**, the oldest dyld shipped to. It needs the G3
+or the G5 blessed into its Panther partition and rebooted.
+
+### Lion's lipo can fuse arm64, it just cannot name it
+
+The expected blocker was that the fuse happens on a 2011 machine. It is not one.
+Lion's `/usr/bin/lipo` writes a correct fat containing arm64; it only fails to
+NAME the slice, printing
+
+    Architectures in the fat file: ... are: x86_64 (cputype (16777228) cpusubtype (0))
+
+which is the same cosmetic quirk this project already records for Panther's lipo
+and `x86_64`. Read back on a modern box the file is `x86_64 arm64`, with
+`CPU_TYPE_ARM64` / `CPU_SUBTYPE_ARM64_ALL` and the correct 2^14 alignment, and
+the arm64 slice runs natively. So the fuse stays in one place.
+
+`arm64` is nonetheless the one slice that cannot be BUILT on a mini: Xcode 4.6
+predates it by seven years. It is built on the Apple Silicon box by
+`scripts/build-arm64.sh` and carried over by `scripts/push-arm64-slice.sh`, which
+verifies the copy by checksum because `make-universal.sh` treats it as optional
+and a slice that failed to arrive would otherwise just be missing from a release.
+
+### Consequences for the game dylibs
+
+The engine `dlopen`s game code by architecture NAME, and
+`COM_GenerateLibraryName` special-cases 32-bit x86 on Apple, Windows and Linux
+with no suffix at all, because that was Half-Life's original platform. So the
+shipped set is `hl_ppc`, `hl_amd64`, `hl_arm64` and plain `hl` for i386, and the
+same for `client`. Assuming a `_i386` suffix produces files the engine will never
+look for.

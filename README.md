@@ -31,18 +31,17 @@ Grab the latest `.dmg` from the
 copy `Half-Life.app` out of it into any folder, and drop your own retail `valve/`
 folder in beside it. That is the whole install.
 
-**Which Macs it runs on.** Every PowerPC Mac from Mac OS X 10.3.9 up, and every
-64-bit Intel Mac from Mac OS X 10.7 up.
-
-Proven on the hardware below:
+**Which Macs it runs on.** Every Mac this port can reach, from a 1999 G3 on
+10.3.9 to Apple Silicon on macOS 26, out of one binary with five slices.
 
 | CPU | macOS | Slice |
 |---|---|---|
 | G3 (PowerPC 750) | 10.3.9, 10.4 | `ppc750` |
 | G4 (PowerPC 7400 / 7450) | 10.4 | `ppc7400` |
 | G5 (PowerPC 970) | 10.5 | `ppc7400` |
-| Intel, 64-bit | 10.7 | `x86_64` |
-| Apple Silicon | macOS 26 | `x86_64` under Rosetta 2 |
+| Intel, 32-bit (Core Solo / Core Duo) | 10.6 | `i386` |
+| Intel, 64-bit | 10.6.8 and up | `x86_64` |
+| Apple Silicon | macOS 11 and up | `arm64`, native |
 
 **Untested**, only because I have no machine set up that way. A report either way
 is useful:
@@ -61,14 +60,14 @@ measured 6% slower on the G5 than the G4's, and dropping it is what lets a G5 ru
 10.3 and 10.4. See
 [the decision record](docs/adr/0001-slices-are-chosen-by-cpu-capability.md).
 
-Three cases are known not to work, from reading the binary rather than from
-testing. **Intel on 10.6** gets nothing: the `x86_64` slice links `libc++`, which
-shipped with 10.7, and carries `LC_VERSION_MIN 10.7`
-([#16](https://github.com/matthewdeaves/old-mac-halflife/issues/16)). There is no
-i386 slice yet, so **32-bit-only Intel Macs** (Core Solo / Core Duo) are out for
-now ([#22](https://github.com/matthewdeaves/old-mac-halflife/issues/22)), and no
-native arm64 one yet either
-([#2](https://github.com/matthewdeaves/old-mac-halflife/issues/2)). Each PowerPC
+All three gaps that used to be listed here are closed. **Intel now starts at
+10.6** rather than 10.7: the only thing holding it at 10.7 was `libc++`, which
+arrived in that release, and the whole C++ runtime requirement turned out to be
+thirteen ABI symbols with no STL use anywhere, all of which 10.6's `libstdc++`
+provides. That is the wider choice rather than a compromise, since `libstdc++`
+still resolves from the dyld shared cache on macOS 26. **32-bit-only Intel Macs**
+have an `i386` slice, and **Apple Silicon** has a native `arm64` one instead of
+running under Rosetta 2. Each PowerPC
 slice carries its exact CPU subtype, because Tiger and Leopard mis-grade a fat
 that mixes generic and specific PowerPC slices and refuse to launch it at all.
 
@@ -83,11 +82,11 @@ and sends nothing.
 It deliberately reaches lower than the game, because the machines worth hearing
 about are the ones the game will not start on. It carries three slices: PowerPC
 from 10.3, 32-bit Intel from 10.4 and 64-bit Intel from 10.5, against the game's
-10.3.9 and 10.7. So it still runs on a Core Solo or Core Duo, and on 64-bit Intel
-under 10.6, which are the two cases the game has no slice for. It can do
-that because it is plain Objective-C against Cocoa: the game's Intel floor comes
-from the menu needing libc++, and this has no C++ in it at all. On an Apple
-Silicon Mac it reports the machine as arm64 under Rosetta 2 rather than as Intel.
+10.3.9 and 10.4. It can go that low because it is plain Objective-C against
+Cocoa with no C++ in it at all. It used to be the only way a Core Solo or a
+10.6 machine could learn anything from this project, since the game had no slice
+for either; both now have one, so the report app is a diagnostic rather than a
+consolation prize.
 
 ### No game content here, only the engine
 
@@ -251,8 +250,7 @@ The same one-universal-binary treatment, applied to other engines:
 ## Tested on
 
 These are the only setups this has run on. Built with AI (Claude Code) under my
-direction, and every build tested on the real hardware below. The Apple Silicon
-row runs the `x86_64` slice through Rosetta 2; there is no native arm64 build.
+direction, and every build tested on the real hardware below.
 
 | Machine | CPU | GPU | macOS |
 |---|---|---|---|
@@ -262,7 +260,8 @@ row runs the `x86_64` slice through Rosetta 2; there is no native arm64 build.
 | Mac mini G4 | PowerPC 7450 @ 1.25 GHz | ATI Radeon 9200 | 10.4.11 Tiger |
 | iMac G5 | PowerPC 970 @ 2.0 GHz | ATI Radeon 9600 | 10.5.8 Leopard |
 | Mac mini (Intel) | Core 2 Duo @ 2.33 GHz | Intel GMA 950 | 10.7.5 Lion |
-| MacBook Air (M5) | Apple M5 | Apple integrated | macOS 26, via Rosetta 2 |
+| Mac mini (Intel) | Core 2 Duo @ 2.26 GHz | NVIDIA GeForce 9400 | 10.6.8 Snow Leopard |
+| MacBook Air (M5) | Apple M5 | Apple integrated | macOS 26, native `arm64` |
 
 ### Being added
 

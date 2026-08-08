@@ -47,22 +47,43 @@ on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
 ## Facts
 
 - `dyld` grades a fat by **CPU subtype alone**, never the OS, so a slice exists
-  only for a CPU capability difference: **`ppc750`** (G3), **`ppc7400`** (G4 and
-  G5), **`x86_64`**. PowerPC targets 10.3.9 and runs to 10.5. `docs/adr/0001`
-- **Intel is 10.7 Lion+ and x86_64 only, NOT 10.6**: mainui is C++11, 10.6 has
-  no libc++, and neither mini has a 10.6 SDK. No force flag is needed, the Lion
-  clang defaults to x86_64 for both engine and HLSDK. `docs/adr/0010`
-- **The GAME has no i386 slice** (issue #22) and **no native arm64 slice**
-  (issue #2); Apple Silicon runs `x86_64` under Rosetta 2. Never write "not for
-  Apple Silicon". The System Report app is the exception and ships i386 from
-  10.4 and x86_64 from 10.5, deliberately below the game. `docs/adr/0010`
+  only for a CPU capability difference. **FIVE slices** since 2026-08-08:
+  **`ppc750`** (G3), **`ppc7400`** (G4 and G5), **`i386`** (Core Solo/Duo),
+  **`x86_64`**, **`arm64`**. PowerPC targets 10.3.9 and runs to 10.5.
+  `docs/adr/0001`
+- **Intel is 10.6 Snow Leopard+**, not 10.7. The only thing that ever held it at
+  10.7 was `libc++.1.dylib`; the whole C++ runtime need is 13 ABI symbols and
+  there is no STL use anywhere, so `-stdlib=libstdc++` covers it. That is the
+  WIDER choice, not a compromise: `libstdc++.6.dylib` has no file on disk on
+  macOS 26 but still `dlopen`s from the dyld shared cache, so the range is
+  **10.6.8 through macOS 26** against libc++'s 10.7+. The one gap is
+  `<cinttypes>`, supplied by `compat-include/`. Set `OLDMAC_INTEL_MIN=10.7` for
+  an A/B; measured cost of the change is +0.45%, i.e. none. `docs/adr/0010`
+- **`i386` is for the 2006 Core Solo and Core Duo only** (Mac mini 1,1, iMac 4,1,
+  MacBook 1,1, MacBook Pro 1,1), the sole Intel Macs with no 64-bit mode. Built
+  by `OLDMAC_INTEL_ARCH=i386 build-lion.sh`.
+- **`arm64` is built on THIS box, not a mini**: Xcode 4.6 predates it by seven
+  years. `scripts/build-arm64.sh` then `scripts/push-arm64-slice.sh HOST`. Lion's
+  lipo can still FUSE it, so the fuse stays in one place. It links libc++ and a
+  current SDL2, both deliberately unlike the Intel slices, and 11.0 is simply the
+  floor because Apple Silicon shipped with Big Sur. Never write "not for Apple
+  Silicon". The System Report app has always shipped i386 from 10.4 and x86_64
+  from 10.5, deliberately below the game. `docs/adr/0010`
+- **Game dylib names are NOT "arch with an underscore".**
+  `COM_GenerateLibraryName` special-cases 32-bit x86 on Apple, Windows and Linux
+  and gives it none, because that was Half-Life's original platform. So it is
+  `hl.dylib` / `client.dylib` for i386, and `hl_ppc`, `hl_amd64`, `hl_arm64` for
+  the rest. The engine `dlopen`s these BY NAME.
 - **Mac OS X only, not Mac OS 9** (issue #23). Classic is out of scope.
 - **Three trees:** engine (`xash3d-fwgs`), menu (`mainui_cpp`), game dylibs
   (`hlsdk-portable`). **All three slices now build from the same branch of each**,
   our own, from mainline. There is no separate PowerPC tree any more, so a fix
   cannot be live on one architecture and missing on another. `docs/adr/0012`
 - **PowerPC links `panther-sdl2` 2.0.3 statically, Intel builds SDL 2.0.22 as a
-  dylib.** `leopard-sdl2` is in no shipped slice. `docs/adr/0004`
+  dylib, arm64 builds a current SDL2 (2.32.x).** 2.0.22 is the newest SDL Apple
+  clang 4.2 will compile, which is a fact about the Lion build box and not about
+  arm64; 2.0.22 does not build under clang 21 at all. `leopard-sdl2` is in no
+  shipped slice. `docs/adr/0004`
 - **Never use GitHub ZIPs.** Each tree is cloned `--recursive` at the pinned
   commit into a git-ignored `vendor/`. **Nothing patches it on the way to the
   compiler.** `docs/adr/0002`, `docs/adr/0012`
