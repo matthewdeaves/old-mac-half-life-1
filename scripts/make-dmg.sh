@@ -107,16 +107,21 @@ mkdir -p "$IMG"
 fetch_tree() {
   src="$1"; dst="$2"; what="$3"
   attempt=1
-  while [ "$attempt" -le 3 ]; do
+  # Five, not three. Measured 2026-08-08: this link degraded to 0.075 MB/s mid
+  # session, having been 0.55 MB/s, while ssh control connections stayed fine and
+  # the mini answered pings. Three attempts was not enough to get 350 MB across.
+  # --partial makes every attempt resume rather than restart, so more attempts is
+  # cumulative progress and not repeated work.
+  while [ "$attempt" -le 5 ]; do
     if rsync -a --partial -e 'ssh -o ServerAliveInterval=15 -o ServerAliveCountMax=4' \
          "$src" "$dst"; then
       return 0
     fi
-    echo "[make-dmg] $what: transfer failed (attempt $attempt/3), retrying" >&2
+    echo "[make-dmg] $what: transfer failed (attempt $attempt/5), retrying" >&2
     attempt=$(( attempt + 1 ))
     sleep 5
   done
-  echo "[make-dmg] FATAL: could not fetch $what from $SRC_HOST after 3 attempts" >&2
+  echo "[make-dmg] FATAL: could not fetch $what from $SRC_HOST after 5 attempts" >&2
   exit 1
 }
 
