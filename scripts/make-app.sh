@@ -117,6 +117,65 @@ if df "\$XASH3D_BASEDIR" 2>/dev/null | tail -1 | grep -q "read-only" ||
 fi
 rm -f "\$XASH3D_BASEDIR/.hlwritetest" 2>/dev/null
 
+# A loose engine dylib sitting next to the .app SHADOWS the one inside it, and
+# does so silently. Issue #42.
+#
+# The renderer and the menu are loaded with directpath true, so FS_FindLibrary
+# reaches FS_AllowDirectPaths; no searchpath holds a bare dylib name, the lookup
+# falls through to the fs_ext_path branch, and that joins fs_rootdir with the
+# name and takes it if the file exists. fs_rootdir is XASH3D_BASEDIR, which is
+# set three lines above this: the folder containing the .app. So a stale
+# libref_gl.dylib beside the app wins over the shipped one, and the symptom is
+# whatever that old build did rather than anything pointing at the cause.
+#
+# WARN, do not delete. This folder holds the player's own retail data and their
+# installed mods, and a script that deletes things it does not recognise there
+# is a far worse fault than the one it fixes. Naming the files and the fix is
+# enough: it is a rare condition, but silent, and a player who has hit it has no
+# way at all to work out why.
+#
+# filesystem_stdio.dylib is deliberately not in this list. It loads before any
+# searchpath exists and resolves through DYLD_LIBRARY_PATH, so it cannot be
+# shadowed this way, and listing it would be a false alarm.
+SHADOW=""
+for lib in libxash.dylib libmenu.dylib libref_gl.dylib libref_soft.dylib libSDL2-2.0.0.dylib; do
+	[ -e "\$XASH3D_BASEDIR/\$lib" ] && SHADOW="\$SHADOW \$lib"
+done
+if [ -n "\$SHADOW" ]; then
+	MSG="These files are sitting next to Half-Life.app and will be loaded INSTEAD of the ones inside it:\$SHADOW
+
+They are almost certainly left over from an older version. Move them to the Trash and launch again. Nothing inside Half-Life.app needs them."
+	# Held in a variable rather than appended here, because the last line of this
+	# launcher opens the log with > and would truncate anything written now. The
+	# note is emitted after that, so the evidence survives whether or not anyone
+	# was looking at a screen. (Measured: the first version of this wrote the
+	# line and the run then wiped it.)
+	SHADOW_NOTE="launcher: WARNING, loose engine libraries beside the app shadow the bundled ones:\$SHADOW"
+	echo "\$MSG" >&2
+	# Ask, but only where there is someone to ask. This launcher is also driven
+	# headless over ssh by the benchmark harness, where osascript has no window
+	# server, so a dialog would sit unanswered for ever and hang the run.
+	# Default to continuing: the game usually still works, it is just not running
+	# the code we shipped, and that is a thing to be told rather than blocked for.
+	#
+	# The condition is nested rather than written as
+	#   [ -n "\$OLDMAC_NO_PROMPT" ] || [ ! -t 0 ] && ! osascript ...
+	# because shell has no precedence between || and &&: that parses as
+	# ( A || B ) && C, so setting OLDMAC_NO_PROMPT still ran osascript and still
+	# hung. Measured, by hanging.
+	if [ -n "\${OLDMAC_NO_PROMPT:-}" ]; then
+		:   # caller asked for no prompts, warning already logged and printed
+	elif [ ! -t 0 ] && ! osascript -e 'return 1' >/dev/null 2>&1; then
+		:   # no terminal and no window server, so nobody to ask
+		ANSWER="\$(osascript -e "display dialog \"\$MSG\" buttons {\"Quit\", \"Run anyway\"} default button 1 with icon caution with title \"Old Half-Life files are in the way\"" 2>/dev/null)"
+		case "\$ANSWER" in
+			*"Run anyway"*) ;;                      # they were told, they chose
+			*Quit*)         exit 1 ;;               # they chose to stop
+			*)              ;;                      # dialog failed; already warned
+		esac
+	fi
+fi
+
 # The player supplies the game data; we ship none of it. Our recompiled game code
 # lives inside this bundle, but Half-Life's own maps, models, sounds and WADs are
 # Valve's and have to come from the player's retail copy, in a folder called "valve"
@@ -211,6 +270,7 @@ for a in "\$@"; do
 done
 
 echo "launcher: xash3d.bin -console \$PROFILE $EXTRA_ARGS \$@" > "\$LOG"
+[ -n "\${SHADOW_NOTE:-}" ] && echo "\$SHADOW_NOTE" >> "\$LOG"
 exec "\$HERE/xash3d.bin" -console \$PROFILE $EXTRA_ARGS "\$@" >> "\$LOG" 2>&1
 WRAP
 chmod +x "$APP/Contents/MacOS/xash3d"
