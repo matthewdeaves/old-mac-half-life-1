@@ -1,11 +1,15 @@
 #!/bin/bash
-# Phase 1 - Intel x86_64 Half-Life (Xash3D FWGS) for Mac OS X 10.7 Lion.
+# The Intel x86_64 slice of Half-Life (Xash3D FWGS). Floor is 10.6 Snow Leopard.
 # RUN THIS ON AN INTEL LION MINI - either mini-intel or mini-intel2 (identical
 # Macmini2,1 / 10.7.5 / same toolchain). Proven working 2026-07-22: boots SP,
-# plays the c0a0 opening sequence. Reproduces the Mac Source Ports 10.7+ floor.
+# plays the c0a0 opening sequence.
 # It runs LOCALLY on that box and does no ssh of its own, so pick-build-host.sh
 # does not apply here - run `scripts/pick-build-host.sh --status` to see which
 # mini is free, then log in there and run this.
+#
+# The box it BUILDS ON is 10.7; the floor it builds FOR is 10.6. Those are
+# different numbers and only the second one ships. Set OLDMAC_INTEL_MIN=10.7 to
+# go back to the old floor for an A/B.
 #
 # WHY each step is the way it is (do not "simplify" without testing):
 #
@@ -15,12 +19,43 @@
 #
 #  SDK juggling (the crux):
 #    - Framework headers (IOKit/OpenGL/Cocoa) only exist inside an SDK sysroot, so
-#      we pin -isysroot to the 10.7 SDK.
-#    - BUT both legacy SDKs (10.7, 10.8) were stripped of libc++ headers, so C++11
-#      code (mainui) can't find <cinttypes> from the sysroot. libc++ actually lives
-#      at the toolchain's usr/lib/c++/v1 - add it with -isystem.
-#    - clang 4.2 defaults to the ancient GNU libstdc++ (no C++11 headers); force
-#      -stdlib=libc++ for all C++.
+#      we pin -isysroot to the 10.7 SDK. The SDK is NOT the floor: what a binary
+#      runs on is set by -mmacosx-version-min, and building against a newer SDK
+#      with an older version-min is the supported way to do this.
+#    - Both legacy SDKs (10.7, 10.8) were stripped of libc++ headers, so on the
+#      libc++ path C++11 code can't find <cinttypes> from the sysroot. libc++
+#      actually lives at the toolchain's usr/lib/c++/v1 - add it with -isystem.
+#
+#  WHY THE FLOOR IS 10.6 AND WHY THAT MEANS libstdc++ (measured 2026-08-08):
+#    The ONLY thing that ever held this slice at 10.7 was /usr/lib/libc++.1.dylib,
+#    which does not exist on 10.6. Everything else in the whole Intel stack
+#    resolves against libSystem.
+#
+#    The entire C++ runtime dependency is 13 symbols, measured with nm -u over
+#    xash3d + all five engine dylibs + both game dylibs: operator new/new[]/
+#    delete/delete[], __cxa_atexit, __cxa_pure_virtual, __gxx_personality_v0,
+#    std::terminate, and the two __cxxabiv1 class_type_info vtables. xash3d and
+#    libxash import NONE of them; only libmenu, filesystem_stdio and the two game
+#    dylibs do. There is no STL use anywhere: mainui has zero std::string,
+#    std::vector, std::move, std::unique_ptr or std::function (it uses MiniUTL),
+#    and hlsdk uses no std:: at all. C++11 use is LANGUAGE only (nullptr,
+#    override, static_assert, one constexpr).
+#
+#    10.6's libstdc++.6.dylib exports 9 of those 10 C++ symbols; the tenth,
+#    __cxa_atexit, is in libSystem on Darwin (verified: T ___cxa_atexit).
+#    So -stdlib=libstdc++ satisfies the lot.
+#
+#    libstdc++ is also the WIDER choice, not a compromise. On macOS 26 there is no
+#    /usr/lib/libstdc++.6.dylib file on disk, but dlopen() of that path SUCCEEDS
+#    from the dyld shared cache, so a libstdc++-linked x86_64 binary still runs
+#    under Rosetta 2 today. Range is 10.6.8 -> macOS 26 inclusive, against
+#    libc++'s 10.7+.
+#
+#    The one genuine gap is <cinttypes>, a C++11 header GCC 4.2's header set
+#    predates, included by miniutl/fmtstr.h and miniutl/utllinkedlist.h and used
+#    only for PRIi32/PRIi64/PRIu32/PRIu64/PRIx64. compat-include/cinttypes
+#    supplies it from C99 <inttypes.h>. That is a build include path, NOT a patch
+#    to a vendored tree, so docs/adr/0012 still holds.
 #
 #  SDL2: FWGS needs SDL >= 2.0.16 (gyro/sensor GameController API in joy_sdl2.c,
 #    plus various hints). The alex-free legacy 'leopard-sdl2' 2.0.6 is TOO OLD for
@@ -63,14 +98,31 @@ export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 SDK="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk"
 TCXX="$DEVELOPER_DIR/Toolchains/XcodeDefault.xctoolchain/usr/lib/c++/v1"
 export PATH="$DEVELOPER_DIR/Toolchains/XcodeDefault.xctoolchain/usr/bin:$DEVELOPER_DIR/usr/bin:$PATH"
-export MACOSX_DEPLOYMENT_TARGET=10.7
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# --- deployment floor, and the C++ runtime that follows from it ---------------
+# These two are ONE decision, not two, so they are made in one place: below 10.7
+# there is no libc++ on the machine, so the floor picks the runtime. Setting one
+# without the other produces a slice that links happily on the build box and
+# fails to load on the machine it was lowered for.
+INTEL_MIN="${OLDMAC_INTEL_MIN:-10.6}"
+case "$INTEL_MIN" in
+	10.6) CXXLIB="libstdc++"; SDLPREFIX="$ROOT/sdl2-snow-x86_64" ;;
+	10.7) CXXLIB="libc++";    SDLPREFIX="$ROOT/sdl2-x86_64" ;;
+	*)    echo "!! OLDMAC_INTEL_MIN must be 10.6 or 10.7, got '$INTEL_MIN'" >&2; exit 2 ;;
+esac
+export MACOSX_DEPLOYMENT_TARGET="$INTEL_MIN"
+
+# SDL is built per floor and kept in its own prefix. A 10.7 libSDL2 dropped into
+# a 10.6 build links and installs without complaint and then refuses to load on
+# 10.6, so the two must never share a directory.
 ENGINE="$ROOT/vendor/xash3d-fwgs"             # our branch of FWGS/xash3d-fwgs
 HLSDK="$ROOT/vendor/hlsdk-portable"           # our branch of FWGS/hlsdk-portable
-SDLPREFIX="$ROOT/sdl2-x86_64"                 # our from-source SDL 2.0.22
 OUT="$ROOT/dist/lion-x86_64"
 SDL_VER=2.0.22
+
+echo "==> Intel slice: x86_64, floor $INTEL_MIN, C++ runtime $CXXLIB"
 
 # --- pre-flight: every tree must be at the commit build-pins.sh names ---------
 # The port is not applied at build time any more, so a tree at the wrong commit
@@ -136,13 +188,17 @@ check_pin hlsdk  "$HLSDK"  "$PIN_HLSDK_COMMIT"
 
 # --- 0) SDL2 from source (once) ---------------------------------------------
 if [ ! -x "$SDLPREFIX/bin/sdl2-config" ]; then
-	echo "==> [0/3] building SDL $SDL_VER (x86_64, 10.7, Metal disabled)"
+	echo "==> [0/3] building SDL $SDL_VER (x86_64, $INTEL_MIN, Metal disabled)"
 	SRC="/tmp/SDL2-$SDL_VER"
 	[ -d "$SRC" ] || curl -fsSL "https://www.libsdl.org/release/SDL2-$SDL_VER.tar.gz" | tar xz -C /tmp
+	# Configure caches results per source dir, and this tree is shared between the
+	# 10.6 and 10.7 prefixes, so a cached probe from the other floor would be
+	# reused. Start it clean.
 	( cd "$SRC"
-	  CC="clang -isysroot $SDK -arch x86_64 -mmacosx-version-min=10.7" \
-	  CFLAGS="-isysroot $SDK -arch x86_64 -mmacosx-version-min=10.7" \
-	  LDFLAGS="-isysroot $SDK -arch x86_64 -mmacosx-version-min=10.7" \
+	  make distclean >/dev/null 2>&1 || true
+	  CC="clang -isysroot $SDK -arch x86_64 -mmacosx-version-min=$INTEL_MIN" \
+	  CFLAGS="-isysroot $SDK -arch x86_64 -mmacosx-version-min=$INTEL_MIN" \
+	  LDFLAGS="-isysroot $SDK -arch x86_64 -mmacosx-version-min=$INTEL_MIN" \
 	  ./configure --prefix="$SDLPREFIX" --build=x86_64-apple-darwin11 \
 	              --disable-render-metal --disable-video-x11
 	  make -j"$(sysctl -n hw.ncpu)"
@@ -152,10 +208,26 @@ export PATH="$SDLPREFIX/bin:$PATH"
 export PKG_CONFIG_PATH="$SDLPREFIX/lib/pkgconfig"
 
 # --- build flags shared by hlsdk + engine ------------------------------------
-export CFLAGS="-isysroot $SDK"
-export CXXFLAGS="-isysroot $SDK -stdlib=libc++ -isystem $TCXX"
-export LINKFLAGS="-isysroot $SDK -stdlib=libc++"
-export LDFLAGS="-isysroot $SDK -stdlib=libc++"
+# The extra C++ include dir differs by runtime, and in BOTH cases it exists to
+# supply C++11 headers the sysroot does not have:
+#   libc++    the 10.7/10.8 SDKs were stripped of libc++ headers, so point at the
+#             toolchain's own copy
+#   libstdc++ GCC 4.2's header set predates C++11 entirely, so supply the one
+#             header this port actually uses (see compat-include/cinttypes)
+case "$CXXLIB" in
+	libc++)    CXXINC="$TCXX" ;;
+	libstdc++) CXXINC="$ROOT/compat-include" ;;
+esac
+[ -d "$CXXINC" ] || { echo "!! missing C++ include dir $CXXINC" >&2; exit 1; }
+
+# -mmacosx-version-min is passed EXPLICITLY as well as via
+# MACOSX_DEPLOYMENT_TARGET. waf spawns compilers through several paths and an
+# exported variable is easy to lose; the flag is not. If the two ever disagree
+# the flag wins, which is the safe direction.
+export CFLAGS="-isysroot $SDK -mmacosx-version-min=$INTEL_MIN"
+export CXXFLAGS="-isysroot $SDK -mmacosx-version-min=$INTEL_MIN -stdlib=$CXXLIB -isystem $CXXINC"
+export LINKFLAGS="-isysroot $SDK -mmacosx-version-min=$INTEL_MIN -stdlib=$CXXLIB"
+export LDFLAGS="-isysroot $SDK -mmacosx-version-min=$INTEL_MIN -stdlib=$CXXLIB"
 
 ln -sfn "../$(basename "$HLSDK")" "$ENGINE/hlsdk"
 
@@ -172,12 +244,12 @@ ln -sfn "../$(basename "$HLSDK")" "$ENGINE/hlsdk"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
-echo "==> [1/3] game dylibs (hlsdk-portable, x86_64/10.7)"
+echo "==> [1/3] game dylibs (hlsdk-portable, x86_64/$INTEL_MIN)"
 # The shared-client fixes, the same ones the mods carry, are commits on our own
 # hlsdk-portable branch, checked out by scripts/fetch-sources.sh.
 ( cd "$ENGINE/hlsdk" && rm -rf build && python ./waf configure build install --destdir="$OUT" )
 
-echo "==> [2/3] engine + renderers + menu (x86_64/10.7)"
+echo "==> [2/3] engine + renderers + menu (x86_64/$INTEL_MIN)"
 ( cd "$ENGINE"
   # Always from scratch, for the reason recorded in the PowerPC drivers: waf
   # reused a stale object across a commit change and shipped code that was not
@@ -194,6 +266,37 @@ echo "==> [2/3] engine + renderers + menu (x86_64/10.7)"
 for f in xash3d libxash.dylib libref_gl.dylib libref_soft.dylib libmenu.dylib filesystem_stdio.dylib; do
 	[ -s "$OUT/$f" ] || { echo "!! build-lion: $OUT/$f missing after install, the build did not do what it said" >&2; exit 1; }
 done
+
+# --- the floor is a claim until something checks it --------------------------
+# A slice built on a 10.7 box that quietly kept a 10.7 version-min, or that still
+# links libc++, builds clean, installs clean, passes every existing check and
+# then fails to launch on the ONE machine the floor was lowered for. waf gets its
+# flags from four environment variables through several spawn paths; losing one
+# is not hypothetical. So read it back off the Mach-O.
+echo "==> verifying every artifact really targets $INTEL_MIN"
+floor_bad=0
+for f in xash3d libxash.dylib libref_gl.dylib libref_soft.dylib libmenu.dylib \
+         filesystem_stdio.dylib valve/cl_dlls/client_amd64.dylib valve/dlls/hl_amd64.dylib \
+         "$SDLPREFIX/lib/libSDL2-2.0.0.dylib"; do
+	case "$f" in /*) p="$f" ;; *) p="$OUT/$f" ;; esac
+	if [ ! -s "$p" ]; then
+		echo "    !! $f missing"; floor_bad=1; continue
+	fi
+	vm="$( otool -l "$p" 2>/dev/null | awk '/LC_VERSION_MIN_MACOSX/{g=1} g&&/^ *version /{print $2; exit}' )"
+	if [ "$vm" != "$INTEL_MIN" ]; then
+		echo "    !! $(basename "$f"): version-min is '${vm:-none}', wanted $INTEL_MIN"; floor_bad=1
+	fi
+	# libc++ arrived in 10.7. On the 10.6 floor its presence anywhere is fatal,
+	# and it is the exact thing that kept this slice at 10.7 for so long.
+	if [ "$CXXLIB" = "libstdc++" ] && otool -L "$p" 2>/dev/null | grep -q 'libc++'; then
+		echo "    !! $(basename "$f"): links libc++, which does not exist on $INTEL_MIN"; floor_bad=1
+	fi
+done
+if [ "$floor_bad" -ne 0 ]; then
+	echo "!! build-lion: the Intel slice does not match the floor it claims" >&2
+	exit 1
+fi
+echo "    ok  every artifact version-min $INTEL_MIN, C++ runtime $CXXLIB"
 
 # --- build stamp -------------------------------------------------------------
 # Record what this slice was actually built from. make-universal.sh refuses to

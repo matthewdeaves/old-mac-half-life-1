@@ -92,7 +92,41 @@ echo "    ok  all three at $( short "$PIN_ENGINE_COMMIT" )"
 # build on trust. The value written is the one just READ BACK from the slices and
 # checked against build-pins.sh, not the pin copied straight out of the file.
 FUSED_STAMP="$( stamp_of "$LION" )"
-SDLX86="$ROOT/sdl2-x86_64/lib/libSDL2-2.0.0.dylib"
+
+# --- which SDL? ASK THE BINARY, do not assume a prefix -----------------------
+# This used to be hardcoded to $ROOT/sdl2-x86_64. When build-lion.sh gained a
+# selectable deployment floor it started linking $ROOT/sdl2-snow-x86_64 for the
+# 10.6 build, and every one of the three things below went wrong at once, silently:
+#   * the 10.7 libSDL2 was copied into a 10.6 bundle, so it could not load on the
+#     one OS the floor had just been lowered for
+#   * install_name_tool -change was given the OLD path, matched nothing, and
+#     exited 0, leaving libxash naming an absolute build-box path
+#   * the guard below grepped for the OLD path, correctly did not find it, and
+#     therefore PASSED - a check that reported success precisely because it was
+#     looking for the wrong string
+# Reading the reference out of libxash cannot desync from what was linked,
+# because it IS what was linked.
+SDLX86="$( otool -arch x86_64 -L "$LION/libxash.dylib" | awk '/libSDL2/ { print $1; exit }' )"
+case "$SDLX86" in
+	/*) ;;
+	*)  echo "!! libxash.dylib names no absolute libSDL2 path (got '${SDLX86:-nothing}')" >&2
+	    echo "   Expected the build-box path that install_name_tool must rewrite." >&2
+	    exit 1 ;;
+esac
+[ -f "$SDLX86" ] || { echo "!! libxash was linked against $SDLX86, which is not there now" >&2; exit 1; }
+echo "    SDL for the Intel slice: $SDLX86"
+
+# The SDL and the engine slice must agree on the floor. A 10.7 libSDL2 beside a
+# 10.6 engine links fine, installs fine, and fails to load on 10.6.
+vmin_of() { otool -l "$1" | awk '/LC_VERSION_MIN_MACOSX/{g=1} g&&/^ *version /{print $2; exit}'; }
+SDL_MIN="$( vmin_of "$SDLX86" )"
+LION_MIN="$( vmin_of "$LION/libxash.dylib" )"
+if [ "$SDL_MIN" != "$LION_MIN" ]; then
+	echo "!! floor mismatch: libxash targets $LION_MIN but its libSDL2 targets $SDL_MIN" >&2
+	echo "   Rebuild SDL for $LION_MIN, or the Intel slice cannot load it there." >&2
+	exit 1
+fi
+echo "    both at version-min $LION_MIN"
 OUT="$ROOT/dist/universal"                    # flat fat bundle (feed to make-app.sh)
 
 ENGINE_DYLIBS="libxash.dylib libref_gl.dylib libref_soft.dylib libmenu.dylib filesystem_stdio.dylib"
@@ -137,11 +171,39 @@ install_name_tool -id @loader_path/libSDL2-2.0.0.dylib "$OUT/libSDL2-2.0.0.dylib
 # x86_64 slice references a path that exists on no user machine, and nothing
 # downstream looks: make-dmg.sh md5s the file but never reads its load commands.
 install_name_tool -change "$SDLX86" @loader_path/libSDL2-2.0.0.dylib "$OUT/libxash.dylib"
-if otool -L "$OUT/libxash.dylib" | grep -q "$SDLX86"; then
-	echo "!! libxash.dylib still references the build path $SDLX86" >&2
-	echo "   The Intel slice would fail to load SDL on any other machine." >&2
+
+# Guard on the PROPERTY, not on one expected string: no x86_64 binary here may
+# DEPEND on anything outside /usr and /System, because nothing else exists on a
+# player's machine. The previous version grepped for one hardcoded path and so
+# reported success when the binary named a different build path instead.
+#
+# A dylib's own install name (LC_ID_DYLIB, the first line otool -L prints) IS a
+# build path and is harmless, since the engine dlopen's these by path and nothing
+# links against them, so it is excluded rather than "fixed".
+echo "==> checking no Intel binary depends on a build-box path"
+dep_bad=0
+for f in "$OUT/xash3d" "$OUT"/*.dylib; do
+	# -arch x86_64 matters: these are fat, and otool -D on a fat prints a stanza
+	# per architecture, so an unqualified read would not give one clean value.
+	own="$( otool -arch x86_64 -D "$f" 2>/dev/null | sed 1d )"
+	while read -r dep; do
+		case "$dep" in
+			""|@*|/usr/*|/System/*) continue ;;
+			"$own") continue ;;
+		esac
+		echo "    !! $(basename "$f") depends on $dep"
+		dep_bad=1
+	# Process substitution, not a pipe: a pipe would run the loop in a subshell
+	# and dep_bad would not survive it, so a real fault would be found and then
+	# discarded.
+	done < <( otool -arch x86_64 -L "$f" 2>/dev/null | sed 1d | awk '{print $1}' )
+done
+if [ "$dep_bad" -ne 0 ]; then
+	echo "!! the Intel slice references paths that exist only on the build box." >&2
+	echo "   It would fail to load on any other machine." >&2
 	exit 1
 fi
+echo "    ok  every dependency is @loader_path, /usr or /System"
 
 echo "==> game dylibs (both arch sets; generic-ppc pair serves G3/G4/G5)"
 cp "$PANTHER/valve/cl_dlls/client_ppc.dylib" "$OUT/gamedata/cl_dlls/"

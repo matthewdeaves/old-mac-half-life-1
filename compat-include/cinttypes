@@ -1,0 +1,40 @@
+// <cinttypes> for a C++11 compiler using the GNU libstdc++ that ships with the OS.
+//
+// WHY THIS FILE EXISTS
+//
+// The Intel slice targets 10.6, and 10.6 has no libc++ (that arrived in 10.7).
+// It has /usr/lib/libstdc++.6.dylib, which is GCC 4.2's, and GCC 4.2 predates
+// C++11, so its header set has no <cinttypes>. Clang 4.2 on the Lion build box
+// has full C++11 as a LANGUAGE, so the only thing missing is this one header.
+//
+// This is not a workaround for a compiler that cannot do C++11. It supplies one
+// C++11 header to a pre-C++11 header set. Nothing else was missing: a scan of
+// the whole engine tree (engine, renderers, menu, miniutl, libbacktrace) found
+// <cinttypes> as the ONLY C++11 standard header used anywhere, twice, in
+// miniutl/fmtstr.h and miniutl/utllinkedlist.h. hlsdk uses no std:: at all.
+//
+// It is reached with -isystem from scripts/build-lion.sh, and ONLY on the
+// libstdc++ path. Building against libc++ (10.7 and up) never sees this file, so
+// it cannot shadow the real header.
+//
+// WHAT IS ACTUALLY NEEDED
+//
+// Only the print/scan format macros: PRIi32, PRIi64, PRIu32, PRIu64, PRIx64.
+// Every one is a plain C99 <inttypes.h> macro and 10.6 has them all. C++11 says
+// <cinttypes> also drags in <cstdint> and puts the fixed-width types in
+// namespace std; nothing in this port uses std::int64_t or friends, so pulling
+// them into the global namespace via <inttypes.h> is enough. If that ever stops
+// being true the failure is a loud compile error naming the missing name, not
+// anything subtle.
+//
+// __STDC_FORMAT_MACROS: the C99 <inttypes.h> of this era hides the PRI*/SCN*
+// macros from C++ unless it is defined, on the since-withdrawn rule that C++
+// had to ask. Define it before the include or the macros are simply absent.
+
+#pragma once
+
+#ifndef __STDC_FORMAT_MACROS
+#define __STDC_FORMAT_MACROS 1
+#endif
+
+#include <inttypes.h>
