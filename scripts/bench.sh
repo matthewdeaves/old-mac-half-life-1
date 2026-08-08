@@ -17,7 +17,11 @@
 # Usage:
 #   bench.sh [-r gl|soft] [-W width] [-H height] [-f frames] [-n runs]
 #            [-w warmups] [-m map] [-a /path/to/Half-Life.app] [-t timeout_s]
-#            [-s fullscreen|borderless|windowed] [-x "cvar val; cvar val"]
+#            [-s fullscreen|borderless|windowed] [-x "cvar val; cvar val"] [-S]
+#
+#   -S  accept Apple's SOFTWARE GL for a `-r gl` run. Off by default: a software
+#       GL run asserts clean on every other count and returns a number 5-10x too
+#       low, which reads exactly like a renderer regression.
 #
 # It launches through the app's LAUNCHER and then ASSERTS that the run it got is
 # the run it asked for: bundled game root in the search path, game dylibs loaded,
@@ -49,10 +53,14 @@ SCREENMODE=fullscreen   # fullscreen | borderless | windowed
 # A/B of a render cvar is a first-class benchmark rather than a hand-rolled cfg
 # in /tmp. Semicolon-separated, e.g. -x "gl_singlepass 0; gl_overbright 1".
 EXTRA=""
+# -r gl landing on Apple's software GL is a FAILURE by default, see assertion 5.
+# -S says you meant it, for the rare case of deliberately measuring software GL.
+ALLOW_SOFTGL=0
 
-while getopts "r:W:H:f:n:w:m:a:t:s:x:" opt 2>/dev/null; do
+while getopts "r:W:H:f:n:w:m:a:t:s:x:S" opt 2>/dev/null; do
 	case "$opt" in
 		r) REND=$OPTARG ;;
+		S) ALLOW_SOFTGL=1 ;;
 		W) W=$OPTARG ;;
 		H) H=$OPTARG ;;
 		f) FRAMES=$OPTARG ;;
@@ -308,6 +316,44 @@ grep -q "Host_ErrorInit\|Host_Error:" "$PLAIN" &&
 ALLFPS=$(grep "timerefresh:" "$PLAIN" | awk '{print $(NF-1)}')
 MODE=$(grep "MODE:" "$PLAIN" | tail -1 | awk '{print $NF}')
 GLREND=$(grep "GL_RENDERER:" "$PLAIN" | tail -1 | sed 's/.*GL_RENDERER: //')
+
+# 5. `gl` must mean HARDWARE gl. Assertion 3 only checks which renderer module
+#    loaded, and ref_gl loads perfectly happily on top of Apple's software GL
+#    implementation, so the run is labelled `gl`, asserts clean, and returns a
+#    number 5 to 10 times too low. That is the exact shape of fault this block
+#    exists to stop: a plausible recorded fact that later gets reasoned from as
+#    a renderer regression.
+#
+#    Measured on mini-sl (10.6.8) on 2026-08-08: GL_RENDERER: Apple Software
+#    Renderer, 4.46 fps, asserting clean on every other count.
+#
+#    The cause is NOT the ssh session. A console user was logged in, WindowServer
+#    was running, and re-entering that bootstrap namespace with
+#    `sudo launchctl bsexec <loginwindow-pid>` made no difference.
+#
+#    Nor is it simply "headless", which was the next guess and is also wrong.
+#    Measured the same day, all three over the same ssh path:
+#      mini-sl      NVIDIA GeForce 9400, no display  -> Apple Software Renderer
+#      mini-intel2  GMA 950,             no display  -> Intel GMA 950 OpenGL Engine
+#      mini-g4      ATY RV280,     1024x768 display  -> hardware
+#    So it is driver-specific: the GMA 950 hands out an accelerated context with
+#    nothing plugged in, the 9400 will not. Check the machine rather than
+#    assuming, and if it is one that needs a screen, a DVI/HDMI dummy EDID plug
+#    is enough. Either way it is not a fault in the build, which is the whole
+#    point of failing here instead of printing the number.
+case "$GLREND" in
+	*"Software Renderer"*|*"Software Rasterizer"*|*softpipe*|*llvmpipe*)
+		if [ "$REND" = "gl" ] && [ "$ALLOW_SOFTGL" -eq 0 ]; then
+			bench_fail "asked for hardware gl but got '$GLREND'.
+   This number would be 5-10x too low. It is NOT a renderer regression.
+   Most likely this machine is headless: check
+       system_profiler SPDisplaysDataType
+   and if there is no 'Displays:' entry, attach a monitor or a DVI/HDMI dummy
+   plug. A logged-in console session alone is not enough.
+   Pass -S if software GL is genuinely what you are measuring."
+		fi
+		;;
+esac
 
 # drop the warmup samples
 MEAS=$(echo "$ALLFPS" | awk -v skip="$WARMUPS" 'NR>skip')
