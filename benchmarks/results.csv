@@ -55,3 +55,8 @@ timestamp,label,host,renderer,resolution,screenmode,map,frames,fps_min,fps_med,f
 2026-08-05T01:05:00,v1.5.0-g5-leopard-singlepass,g5-leopard,gl,800x600,fullscreen,c0a0,300,208.612,208.975,208.984,208.612|208.975|208.984
 2026-08-05T01:07:00,v1.5.0-g5-leopard-twopass,g5-leopard,gl,800x600,fullscreen,c0a0,300,168.268,168.400,168.437,168.268|168.400|168.437
 2026-08-05T01:12:00,v1.5.0-g5-leopard-native-as-played,g5-leopard,gl,1680x1050,fullscreen,c0a0,300,69.375,69.384,69.396,69.396|69.384|69.375
+2026-08-08T16:38:45,v1.6.0-intel-10.6-floor,yosemite-tiger,gl,800x600,fullscreen,c0a0,300,29.876,30.008,30.066,29.876|30.008|30.066
+2026-08-08T16:38:45,v1.6.0-intel-10.6-floor,mini-g4,gl,800x600,fullscreen,c0a0,300,91.173,91.187,91.202,91.173|91.187|91.202
+2026-08-08T16:38:45,v1.6.0-intel-10.6-floor,g5-desktop,gl,800x600,fullscreen,c0a0,300,209.294,209.477,209.548,209.294|209.548|209.477
+2026-08-08T16:38:45,v1.6.0-intel-10.6-floor,mini-intel2,gl,800x600,fullscreen,c0a0,300,88.022,88.027,88.112,88.112|88.022|88.027
+2026-08-08T16:47:41,CONTROL-intel-10.7-libcxx,mini-intel2,gl,800x600,fullscreen,c0a0,300,87.602,87.633,87.802,87.633|87.602|87.802
