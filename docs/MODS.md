@@ -36,13 +36,31 @@ which had no retry and called `Host_Error` on the first failure, gets the
 mirror-image fallback. Both are one commit on our engine branch, `mods: load game
 code from liblist.gam's plain name as well as the suffixed one`.
 
-`lipo`-ing the two slices into `dlls/bshift.dylib` gives one file that loads on G3,
-G4, G5 and Intel, under the exact filename existing Mac mod releases use, so
-installing is a straight overwrite. The suffixed layout still works, `valve/` is
-untouched, and the fallback fires only when the suffixed name is missing. One
-generic `ppc` slice covers all three PPC machines: `dlopen()` grades a `ppc (ALL)`
-slice correctly on a 750, and only the engine *executable* needs an exact
-cpusubtype (the ppc750 re-stamp in `build-ppc-panther.sh`).
+`lipo`-ing the slices into `dlls/bshift.dylib` gives one file that loads on every
+machine, under the exact filename existing Mac mod releases use, so installing is
+a straight overwrite. The suffixed layout still works, `valve/` is untouched, and
+the fallback fires only when the suffixed name is missing. One generic `ppc`
+slice covers all three PPC machines: `dlopen()` grades a `ppc (ALL)` slice
+correctly on a 750, and only the engine *executable* needs an exact cpusubtype
+(the ppc750 re-stamp in `build-ppc-panther.sh`).
+
+**Four slices**, matching the game everywhere it matters: `ppc`, `i386`,
+`x86_64`, `arm64`. The game's fifth is only the `ppc750`/`ppc7400` split, which
+these do not need for the reason just given.
+
+`arm64` is built somewhere else, because no build mini can produce it: Xcode 4.6
+on Lion predates the architecture by seven years. `scripts/build-mod-arm64.sh`
+runs on the Apple Silicon box, `push-mod-arm64.sh` carries the thin slices over,
+and `fuse-mod-arm64.sh` adds them on the build host. Lion's `lipo` fuses arm64
+quite happily and only fails to NAME it, printing `cputype (16777228)`; `otool`
+and `install_name_tool` do parse load commands and refuse the file outright,
+which is why nothing in that path uses them.
+
+That one file really is one file. The same four-slice `CAd/server.dylib` was
+`dlopen`ed as `ppc` on a Tiger G4 and as `arm64` on an Apple Silicon Mac, and
+`tests/test-mod-dylibs.sh` is the check that says so. Run it on each machine in
+turn: `dlopen` only ever returns the slice for the CPU it is running on, so the
+answer is different, and only meaningful, on each.
 
 ## Switching mods: fork before you exec
 
@@ -162,13 +180,25 @@ not mistaken for a bug and "fixed" back.
 
 ## The installer app
 
-`installer/` builds **Half-Life Mods.app**: native Cocoa, fat ppc + x86_64,
-`LSMinimumSystemVersion 10.3.0`.
+`installer/` builds **Half-Life Mods.app**: native Cocoa, fat `ppc` + `i386` +
+`x86_64` + `arm64`, `LSMinimumSystemVersion 10.3.0`.
+
+`i386` is not a nicety here, it closes a hole the width of a whole class of
+machine. The game grew an i386 slice for the 2006 Core Solo and Core Duo Macs and
+so did the mod dylibs, so without it an owner of one of those could run Half-Life
+and could run every mod, but could not launch the app that installs them. `arm64`
+is built by `scripts/build-installer-arm64.sh` on the Apple Silicon box and is
+optional at the far end, since the `x86_64` slice already runs under Rosetta 2.
+
+One `ppc` slice, unlike the game. The rule against a generic `ppc (ALL)` slice
+exists because Tiger and Leopard mis-grade a fat holding SEVERAL ppc slices on a
+750 host; one generic ppc slice beside the Intel ones is the ordinary 2006 case
+and grades correctly everywhere.
 
 Cocoa rather than Carbon because Carbon was never ported to 64-bit and so cannot
 produce our x86_64 slice; rather than SDL because this should look like a Mac app.
 Downloading is hand-written HTTP/1.1 with `Range:` resume over raw sockets, with
-mbed TLS 3.6 built into both slices; NSURLConnection was not used because its byte
+mbed TLS 3.6 built into every slice; NSURLConnection was not used because its byte
 counters are 32-bit, the same flaw that makes the engine's own HTTP client unusable
 here (`httpfile_t.size` is an `int`). `installer/README.md` covers the networking
 and the 10.3-era Cocoa rules in full.
