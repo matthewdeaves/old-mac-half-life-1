@@ -13,8 +13,13 @@ claim a host first, then run them there. The repo is at `~/oldmac` on both minis
 ```sh
 scripts/pick-build-host.sh --status            # who is free
 HOST=$(scripts/pick-build-host.sh --acquire LABEL)
+scripts/sync-build-host.sh $HOST               # FIRST. the mini does not pull.
 ssh $HOST 'cd oldmac && scripts/build-all.sh'  # THE WHOLE BUILD. Use this.
 scripts/pick-build-host.sh --release $HOST
+
+# arm64 is the ONE slice a mini cannot build. Run these HERE, before build-all:
+scripts/build-arm64.sh                         # Apple Silicon box only
+scripts/push-arm64-slice.sh $HOST              # carries it over, verifies by md5
 
 scripts/make-dmg.sh [version-label]      # Tiger G4 ONLY, see the hard rules
 scripts/deploy-dmg.sh HOST [version]     # install on a bench box as a user would
@@ -24,8 +29,12 @@ python3 tests/test-repo.py               # repo invariants, runs on this box
 tests/test-artifact.sh                   # checks a built artifact
 ```
 
-`build-all.sh` runs `fetch-sources.sh`, the three slice drivers,
+`build-all.sh` runs `fetch-sources.sh`, the FOUR slice drivers it can run
+(`build-lion.sh` twice, for x86_64 and for i386, then both PowerPC ones),
 `make-universal.sh` and `make-app.sh`, in that order, checking each exit code.
+It does NOT build arm64, which no mini can, and `make-universal.sh` fuses
+whatever slices it finds: an arm64 slice that was never pushed is simply absent
+from the release, which is why the fuse SAYS so either way.
 **Do not run those steps chained by hand.** A pipeline returns its LAST command's
 status, so `driver.sh 2>&1 | tail -25 && next.sh` reads `tail`'s status, and
 `tail` always succeeds. That has already happened here: all three drivers
