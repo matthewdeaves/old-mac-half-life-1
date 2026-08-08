@@ -1,18 +1,35 @@
 # Tests
 
-Two layers, split by what they need to run.
+Three layers, split by what they need to run.
 
 | | Needs | Runs |
 |---|---|---|
 | `test-repo.py` | a checkout and Python 3 | anywhere, and in CI on every push |
 | `test-artifact.sh` | a Mac and a built `.dmg` | by hand before cutting a release |
+| `test-mod-dylibs.sh` | a Mac and a folder of mod dylibs | on each machine in the fleet |
 
 ```sh
 python3 tests/test-repo.py -v
 tests/test-artifact.sh dist/Half-Life-OldMac-v1.4.1.dmg
+tests/test-mod-dylibs.sh dist/mods
+tests/test-mod-dylibs.sh "/path/to/Half-Life Mods.app/Contents/Resources/mods"
 ```
 
-Both exit with the number of failed checks.
+The first two exit with the number of failed checks.
+
+`test-mod-dylibs.sh` is deliberately a different SHAPE from the other two: it is
+the only test here whose answer depends on which machine runs it. `dlopen` only
+ever hands back the slice for the CPU it is running on, so the same command
+tests the `ppc` slice on a G4, the `i386` slice on a Core Duo and the `arm64`
+slice on Apple Silicon. It is worth running on each in turn, and none of them
+can answer for the others.
+
+It exists because `lipo` answers the wrong question. `lipo` says whether a slice
+for this architecture is present, which is what the build drivers already check.
+It cannot say whether `dyld` will accept the file, or whether the entry point
+the engine looks up is in it. Those come apart: mod dylibs once shipped at
+version-min 10.7 beside a 10.6 game, and on 10.6 every slice was present and
+correct and no mod would load.
 
 ## Why these checks and not others
 
