@@ -214,6 +214,40 @@ degrade visibly, it degrades into something that looks like a different bug.
 `tests/test-repo.py` asserts both the file and the copy step, because shipping
 the file and forgetting the copy looks identical to never having written it.
 
+### 9. The menu's hint text stops scaling at 1280 wide
+
+**`3rdparty/mainui/controls/PicButton.cpp`, and `engine/client/console.c`,
+`Con_LoadConchars`**
+
+**Symptom.** On a 2880 wide display the grey description beside each menu item is
+tiny, while the yellow item next to it looks right. Reported from a screenshot.
+
+**Cause.** mainui draws an item's description with `DrawConsoleString`, so it
+uses the CONSOLE font, while the item itself is scaled by `uiStatic.scaleX`. The
+engine has only three console fonts and picks by width:
+
+```
+width <= 640   font 0
+width >= 1280  font 2      the largest there is
+```
+
+Past 1280 the buttons keep scaling and the descriptions do not. At 2880 they are
+drawn at their 1280 size beside buttons more than twice that, which reads as
+broken artwork rather than as a font that ran out of sizes.
+
+**Change.** The launcher derives `con_fontscale` from the width it is about to
+request, clamped to [1, 3]. 800, 1024 and 1280 come out at 1.0 and are omitted
+entirely, so nothing about the old machines changes; 2880 gives 2.2, confirmed on
+screen. No engine change was needed.
+
+**Verified.** Apple Silicon at 2880x1864, before and after. G3 at 800x600 is a
+no-op by construction.
+
+**This is the opposite of the usual entry here.** Everything else on this page is
+an old machine failing at something modern code assumed. This is modern hardware
+failing at something an old codebase assumed: that nobody would ever have a
+display more than twice as wide as 1280.
+
 ---
 
 ## What was got wrong
