@@ -13,7 +13,8 @@ holds the porting glue, not the game: no Valve assets, no upstream source.
 deploy to real hardware, test on it, iterate. The fleet is a rack of actual old
 Macs, a G3, a G4, a dual G5 and two Intel minis, and every change is compiled,
 installed and run on them rather than on an emulator. Findings that turned out to
-be wrong are recorded as wrong, in `docs/port/PPC-PORT-NOTES.md`.
+be wrong are recorded as wrong, in `docs/port/POWERPC-FINDINGS.md`, which is the
+write-up of what running Half-Life on a 1999 Power Mac actually costs.
 
 The port itself is carried as commits on our own branch of each upstream, so
 

@@ -215,5 +215,7 @@ inferred. A partial result from a killed agent is a lead, never a finding.
   0007 launcher, 0008 mod dylibs, 0009 mod installer, 0010 report-app floors,
   0011 per-mod sources + installer TLS, **0012 the port is commits on our own
   forks** (supersedes the patching half of 0002)
-- `docs/port/PPC-PORT-NOTES.md`: the move onto mainline, including two
-  diagnoses that were made, measured and retracted
+- `docs/port/POWERPC-FINDINGS.md`: the publishable write-up, one entry per
+  finding with symptom, cause, change and the machines it was measured on,
+  including the ones that were got wrong; `docs/port/PPC-PORT-NOTES.md`: the
+  move onto mainline, including two diagnoses made, measured and retracted
