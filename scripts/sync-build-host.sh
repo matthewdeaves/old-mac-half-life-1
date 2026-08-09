@@ -35,6 +35,7 @@ HOST="${1:-}"
 MODE="${2:-}"
 if [ -z "$HOST" ]; then
 	echo "usage: sync-build-host.sh HOST [--check|--all]" >&2
+	echo "       sync-build-host.sh --refresh-manifest" >&2
 	exit 2
 fi
 
@@ -107,6 +108,57 @@ retry3 () {
 	done
 	return 1
 }
+
+# The manifest has to match the drivers BEFORE any of them is sent.
+#
+# scripts/driver-manifest.md5 is what build-all.sh checks on the far end to
+# decide whether the host's drivers are the repo's. Nothing regenerates it, so
+# editing a driver and syncing gets you a host that faithfully carries the new
+# driver and an old digest for it, and build-all.sh then refuses with
+#
+#     This host's build scripts are NOT the repo's ... run sync-build-host.sh
+#
+# which is the one remedy that cannot help: the sync already worked. That has
+# cost a build round trip. Catch it here, where the fix is, and say what it is.
+check_manifest () {
+	man="$ROOT/scripts/driver-manifest.md5"
+	[ -f "$man" ] || { echo "!! missing scripts/driver-manifest.md5" >&2; return 1; }
+
+	stale=""
+	while read -r want name; do
+		[ -n "${name:-}" ] || continue
+		got=$( md5 -q "$ROOT/scripts/$name" 2>/dev/null || echo missing )
+		[ "$got" = "$want" ] || stale="$stale $name"
+	done < "$man"
+
+	[ -z "$stale" ] && return 0
+
+	echo "!! scripts/driver-manifest.md5 does not match these drivers:" >&2
+	for f in $stale; do echo "     $f" >&2; done
+	echo "   The build host would refuse the build and blame this script." >&2
+	echo "   Regenerate the digests first:" >&2
+	echo "     scripts/sync-build-host.sh --refresh-manifest" >&2
+	return 1
+}
+
+refresh_manifest () {
+	man="$ROOT/scripts/driver-manifest.md5"
+	tmp="$man.new"
+	: > "$tmp"
+	while read -r _ name; do
+		[ -n "${name:-}" ] || continue
+		printf '%s  %s\n' "$( md5 -q "$ROOT/scripts/$name" )" "$name" >> "$tmp"
+	done < "$man"
+	mv "$tmp" "$man"
+	echo "== scripts/driver-manifest.md5 regenerated =="
+	exit 0
+}
+
+# --refresh-manifest takes no host: it only touches this repo. Dispatched here,
+# below the definitions, because sh reads a function before it can call one.
+[ "$HOST" = "--refresh-manifest" ] && refresh_manifest
+
+check_manifest || exit 1
 
 
 # --- full tracked-tree mode ------------------------------------------------
@@ -238,7 +290,18 @@ for d in $DIRS; do
 	fi
 	# tar, not scp: one connection regardless of file count, and it creates the
 	# directory on a host that has never had it. No --delete anywhere near it.
-	send_dir () { tar cf - "$1" | ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" "mkdir -p oldmac && tar xf - -C oldmac"; }
+	#
+	# ustar and no Apple metadata, both deliberately. This box's bsdtar defaults
+	# to the pax format and writes an extended header per file for the extended
+	# attributes macOS hangs on everything (com.apple.provenance and friends).
+	# Lion's tar cannot parse those: it prints "Ignoring malformed pax extended
+	# attribute" for every file and then "Error exit delayed from previous
+	# errors", so the transfer arrives intact and still reports failure. That is
+	# how installer/ came to report TAR FAILED with the files sitting there.
+	send_dir () {
+		COPYFILE_DISABLE=1 tar --format ustar --no-mac-metadata --no-xattrs -cf - "$1" \
+			| ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" "mkdir -p oldmac && tar xf - -C oldmac"
+	}
 	if retry3 send_dir "$d"; then
 		r2=$(fp_remote "$d")
 		if [ "$l" = "$r2" ]; then
