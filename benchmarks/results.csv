@@ -65,3 +65,4 @@ timestamp,label,host,renderer,resolution,screenmode,map,frames,fps_min,fps_med,f
 2026-08-08T19:11:08,v1.6.0-five-slice,quicksilver,gl,800x600,fullscreen,c0a0,300,60.476,60.827,60.875,60.827|60.476|60.875
 2026-08-08T19:11:08,v1.6.0-five-slice,g5-panther,gl,800x600,fullscreen,c0a0,300,209.858,210.315,210.325,209.858|210.325|210.315
 2026-08-08T19:11:08,v1.6.0-five-slice,mini-intel2,gl,800x600,fullscreen,c0a0,300,86.538,86.587,86.609,86.538|86.609|86.587
+2026-08-09T20:54:13,g3-tiger-check,yosemite-tiger,gl,800x600,fullscreen,c0a0,300,30.309,30.434,30.567,30.309|30.434|30.567

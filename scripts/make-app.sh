@@ -249,6 +249,44 @@ else
 	fi
 fi
 
+# The menu's hint text is drawn in the CONSOLE font, which stops growing at 1280.
+#
+# mainui draws a menu item's description with EngFuncs::DrawConsoleString
+# (controls/PicButton.cpp), so it uses the console font while the item beside it
+# is scaled by uiStatic.scaleX. The engine has only THREE console fonts and picks
+# by width (engine/client/console.c, Con_LoadConchars):
+#
+#     width <= 640   font 0
+#     width >= 1280  font 2      <- the largest there is
+#
+# So past 1280 the buttons keep scaling and the descriptions do not. At 2880 wide
+# they are drawn at their 1280 size beside buttons twice the size, which reads as
+# a bug in the artwork rather than as a font that ran out of sizes.
+#
+# con_fontscale scales the font texture and fixes it. Derived from the width we
+# are about to ask for rather than hardcoded, because the same fixed number that
+# looks right on a 5K display would be enormous on the G3's 800x600.
+#
+# Only computed where the width is already known, which is the G3 profile (800,
+# so this is a no-op) and every Intel and Apple Silicon machine. The PowerPC
+# borderless path deliberately does not ask: it would mean a system_profiler call
+# on every launch of a 20-year-old machine to correct a font on displays that are
+# at most 1680 wide, where the error is small.
+case "\$PROFILE" in
+	*-width\ *)
+		CONW=\$( echo "\$PROFILE" | sed -n 's/.*-width \([0-9][0-9]*\).*/\1/p' )
+		if [ -n "\$CONW" ]; then
+			# Clamped at 3: beyond that the bitmap font is so magnified that it is
+			# worse than small. awk because 10.3 has no shell float arithmetic.
+			FS=\$( echo "\$CONW" | awk '{ s = \$1 / 1280; if( s < 1 ) s = 1; if( s > 3 ) s = 3; printf "%.1f", s }' )
+			case "\$FS" in
+				1.0) ;;                                  # nothing to correct
+				*) PROFILE="\$PROFILE +con_fontscale \$FS" ;;
+			esac
+		fi
+		;;
+esac
+
 # Anything the caller passes wins over the profile.
 #
 # The profile used to be handed to the engine unconditionally, with "\$@" after
