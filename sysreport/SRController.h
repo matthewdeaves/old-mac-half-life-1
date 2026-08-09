@@ -34,5 +34,8 @@ NSString *SRReportText( void );
 - (void)copyReport:(id)sender;
 - (void)saveReport:(id)sender;
 - (void)showAbout:(id)sender;
+/* Clicking the About picture plays a line out of the player's own pak0.pak.
+ * Silent no-op when there is no game data beside the app. */
+- (void)playScientist:(id)sender;
 
 @end

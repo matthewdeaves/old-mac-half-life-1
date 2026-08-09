@@ -114,14 +114,23 @@ NSData *OMPakEntry( NSString *pakPath, NSString *entryName )
  * milliseconds, or crash. Holding exactly one also means a rapid second click
  * stops the first rather than layering.
  */
-void OMPlayScientist( NSString *gameRoot )
+void OMPlayPakSound( NSString *gameRoot, NSString *entryName )
 {
 	static NSSound *sound = nil;
 	NSData *wav;
 
-	if( gameRoot == nil )
+	if( gameRoot == nil || entryName == nil )
 		return;
 
+	/*
+	 * Exactly ONE sound is ever held, and starting a new one stops the old.
+	 *
+	 * That is not only about rapid clicking on the About box any more. An install
+	 * run can reach two of these events close together - a mod fails, the player
+	 * hits Cancel, the run then finishes - and the issue asks specifically that a
+	 * cancel mid-install must not stack sounds. Holding one static gives that for
+	 * free: whoever speaks last is the only one speaking.
+	 */
 	if( sound != nil )
 	{
 		if( [sound isPlaying] )
@@ -131,10 +140,19 @@ void OMPlayScientist( NSString *gameRoot )
 	}
 
 	wav = OMPakEntry( [gameRoot stringByAppendingPathComponent:@"valve/pak0.pak"],
-	                  @"sound/scientist/whatyoudoing.wav" );
+	                  entryName );
 	if( wav == nil )
-		return;
+		return;                 /* no game data, or no such line: stay quiet */
 
 	sound = [[NSSound alloc] initWithData:wav];
 	[sound play];
+}
+
+/*
+ * The About box's line, unchanged: the scientist's "My God, what are you doing?"
+ * when Gordon is clicked.
+ */
+void OMPlayScientist( NSString *gameRoot )
+{
+	OMPlayPakSound( gameRoot, OM_SND_ABOUT );
 }

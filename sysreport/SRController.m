@@ -13,6 +13,102 @@
 #include <mach/machine.h>
 
 #import <OpenGL/OpenGL.h>
+
+/* ------------------------------------------------------------------- pak -- */
+/*
+ * A .pak reader, so clicking the picture plays a line the way the mod
+ * installer's About box does. Issue #11.
+ *
+ * WE SHIP NO AUDIO. The wav is read out of the PLAYER's own valve/pak0.pak at
+ * the moment it is wanted, and every failure here is silent: no game data, no
+ * pak, no such entry, all mean "do nothing". An easter egg that complains is
+ * not an easter egg, and this app in particular is run by someone whose machine
+ * is already misbehaving.
+ *
+ * Deliberately duplicated from installer/OMAbout.m rather than shared. The two
+ * apps are separate bundles built by separate drivers from separate source
+ * lists, with no library between them; the alternative was to make this app
+ * depend on the installer's headers and pull in its whole world for sixty lines
+ * of file format. The format is Quake's, from 1996, and is not going to move.
+ *
+ * PAK LAYOUT
+ *   header   char id[4] = "PACK"; int32 dirOfs; int32 dirLen;
+ *   entry    char name[56]; int32 filePos; int32 fileLength;   (64 bytes each)
+ *
+ * Every integer is LITTLE-ENDIAN ON DISK. Read with a straight cast, a PowerPC
+ * build gets a directory offset of about 3.4 billion and finds nothing. They
+ * are assembled byte by byte below, which is correct on both architectures.
+ */
+static unsigned long sr_le32( const unsigned char *p )
+{
+	return   (unsigned long)p[0]
+	     | ( (unsigned long)p[1] << 8 )
+	     | ( (unsigned long)p[2] << 16 )
+	     | ( (unsigned long)p[3] << 24 );
+}
+
+static NSData *SRPakEntry( NSString *pakPath, NSString *entryName )
+{
+	NSFileHandle *fh = [NSFileHandle fileHandleForReadingAtPath:pakPath];
+	NSData *header, *dir, *payload = nil;
+	const unsigned char *h, *d;
+	unsigned long dirOfs, dirLen, count, i;
+
+	if( fh == nil )
+		return nil;
+
+	NS_DURING
+	{
+		header = [fh readDataOfLength:12];
+		if( [header length] != 12 )
+			[NSException raise:@"sr" format:@"short"];
+
+		h = (const unsigned char *)[header bytes];
+		if( h[0] != 'P' || h[1] != 'A' || h[2] != 'C' || h[3] != 'K' )
+			[NSException raise:@"sr" format:@"magic"];
+
+		dirOfs = sr_le32( h + 4 );
+		dirLen = sr_le32( h + 8 );
+		if( dirLen == 0 || dirLen > 64UL * 65536UL )
+			[NSException raise:@"sr" format:@"dir"];
+
+		[fh seekToFileOffset:(unsigned long long)dirOfs];
+		dir = [fh readDataOfLength:dirLen];
+		if( [dir length] != dirLen )
+			[NSException raise:@"sr" format:@"shortdir"];
+
+		d = (const unsigned char *)[dir bytes];
+		count = dirLen / 64;
+		for( i = 0; i < count; i++ )
+		{
+			const unsigned char *e = d + i * 64;
+			char name[57];
+			unsigned long pos, len;
+
+			memcpy( name, e, 56 );
+			name[56] = 0;
+			if( ![entryName isEqualToString:[NSString stringWithUTF8String:name]] )
+				continue;
+
+			pos = sr_le32( e + 56 );
+			len = sr_le32( e + 60 );
+			if( len == 0 || len > 8UL * 1024UL * 1024UL )
+				break;                  /* not something we want to play */
+
+			[fh seekToFileOffset:(unsigned long long)pos];
+			payload = [[fh readDataOfLength:len] retain];
+			break;
+		}
+	}
+	NS_HANDLER
+	{
+		payload = nil;                  /* truncated or malformed: give up quietly */
+	}
+	NS_ENDHANDLER
+
+	[fh closeFile];
+	return [payload autorelease];
+}
 #import <OpenGL/gl.h>
 #import <OpenGL/CGLRenderers.h>
 #import <ApplicationServices/ApplicationServices.h>
@@ -749,13 +845,68 @@ NSString *SRReportText( void )
 	return t;
 }
 
+/*
+ * Where the player's game data is, from this app's point of view.
+ *
+ * The shipped layout puts all three app bundles NEXT TO the player's own valve
+ * folder (.claude/rules/shipped-layout.md), and the game launcher relies on the
+ * same relationship for XASH3D_BASEDIR. So the folder containing this bundle is
+ * the game root, and if there is no valve/pak0.pak in it then this machine has
+ * no game data and there is nothing to play. Returns nil rather than searching
+ * the disk: this app reads only, and hunting a volume for someone's pak file is
+ * not "reads only" in any sense a user would recognise.
+ */
+- (NSString *)gameRootOrNil
+{
+	NSString *root = [[[NSBundle mainBundle] bundlePath] stringByDeletingLastPathComponent];
+	NSString *pak  = [root stringByAppendingPathComponent:@"valve/pak0.pak"];
+
+	if( [[NSFileManager defaultManager] fileExistsAtPath:pak] )
+		return root;
+	return nil;
+}
+
+/*
+ * Clicking the picture plays a line, if the player's data is there. Issue #11.
+ *
+ * One NSSound held in a static, so a second click stops the first rather than
+ * layering, and so the object outlives this function: -play is asynchronous and
+ * releasing on the way out cuts the sound off or crashes.
+ */
+- (void)playScientist:(id)sender
+{
+	static NSSound *sound = nil;
+	NSString *root = [self gameRootOrNil];
+	NSData *wav;
+
+	(void)sender;
+	if( root == nil )
+		return;                 /* no game data beside us: stay quiet */
+
+	if( sound != nil )
+	{
+		if( [sound isPlaying] )
+			[sound stop];
+		[sound release];
+		sound = nil;
+	}
+
+	wav = SRPakEntry( [root stringByAppendingPathComponent:@"valve/pak0.pak"],
+	                  @"sound/scientist/whatyoudoing.wav" );
+	if( wav == nil )
+		return;
+
+	sound = [[NSSound alloc] initWithData:wav];
+	[sound play];
+}
+
 - (void)showAbout:(id)sender
 {
 	if( aboutWindow == nil )
 	{
 		NSRect frame = NSMakeRect( 0, 0, 430, 300 );
 		NSView *content;
-		NSImageView *art;
+		NSButton *art;
 		NSImage *img;
 		NSString *path;
 
@@ -777,7 +928,17 @@ NSString *SRReportText( void )
 		 * -setSize: pins it so nothing is resampled on screen. None of the target
 		 * machines has a HiDPI display.
 		 */
-		art = [[[NSImageView alloc] initWithFrame:NSMakeRect( 24, 34, 210, 240 )] autorelease];
+		/*
+		 * A BORDERLESS BUTTON, not an NSImageView, so the picture can be clicked
+		 * and answer with a line out of the player's own game data. Issue #11,
+		 * same treatment as installer/OMController.m gives Gordon.
+		 *
+		 * NSImageView does not take clicks, so making it clickable means being a
+		 * control. NSButton with a transparent bezel and no title draws exactly
+		 * the same as the image view did: the artwork is a cut-out with the
+		 * backdrop already removed, so there is no button shape to hide.
+		 */
+		art = [[[NSButton alloc] initWithFrame:NSMakeRect( 24, 34, 210, 240 )] autorelease];
 		path = [[[NSBundle mainBundle] resourcePath]
 			stringByAppendingPathComponent:@"About-Scientist.png"];
 		img = [[[NSImage alloc] initWithContentsOfFile:path] autorelease];
@@ -786,7 +947,12 @@ NSString *SRReportText( void )
 			[img setSize:NSMakeSize( 210, 240 )];
 			[art setImage:img];
 		}
-		[art setImageFrameStyle:NSImageFrameNone];
+		[art setBordered:NO];
+		[art setButtonType:NSMomentaryChangeButton];
+		[art setImagePosition:NSImageOnly];
+		[art setTitle:@""];
+		[art setTarget:self];
+		[art setAction:@selector(playScientist:)];
 		[content addSubview:art];
 
 		[content addSubview:[self labelAt:NSMakeRect( 250, 246, 160, 24 )

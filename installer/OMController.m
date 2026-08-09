@@ -435,6 +435,12 @@ static BOOL om_is_heading( NSString *line );
  * string, and the text embeds a user-supplied path. Passing it directly would
  * make a '%' in a folder name a format-string bug.
  */
+/* Main-thread half of the end-of-run line. AppKit only, off the worker. */
+- (void)mainPlayOutcome:(NSArray *)pair
+{
+	OMPlayPakSound( [pair objectAtIndex:0], [pair objectAtIndex:1] );
+}
+
 - (void)mainFinishedAlert:(NSArray *)pair
 {
 	int r = NSRunAlertPanel( [pair objectAtIndex:0], @"%@", @"Quit", @"Leave Open", nil,
@@ -449,6 +455,31 @@ static BOOL om_is_heading( NSString *line );
 {
 	NSString *title = ( wasCancelled ? @"Installation cancelled" : @"Mods installed" );
 	NSMutableString *m = [NSMutableString string];
+
+	/*
+	 * One line per run, chosen by what actually happened, from the player's own
+	 * pak0.pak. Issue #11.
+	 *
+	 * Said HERE rather than at each of the three call sites, because this is the
+	 * one place that already knows all three outcomes and is reached exactly once
+	 * per run. Putting it where the failures happen would speak once per failed
+	 * mod, which on a bad network is two dozen warnings over each other.
+	 *
+	 * Cancel is checked before failures deliberately: if the player stopped the
+	 * run, that is what they did, whatever else was going on when they did it.
+	 *
+	 * Hopped to the main thread for the same reason the alert below is. This
+	 * method runs on the worker, and NSSound is AppKit: driving it from a
+	 * background thread is undefined on 10.3 and 10.4, which is where this app
+	 * spends most of its life.
+	 */
+	if( dest != nil )
+		[self performSelectorOnMainThread:@selector(mainPlayOutcome:)
+		                       withObject:[NSArray arrayWithObjects:dest,
+		                                     ( wasCancelled ? OM_SND_CANCEL
+		                                     : ( failed > 0 ? OM_SND_FAILED : OM_SND_DONE ) ),
+		                                     nil]
+		                    waitUntilDone:NO];
 
 	/*
 	 * Report the job, not the catalogue.

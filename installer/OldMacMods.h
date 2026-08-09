@@ -124,8 +124,31 @@ NSString *OMFileMD5Progress( NSString *path, id<OMProgressSink> sink );
  */
 NSData *OMPakEntry( NSString *pakPath, NSString *entryName );
 
-/* Play the scientist line from <gameRoot>/valve/pak0.pak. Silent no-op if it
- * cannot be found. */
+/*
+ * Voice lines, read from the player's own pak0.pak at runtime.
+ *
+ * WE SHIP NO AUDIO. Every one of these is a name looked up inside the player's
+ * retail data, exactly like the About box's scientist, and every lookup is a
+ * silent no-op when the game data is absent. An app that complains about a
+ * missing easter egg is worse than one that stays quiet.
+ *
+ * The three event lines are the HEV suit's own vocabulary rather than a
+ * character's. They are short, they are unambiguous about which of the three
+ * just happened, and they are the voice a Half-Life player already associates
+ * with a machine reporting its own state, which is precisely what an installer
+ * is doing.
+ */
+#define OM_SND_ABOUT   @"sound/scientist/whatyoudoing.wav"  /* Gordon, About box */
+#define OM_SND_FAILED  @"sound/fvox/warning.wav"            /* an install failed */
+#define OM_SND_CANCEL  @"sound/fvox/deactivated.wav"        /* the user stopped it */
+#define OM_SND_DONE    @"sound/fvox/activated.wav"          /* a run finished clean */
+
+/* Play one entry from <gameRoot>/valve/pak0.pak. Silent no-op if the game data,
+ * or that entry, cannot be found. Only ever one sound at a time: starting a new
+ * one stops whatever was playing, so events close together cannot stack. */
+void OMPlayPakSound( NSString *gameRoot, NSString *entryName );
+
+/* The About box's scientist line. Shorthand for OMPlayPakSound(root, OM_SND_ABOUT). */
 void OMPlayScientist( NSString *gameRoot );
 
 /* -------------------------------------------------------------------- TGA -- */
