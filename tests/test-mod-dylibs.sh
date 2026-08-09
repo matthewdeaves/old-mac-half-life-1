@@ -21,6 +21,12 @@
 # The symbols are the ones the engine looks up by name after dlopen: server-side
 # GiveFnptrsToDll and GetEntityAPI, client-side Initialize and HUD_VidInit. A
 # missing one means the dylib loaded but is not game code the engine can drive.
+#
+# THE PROBE, AND THE MACHINES THAT CANNOT COMPILE ONE
+#   A stock Panther or Tiger install has no /Developer, so there is no compiler
+#   on the two oldest boxes in the fleet - the ones whose ppc slice this test
+#   exists to check. Build a fat probe once with tests/make-probe.sh, carry it
+#   over, and point OLDMAC_PROBE at it.
 set -u
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -29,78 +35,92 @@ DIR="${1:-$ROOT/dist/mods}"
 [ -d "$DIR" ] || { echo "!! no such directory: $DIR" >&2; exit 2; }
 
 TMP="${TMPDIR:-/tmp}/modload.$$"
-PROBE="$TMP.bin"
-SRC="$TMP.c"
+SRC="$ROOT/tests/modprobe.c"
+BUILT=""
 
-# C89 on purpose: this has to compile with gcc-4.0 on the 10.3.9 SDK as well as
-# with a current clang, so no declarations after statements and no // comments.
-cat > "$SRC" <<'EOF'
-#include <dlfcn.h>
-#include <stdio.h>
-int main( int argc, char **argv )
-{
-	void *h;
-	int i, bad = 0;
-	h = dlopen( argv[1], RTLD_NOW | RTLD_LOCAL );
-	if( !h )
-	{
-		printf( "DLOPEN FAILED: %s", dlerror() );
-		return 1;
-	}
-	for( i = 2; i < argc; i++ )
-	{
-		if( !dlsym( h, argv[i] ) )
-		{
-			printf( "missing %s ", argv[i] );
-			bad = 1;
-		}
-	}
-	if( !bad ) printf( "ok" );
-	return bad;
-}
-EOF
-
-CC="${CC:-cc}"
-if ! $CC -o "$PROBE" "$SRC" 2>"$TMP.log"; then
-	echo "!! could not build the probe with $CC:" >&2
-	cat "$TMP.log" >&2
-	rm -f "$SRC" "$TMP.log"
-	exit 2
+if [ -n "${OLDMAC_PROBE:-}" ]; then
+	[ -x "$OLDMAC_PROBE" ] || { echo "!! OLDMAC_PROBE is not executable: $OLDMAC_PROBE" >&2; exit 2; }
+	PROBE="$OLDMAC_PROBE"
+elif [ -x "$ROOT/dist/modprobe" ]; then
+	PROBE="$ROOT/dist/modprobe"
+else
+	[ -f "$SRC" ] || { echo "!! missing $SRC" >&2; exit 2; }
+	CC="${CC:-cc}"
+	if ! command -v "$CC" >/dev/null 2>&1; then
+		echo "!! no compiler on this machine ($CC not found), and no prebuilt probe." >&2
+		echo "   Build one on the Lion mini with tests/make-probe.sh, copy it here," >&2
+		echo "   then re-run with OLDMAC_PROBE=/path/to/modprobe." >&2
+		exit 2
+	fi
+	PROBE="$TMP.bin"
+	BUILT="$PROBE"
+	if ! $CC -o "$PROBE" "$SRC" 2>"$TMP.log"; then
+		echo "!! could not build the probe with $CC:" >&2
+		cat "$TMP.log" >&2
+		rm -f "$TMP.log"
+		exit 2
+	fi
 fi
 
 arch=$(uname -m)
 echo "mod dylibs in $DIR, loaded as $arch"
+echo "probe: $PROBE"
 echo
 
 pass=0
 fail=0
+seen=0
 for d in "$DIR"/*/; do
 	b=$(basename "$d")
 	case "$b" in _*) continue ;; esac
-	[ -f "$d/server.dylib" ] || continue
+
+	# TWO LAYOUTS, and both matter.
+	#   build      <mod>/server.dylib and <mod>/client.dylib, what build-mod.sh
+	#              emits and what the installer packs
+	#   installed  <mod>/dlls/<whatever liblist.gam names>.dylib and
+	#              <mod>/cl_dlls/client.dylib, what a player actually has
+	# Testing only the first would mean this could never run against a real
+	# installed game, which is the only place a deployment fault shows up.
+	if [ -f "$d/server.dylib" ]; then
+		SRV="$d/server.dylib"
+		CLI="$d/client.dylib"
+	else
+		SRV=$( ls "$d"dlls/*.dylib 2>/dev/null | head -1 )
+		CLI="$d/cl_dlls/client.dylib"
+		[ -n "$SRV" ] || continue
+	fi
+	seen=$((seen+1))
 
 	for role in server client; do
-		f="$d/$role.dylib"
-		[ -f "$f" ] || { printf '  %-20s %-6s MISSING\n' "$b" "$role"; fail=$((fail+1)); continue; }
 		case "$role" in
-			server) syms="GiveFnptrsToDll GetEntityAPI" ;;
-			client) syms="Initialize HUD_VidInit" ;;
+			server) f="$SRV"; syms="GiveFnptrsToDll GetEntityAPI" ;;
+			client) f="$CLI"; syms="Initialize HUD_VidInit" ;;
 		esac
+		[ -f "$f" ] || { printf '  %-20s %-6s MISSING\n' "$b" "$role"; fail=$((fail+1)); continue; }
 		out=$( "$PROBE" "$f" $syms 2>&1 )
 		if [ "$out" = "ok" ]; then
 			pass=$((pass+1))
 		else
+			# dyld lists every path it tried, which is the same failure repeated
+			# six times and hundreds of characters wide. The first one carries the
+			# whole diagnosis - "have 'x86_64,ppc', need 'arm64'" - so keep that
+			# and drop the rest. OLDMAC_VERBOSE=1 for the untouched text.
+			[ -n "${OLDMAC_VERBOSE:-}" ] || out=$( printf '%s' "$out" | sed "s/)), '.*/))/" )
 			printf '  %-20s %-6s %s\n' "$b" "$role" "$out"
 			fail=$((fail+1))
 		fi
 	done
 done
 
-rm -f "$SRC" "$PROBE" "$TMP.log"
+rm -f "$BUILT" "$TMP.log"
 
 echo
+if [ "$seen" -eq 0 ]; then
+	echo "!! no mod found under $DIR in either layout" >&2
+	exit 2
+fi
 if [ "$fail" -eq 0 ]; then
-	echo "$pass loaded, 0 failed ($arch)"
+	echo "$pass loaded, 0 failed ($arch), $seen mods"
 	exit 0
 fi
 echo "$pass loaded, $fail FAILED ($arch)" >&2
