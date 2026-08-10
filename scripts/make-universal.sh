@@ -124,6 +124,23 @@ stamp_of() {
 	cat "$1/BUILD-STAMP"
 }
 
+# The two PPC staging dirs moved from the repo root (dist-ppc-*-app) into
+# dist/. A build host synced mid-release can still be holding the old ones, and
+# stopping a release to rename a directory helps nobody, so accept the legacy
+# path and say so. This remap has to run BEFORE the stamp check below: it used
+# to sit after it, where stamp_of had already exited on the missing new-path
+# dir, so the fallback could never fire and the host got the wrong message.
+for v in PANTHER TIGER; do
+	eval "cur=\$$v"
+	# shellcheck disable=SC2154 # cur is assigned by the eval above
+	[ -d "$cur" ] && continue
+	legacy="$ROOT/dist-ppc-$(echo "$v" | tr 'A-Z' 'a-z')-app"
+	if [ -d "$legacy" ]; then
+		echo "NOTE: using legacy staging dir $legacy (the new path is $cur)"
+		eval "$v=\$legacy"
+	fi
+done
+
 echo "==> checking every slice was built from the same commit"
 for d in "$PANTHER" "$TIGER" "${DYN_DIRS[@]}"; do
 	got="$( stamp_of "$d" )"
@@ -216,20 +233,6 @@ done
 OUT="$ROOT/dist/universal"                    # flat fat bundle (feed to make-app.sh)
 
 ENGINE_DYLIBS="libxash.dylib libref_gl.dylib libref_soft.dylib libmenu.dylib filesystem_stdio.dylib"
-
-# The two PPC staging dirs moved from the repo root (dist-ppc-*-app) into dist/.
-# A build host synced mid-release can still be holding the old ones, and stopping a
-# release to rename a directory helps nobody, so accept the legacy path and say so.
-for v in PANTHER TIGER; do
-	eval "cur=\$$v"
-	# shellcheck disable=SC2154 # cur is assigned by the eval above
-	[ -d "$cur" ] && continue
-	legacy="$ROOT/dist-ppc-$(echo "$v" | tr 'A-Z' 'a-z')-app"
-	if [ -d "$legacy" ]; then
-		echo "NOTE: using legacy staging dir $legacy (the new path is $cur)"
-		eval "$v=\$legacy"
-	fi
-done
 
 for d in "$PANTHER" "$TIGER" "${DYN_DIRS[@]}"; do
 	[ -d "$d" ] || { echo "MISSING slice dir: $d - run the matching build first" >&2; exit 1; }

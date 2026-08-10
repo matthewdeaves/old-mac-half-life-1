@@ -405,9 +405,11 @@ def test_invocation_matcher_rejects_a_mention():
 
 PIN_FILE = "scripts/build-pins.sh"
 
-# The drivers that compile something we ship.
+# The drivers that compile something we ship. The two arm64 drivers run on the
+# dev box rather than a mini, but the invariant is the same: a driver that
+# stops checking its pins builds whatever tree happens to be there.
 BUILD_DRIVERS = ("scripts/build-lion.sh", "scripts/build-ppc-panther.sh",
-                 "scripts/build-ppc-tiger.sh")
+                 "scripts/build-ppc-tiger.sh", "scripts/build-arm64.sh")
 
 
 def test_every_pin_is_a_full_commit():

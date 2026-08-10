@@ -177,6 +177,12 @@ check_manifest || exit 1
 # and an rsync --delete once came within one command of destroying it.
 if [ "$MODE" = "--all" ]; then
 	echo "== syncing every tracked file to $HOST =="
+	# git archive ships HEAD, the COMMITTED state. An uncommitted edit silently
+	# does not travel, which looks exactly like a sync that worked.
+	if ! git diff --quiet HEAD 2>/dev/null || ! git diff --cached --quiet 2>/dev/null; then
+		echo "!! NOTE: this tree has uncommitted changes; --all ships HEAD, so" >&2
+		echo "   those changes will NOT arrive on $HOST. Commit them first." >&2
+	fi
 	tmp="/tmp/oldmac-tree-$$.tar"
 	git archive --format=tar HEAD > "$tmp" || { echo "!! git archive failed" >&2; exit 1; }
 	if ! ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" "mkdir -p oldmac && tar xf - -C oldmac" < "$tmp"; then

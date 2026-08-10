@@ -49,3 +49,11 @@ jobs:
             fi
           done
           exit $fail
+      - name: shellcheck at warning level
+        # Warning level, deliberately: the style-level findings were triaged
+        # 2026-08-10 and are dominated by deliberate portability (ls -t where
+        # find cannot sort by mtime on 10.3-10.7, word-splitting of controlled
+        # lists under the no-spaces-in-repo-path contract). Everything at
+        # warning level and above is either fixed or suppressed at the site
+        # with the reason.
+        run: shellcheck -S warning scripts/*.sh tests/*.sh

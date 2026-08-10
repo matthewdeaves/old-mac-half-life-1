@@ -57,7 +57,7 @@ command -v curl >/dev/null || { echo "ERROR: curl not found" >&2; exit 1; }
 mkdir -p "$WORK/archives" "$WORK/trees"
 
 python3 - "$SRC" "$OUT" "$WORK" <<'PY'
-import hashlib, os, subprocess, sys
+import hashlib, os, shutil, subprocess, sys
 
 src_path, out_path, work = sys.argv[1], sys.argv[2], sys.argv[3]
 
@@ -124,18 +124,29 @@ for m in parse(src_path):
         continue
 
     if not os.path.isdir(tree):
-        os.makedirs(tree)
+        # Extract into a scratch name and rename into place once 7z succeeds.
+        # An interrupted or failed extraction used to leave a half-populated
+        # tree at the checked name, and the next run reused it, baking wrong
+        # file and byte counts into the table the installer verifies against.
+        scratch = tree + '.extract'
+        shutil.rmtree(scratch, ignore_errors=True)
+        os.makedirs(scratch)
         root = m.get('root', '.')
         # Extract only the mod's own subtree, exactly as the app's `root` does.
-        arg = ['7z', 'x', '-y', '-o' + tree, archive]
+        arg = ['7z', 'x', '-y', '-o' + scratch, archive]
         if root != '.':
             arg.append(root + '/*')
-        subprocess.call(arg, stdout=subprocess.DEVNULL)
+        rc = subprocess.call(arg, stdout=subprocess.DEVNULL)
+        if rc != 0:
+            print('  WARN: 7z exited %d for %s - skipped' % (rc, gd), file=sys.stderr)
+            shutil.rmtree(scratch, ignore_errors=True)
+            continue
         if root != '.':
-            inner = os.path.join(tree, root)
+            inner = os.path.join(scratch, root)
             if os.path.isdir(inner):
                 for name in os.listdir(inner):
-                    os.rename(os.path.join(inner, name), os.path.join(tree, name))
+                    os.rename(os.path.join(inner, name), os.path.join(scratch, name))
+        os.rename(scratch, tree)
 
     files = nbytes = skipped = 0
     for dirpath, _, filenames in os.walk(tree):

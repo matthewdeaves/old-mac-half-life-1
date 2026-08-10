@@ -83,6 +83,23 @@ status() {
 		elif [ -n "$dirty" ];      then state="DIRTY";     bad=1
 		else                            state="ok"; fi
 		printf '%-10s %-12s %s\n' "$name" "$state" "${have:0:12}"
+		# The engine row alone does not cover its submodules: one moved by hand
+		# reported ok here and then failed one step later inside a driver, under
+		# a different name. Check the three recorded pointers as their own rows.
+		if [ "$name" = "engine" ] && [ "$state" = "ok" ]; then
+			for sub in "3rdparty/mainui $PIN_MENU_COMMIT menu" \
+			           "3rdparty/mainui/miniutl $PIN_MINIUTL_COMMIT miniutl" \
+			           "3rdparty/libbacktrace/libbacktrace $PIN_LIBBACKTRACE_COMMIT libbacktrace"; do
+				set -- $sub
+				shave="$( cd "$dir/$1" 2>/dev/null && $GIT rev-parse HEAD 2>/dev/null || echo '?' )"
+				if [ "$shave" = "$2" ]; then
+					printf '%-10s %-12s %s\n' "$3" "ok" "${shave:0:12}"
+				else
+					printf '%-10s %-12s %s\n' "$3" "WRONG-PIN" "${shave:0:12}"
+					bad=1
+				fi
+			done
+		fi
 	done < "$list"
 	rm -f "$list"
 

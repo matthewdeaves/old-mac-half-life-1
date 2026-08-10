@@ -164,9 +164,23 @@ fi
 VALVE="$APP/Contents/Resources/Half-Life/valve"
 [ -d "$VALVE" ] && ok "payload is at the valve/ level" \
                 || bad "payload is not at Contents/Resources/Half-Life/valve"
-for f in dlls/hl_ppc.dylib dlls/hl_amd64.dylib cl_dlls/client_ppc.dylib cl_dlls/client_amd64.dylib; do
+# The unsuffixed pair is i386: COM_GenerateLibraryName special-cases 32-bit x86
+# on Apple and gives it no suffix, because that was Half-Life's original
+# platform. The engine dlopens all of these BY NAME.
+for f in dlls/hl_ppc.dylib dlls/hl_amd64.dylib dlls/hl.dylib \
+         cl_dlls/client_ppc.dylib cl_dlls/client_amd64.dylib cl_dlls/client.dylib; do
 	[ -f "$VALVE/$f" ] && ok "payload has $f" || bad "payload missing $f"
 done
+# An arm64 engine with no arm64 game code aborts with "missing game library" on
+# exactly the machines the slice was added for.
+case "$(archs "$BIN")" in *arm64*)
+	for f in dlls/hl_arm64.dylib cl_dlls/client_arm64.dylib; do
+		[ -f "$VALVE/$f" ] && ok "payload has $f" || bad "payload missing $f (engine has arm64)"
+	done
+	# arm64 states its floor via LC_BUILD_VERSION, not LC_VERSION_MIN_MACOSX.
+	MINA="$(otool -arch arm64 -l "$BIN" 2>/dev/null | awk '/LC_BUILD_VERSION/{f=1} f&&/minos/{print $2; exit}')"
+	is "arm64 slice targets 11.0" "11.0" "$MINA"
+;; esac
 # Without this dictionary mainui draws its GameUI_* tokens as their own names,
 # because L() returns the key on a miss and retail data supplies no
 # resource/*_english.txt at all. See issue #20.
@@ -240,6 +254,21 @@ if [ -d "$MODDIR" ]; then
 	done
 else
 	echo "  note  no mods app payload on this image, skipping mod checks"
+fi
+
+# ---- README.txt does not contradict the binary -----------------------------
+# The v1.4.x README shipped saying Intel needs 10.7, 32-bit Intel is not
+# covered, and there is no native Apple Silicon slice, after all three had
+# stopped being true. The heredoc in make-dmg.sh is hand-maintained prose, so
+# the retracted claims are pinned here the way test-repo.py pins them for the
+# apps' shipped strings.
+if [ -f "$MNT/README.txt" ]; then
+	RETRACTED='no native Apple Silicon|not 10\.6|10\.7 Lion or newer|would need an i386 slice'
+	HIT="$(grep -nE "$RETRACTED" "$MNT/README.txt" || true)"
+	[ -z "$HIT" ] && ok "README.txt repeats no retracted support claim" \
+	              || bad "README.txt repeats a retracted support claim:" "$HIT"
+else
+	bad "image has no README.txt"
 fi
 
 # ---- version labels agree ---------------------------------------------------
