@@ -56,7 +56,7 @@ Usage:
 
 Examples:
   # Already-transparent PNG (e.g. hand-cleaned in Photoshop), just build the ICNS.
-  scripts/make-icon.py MacOSX/icon-source-wiki.png --keep-bg -o MacOSX/Half-Life.icns
+  scripts/make-icon.py MacOSX/icon-source-lrz.png --keep-bg -o MacOSX/Half-Life.icns
 
   # Custom thresholds (white bg with weaker AA fringe).
   scripts/make-icon.py source.png --bg white --hard 245 --soft 220

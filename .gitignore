@@ -21,6 +21,26 @@ valve/
 
 # macOS cruft
 .DS_Store
+._*
+.AppleDouble
+
+# Editor and patch leftovers. *.orig and *.rej matter here specifically: the mod
+# build applies patches to each mod's own source tree, and a failed hunk drops
+# both beside the file it could not patch.
+*.orig
+*.rej
+*.swp
+*~
+
+# Anything a run leaves behind. The engine writes last-run.log beside the app and
+# screenshots under <gamedir>/scrshots, and a deployed game is sometimes staged
+# inside the repo while testing.
+*.log
+scrshots/
+
+# Disk images are build output. dist/ already covers the ones make-dmg.sh
+# produces; this catches one written anywhere else by hand.
+*.dmg
 
 # Python bytecode (patch/build helper scripts)
 __pycache__/

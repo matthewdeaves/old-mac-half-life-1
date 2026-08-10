@@ -471,7 +471,7 @@ static BOOL omShouldSkipPath( NSString *rel )
  * directory is the engine's read-only root and is on the search path for every
  * gamedir, so the Custom Game menu resolves the same relative names with no
  * install-time copying, and the artwork is present even for a mod the player
- * installed by hand. See scripts/patch-mainui-modart.py.
+ * installed by hand. See scripts/gen-mod-artwork.py.
  */
 
 /*

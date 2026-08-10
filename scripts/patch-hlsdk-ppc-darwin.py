@@ -26,7 +26,7 @@ Two upstream assumptions break our PPC cross-build, both because hlsdk expects
     Widening the test costs nothing and removes the version dependency.
 
 Both edits are carried in the vendored PPC tree as hand-edits
-(patches/vendor/hlsdk-portable-ppc.handedits.diff); this script applies the same
+(recoverable from git history); this script applies the same
 two changes to any mod branch we build, so nothing depends on that one checkout.
 
 Idempotent. Python 2.5+ (the build minis run 2.7).

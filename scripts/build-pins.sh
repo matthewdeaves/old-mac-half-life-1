@@ -1,6 +1,6 @@
 #!/bin/bash
 # Canonical pins - the SINGLE SOURCE OF TRUTH for both reproduction
-# (scripts/bootstrap-vendor.sh sources this) and release provenance
+# (scripts/fetch-sources.sh sources this) and release provenance
 # (scripts/make-dmg.sh stamps these into the build string and BUILD-INFO.txt, so a
 # shipped .app records exactly what it was built from).
 #

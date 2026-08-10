@@ -102,7 +102,7 @@
   <text x="32" y="480" font-size="15" font-weight="700" fill="#1f2328">This repo - matthewdeaves/old-mac-halflife</text>
   <text x="32" y="503" font-size="12" fill="#1f2328">The only thing you clone. It tracks the glue that drives all of the above - no upstream source, no game data:</text>
   <g font-family="ui-monospace, Menlo, monospace" font-size="11" fill="#0550ae">
-    <text x="32" y="527">vendor/MANIFEST.md   scripts/bootstrap-vendor.sh   patches/vendor/*.diff   scripts/patch-*.py</text>
+    <text x="32" y="527">vendor/MANIFEST.md   scripts/fetch-sources.sh   scripts/build-pins.sh   scripts/patch-*.py</text>
     <text x="32" y="546">scripts/build-*.sh   scripts/make-universal.sh   scripts/make-app.sh   configs/   docs/</text>
   </g>
   <text x="32" y="570" font-size="12" fill="#57606a">Everything above reconstructs from a clean checkout: bootstrap clones the pinned commits, the scripts patch and build, lipo fuses the slices.</text>

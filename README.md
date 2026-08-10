@@ -183,9 +183,9 @@ None of that source is committed here. Upstream is cloned at pinned commits into
 a git-ignored `vendor/`, patched and built, so what this repo actually tracks is:
 
 - `scripts/build-*.sh` per-arch build drivers, one per slice
-- `scripts/patch-*.py` the source patches, which are the record of our changes
+- `scripts/patch-*.py` five patches, applied only to each mod's own source tree
 - `scripts/make-universal.sh` + `make-app.sh` fuse the slices and wrap the app
-- `scripts/bootstrap-vendor.sh` + `vendor/MANIFEST.md` rebuild `vendor/` from scratch
+- `scripts/fetch-sources.sh` + `scripts/build-pins.sh` clone `vendor/` at its pins
 - `installer/` the mod installer app ([its own README](installer/README.md))
 - `configs/`, `docs/` sticky settings, [how mods work](docs/MODS.md), the
   [mod audit](docs/MOD-AUDIT.md), the [icon pipeline](docs/ICONS.md) and a

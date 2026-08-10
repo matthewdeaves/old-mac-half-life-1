@@ -369,7 +369,7 @@ cp "$ROOT/configs/gameui_english.txt" "$OUT/gamedata/resource/gameui_english.txt
 # bshift/game.tga; gfx/shell is where the menu's own art lives and the rodir is on
 # the search path for every gamedir, so these resolve from here. Present whether or
 # not the mod installer ever ran, and for mods installed by hand.
-# (See scripts/gen-mod-artwork.py and scripts/patch-mainui-modart.py.)
+# (See scripts/gen-mod-artwork.py, which generates it.)
 if [ -d "$ROOT/installer/artwork" ]; then
 	mkdir -p "$OUT/gamedata/gfx/shell/mods"
 	cp "$ROOT/installer/artwork"/*.tga      "$OUT/gamedata/gfx/shell/mods/" 2>/dev/null || true
