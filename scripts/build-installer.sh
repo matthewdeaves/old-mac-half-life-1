@@ -140,6 +140,10 @@ done
 
 # MBEDTLS_USER_CONFIG_FILE is included AFTER mbedTLS's own config, so our header
 # only takes things away and the stock, upstream-tested configuration stands.
+# shellcheck disable=SC2089,SC2090 # the escaped quotes around the config file
+# name must survive into the compiler argv; unquoted expansion does no
+# quote removal, so the macro arrives correctly. An array cannot be used:
+# this also runs under Lion bash 3.2 where the calling style predates it.
 MBED_FLAGS="-I$MBEDTLS/include -I$MBEDTLS/library -I$SRC -DMBEDTLS_USER_CONFIG_FILE=\"om_mbedtls_config.h\""
 
 # Which Intel architectures. i386 is for the 2006 Core Solo and Core Duo Macs,
@@ -166,6 +170,7 @@ build_intel_slice() {
 	local obj="$BUILD/obj-$arch"
 	mkdir -p "$obj"
 	for f in $MBED_SRC; do
+		# shellcheck disable=SC2090 # see the note at the MBED_FLAGS assignment
 		clang -arch "$arch" -isysroot "$SDK_INTEL" -mmacosx-version-min=$INTEL_MIN -std=gnu99 \
 			$MBED_FLAGS -O2 -c "$f" -o "$obj/$(basename "$f" .c).o"
 	done
@@ -187,6 +192,7 @@ done
 echo "==> [2/4] compiling ppc (gcc-4.0, 10.3.9 SDK)"
 # -Wno-long-double: the 10.3.9 SDK headers still use it and gcc-4.0 warns loudly.
 for f in $MBED_SRC; do
+	# shellcheck disable=SC2090 # see the note at the MBED_FLAGS assignment
 	gcc-4.0 -arch ppc -isysroot "$SDK_PPC" -mmacosx-version-min=10.3 -std=gnu99 \
 		$MBED_FLAGS -Wno-long-double -O2 -c "$f" -o "$BUILD/obj-ppc/$(basename "$f" .c).o"
 done

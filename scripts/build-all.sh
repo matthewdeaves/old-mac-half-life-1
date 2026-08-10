@@ -31,7 +31,7 @@
 set -uo pipefail
 
 ROOT="$( cd "$( dirname "$0" )/.." && pwd )"
-cd "$ROOT"
+cd "$ROOT" || exit 1
 
 LOGDIR="${OLDMAC_LOGDIR:-/tmp/oldmac-build}"
 mkdir -p "$LOGDIR"
@@ -56,7 +56,7 @@ mkdir -p "$LOGDIR"
 MANIFEST="$ROOT/scripts/driver-manifest.md5"
 
 manifest_check() {
-	local bad=0 line sum name have
+	local bad=0 sum name have
 	[ -f "$MANIFEST" ] || { echo "!! $MANIFEST missing" >&2; return 1; }
 	while read -r sum name; do
 		[ -n "$name" ] || continue
@@ -74,10 +74,20 @@ manifest_check() {
 }
 
 if [ "${1:-}" = "--update-manifest" ]; then
+	# Everything a mini RUNS is listed, not only what build-all.sh calls
+	# directly: a stale build-installer.sh or patch script produces the same
+	# irreproducible build the manifest exists to refuse, it just does it one
+	# step later. The 2026-08-05 incident was five stale drivers; the gap this
+	# closes is the drivers the old list left unchecked.
 	: > "$MANIFEST"
 	for f in build-all.sh build-pins.sh fetch-sources.sh build-lion.sh \
-	         build-ppc-tiger.sh build-ppc-panther.sh make-universal.sh make-app.sh; do
-		printf '%s  %s\n' "$( md5 -q "$ROOT/scripts/$f" )" "$f" >> "$MANIFEST"
+	         build-ppc-tiger.sh build-ppc-panther.sh make-universal.sh make-app.sh \
+	         build-installer.sh build-sysreport.sh build-mod.sh fuse-mod-arm64.sh \
+	         patch-hlsdk-mod-bugs.py patch-hlsdk-mod-gcc4.py \
+	         patch-hlsdk-ppc-darwin.py patch-hlsdk-shared-clientbugs.py \
+	         patch-hlsdk-xcompile-ppc.py; do
+		sum=$( md5 -q "$ROOT/scripts/$f" 2>/dev/null || md5sum "$ROOT/scripts/$f" | cut -d' ' -f1 )
+		printf '%s  %s\n' "$sum" "$f" >> "$MANIFEST"
 	done
 	echo "wrote $MANIFEST"
 	exit 0

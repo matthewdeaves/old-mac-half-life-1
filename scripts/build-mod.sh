@@ -118,7 +118,6 @@ MOD_INTEL_ARCHES="x86_64"
 # x86_64: Xcode clang + the 10.7 SDK (same as build-lion.sh).
 XC_DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
 SDK_INTEL="$XC_DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.7.sdk"
-TCXX="$XC_DEVELOPER_DIR/Toolchains/XcodeDefault.xctoolchain/usr/lib/c++/v1"
 
 # ppc: gcc-4.0 + the 10.3.9 SDK (same as build-ppc-panther.sh). --disable-altivec
 # keeps the slice generic ppc, which is what dlopen wants on a 750.
@@ -177,7 +176,7 @@ done
 # and dll name there, which is why one driver can build all of them.
 mod_option() {
 	local tree="$1" key="$2" val
-	val="$(sed -n "s/^[[:space:]]*$key[[:space:]]*=[[:space:]]*\([^#]*\).*/\1/p" \
+	val="$(sed -n "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*\([^#]*\).*/\1/p" \
 		"$tree/mod_options.txt" 2>/dev/null | head -1)"
 	# strip trailing whitespace
 	printf '%s' "$val" | sed 's/[[:space:]]*$//'
@@ -335,9 +334,7 @@ for branch in "$@"; do
 
 	tree_i="$MODSRC/$branch-intel"
 	tree_p="$MODSRC/$branch-ppc"
-	dest_i="$MODSRC/_install/$branch-intel"
 	dest_p="$MODSRC/_install/$branch-ppc"
-	log_i="$LOGS/$branch-intel.log"
 	log_p="$LOGS/$branch-ppc.log"
 
 	if ! ( prepare_tree "$tree_i" "$branch" && prepare_tree "$tree_p" "$branch" ); then
@@ -490,7 +487,12 @@ echo "================================================================"
 if [ -d "$ROOT/dist/mods-arm64" ]; then
 	echo
 	echo "== fusing the arm64 slices =="
-	"$ROOT/scripts/fuse-mod-arm64.sh" || echo "!! arm64 fuse failed; the mods above have no arm64 slice" >&2
+	# A FAILED fuse is not the same as arm64 being absent: some dylibs may have
+	# the slice and some not, which is worse than none. It fails the run.
+	"$ROOT/scripts/fuse-mod-arm64.sh" || {
+		echo "!! arm64 fuse FAILED part way; some mods may have the slice and some not" >&2
+		failed="$failed arm64-fuse"
+	}
 else
 	echo
 	echo "NOTE: no dist/mods-arm64 on this host, so these dylibs have NO arm64 slice."

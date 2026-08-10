@@ -1,4 +1,6 @@
 #!/bin/bash
+# shellcheck disable=SC2034 # sourced config: every PIN_* here is consumed
+# by the scripts that source this file, which shellcheck cannot see.
 # Canonical pins - the SINGLE SOURCE OF TRUTH for both reproduction
 # (scripts/fetch-sources.sh sources this) and release provenance
 # (scripts/make-dmg.sh stamps these into the build string and BUILD-INFO.txt, so a

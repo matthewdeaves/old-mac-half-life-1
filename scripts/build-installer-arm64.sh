@@ -76,6 +76,10 @@ for f in "$MBEDTLS"/library/*.c; do
 	esac
 	MBED_SRC="$MBED_SRC $f"
 done
+# shellcheck disable=SC2089,SC2090 # the escaped quotes around the config file
+# name must survive into the compiler argv; unquoted expansion does no
+# quote removal, so the macro arrives correctly. An array cannot be used:
+# this also runs under Lion bash 3.2 where the calling style predates it.
 MBED_FLAGS="-I$MBEDTLS/include -I$MBEDTLS/library -I$SRC -DMBEDTLS_USER_CONFIG_FILE=\"om_mbedtls_config.h\""
 
 rm -rf "$BUILD" "$OUT"; mkdir -p "$BUILD/obj" "$OUT"
@@ -84,6 +88,7 @@ CFL="-arch $ARCH -mmacosx-version-min=$ARM64_MIN"
 
 echo "==> compiling $ARCH (clang $(clang --version | head -1 | sed 's/.*version //;s/ .*//'), floor macOS $ARM64_MIN)"
 for f in $MBED_SRC; do
+	# shellcheck disable=SC2090 # see the note at the MBED_FLAGS assignment
 	clang $CFL -std=gnu99 $MBED_FLAGS -O2 -c "$f" -o "$BUILD/obj/$(basename "$f" .c).o"
 done
 for f in $ZLIB_SRC $LZMA_SRC; do

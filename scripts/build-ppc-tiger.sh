@@ -158,10 +158,23 @@ check_pin sdl   "$SDLSRC" "$PIN_SDL_COMMIT"
 #  min-10.3 lets a Panther G4 load it; it runs forward on 10.4/10.5.
 ARCHFLAGS="-arch ppc -mcpu=7400 -faltivec -isysroot $SDK -mmacosx-version-min=10.3"
 
-# --- 0) compat-include shims (shared, idempotent) ----------------------------
+# --- 0) compat-include shims ------------------------------------------------
+# cinttypes and cstdint are TRACKED files, shipped by sync-build-host.sh and
+# shared with build-lion.sh and build-mod.sh. This script used to regenerate
+# them, which is the two-owners-one-path fault build-mod.sh already documents:
+# the generated copy silently replaced the tracked, commented one and the next
+# sync put it back. Check they arrived instead. oldmac_cxx11.h below is NOT
+# tracked and this heredoc stays its one owner.
 mkdir -p "$SHIM"
-printf '#pragma once\n#ifndef __STDC_FORMAT_MACROS\n#define __STDC_FORMAT_MACROS 1\n#endif\n#include <inttypes.h>\n' > "$SHIM/cinttypes"
-printf '#pragma once\n#include <stdint.h>\n' > "$SHIM/cstdint"
+for shim in cinttypes cstdint; do
+	[ -f "$SHIM/$shim" ] || {
+		echo "!! missing $SHIM/$shim" >&2
+		echo "   compat-include/ is tracked in the repo. Run" >&2
+		echo "     scripts/sync-build-host.sh $(hostname -s)" >&2
+		echo "   from the workstation, or this build has no <$shim> at all." >&2
+		exit 1
+	}
+done
 cat > "$SHIM/oldmac_cxx11.h" <<'EOF'
 #pragma once
 #ifdef __cplusplus

@@ -33,6 +33,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MODSRC="$ROOT/vendor/hlsdk-mods"
 DIST="$ROOT/dist/mods-arm64"
 LOGS="$DIST/_logs"
+# shellcheck disable=SC2034 # never passed to the compiler, and that is the
+# point: the comment at the -isystem site below explains why this slice must
+# NOT see compat-include. The variable stays so that comment names a real path.
 SHIM="$ROOT/compat-include"
 
 ARCH=arm64
@@ -76,7 +79,7 @@ mkdir -p "$MODSRC" "$DIST" "$LOGS"
 
 mod_option() {
 	local tree="$1" key="$2" val
-	val="$(sed -n "s/^[[:space:]]*$key[[:space:]]*=[[:space:]]*\([^#]*\).*/\1/p" \
+	val="$(sed -n "s/^[[:space:]]*${key}[[:space:]]*=[[:space:]]*\([^#]*\).*/\1/p" \
 		"$tree/mod_options.txt" 2>/dev/null | head -1)"
 	printf '%s' "$val" | sed 's/[[:space:]]*$//'
 }

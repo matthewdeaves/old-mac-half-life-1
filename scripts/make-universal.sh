@@ -222,6 +222,7 @@ ENGINE_DYLIBS="libxash.dylib libref_gl.dylib libref_soft.dylib libmenu.dylib fil
 # release to rename a directory helps nobody, so accept the legacy path and say so.
 for v in PANTHER TIGER; do
 	eval "cur=\$$v"
+	# shellcheck disable=SC2154 # cur is assigned by the eval above
 	[ -d "$cur" ] && continue
 	legacy="$ROOT/dist-ppc-$(echo "$v" | tr 'A-Z' 'a-z')-app"
 	if [ -d "$legacy" ]; then
