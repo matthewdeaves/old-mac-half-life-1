@@ -8,8 +8,8 @@
  * It exists because the fat binary grades by CPU subtype alone (see issue #14),
  * so a machine can be locked out by a combination nobody here owns and nobody
  * here can test. This app has to run on exactly those machines, which is why it
- * is a plain [ppc, x86_64] bundle with no unusual requirements and no network
- * access.
+ * is a plain [ppc, i386, x86_64, arm64] bundle with no unusual requirements and
+ * no network access.
  *
  * 10.3 rules apply throughout, same as the mod installer: no @property, no fast
  * enumeration, no NSInteger, no blocks, no ARC, no nibs.

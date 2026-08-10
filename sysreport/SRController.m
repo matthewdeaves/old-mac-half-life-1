@@ -319,8 +319,9 @@ static NSString *SRSliceName( long long cputype, long long cpusubtype )
 static NSString *SRSliceVerdict( long long cputype, long long cpusubtype )
 {
 	/*
-	 * Apple Silicon runs the x86_64 slice under Rosetta 2, verified on an M5
-	 * under macOS 26. There is no NATIVE arm64 slice, which is issue #2.
+	 * The game carries a native arm64 slice since 2026-08-08 (issue #2, closed),
+	 * so Apple Silicon is served natively and Rosetta 2 is never involved unless
+	 * the user forces it.
 	 */
 	if( SRIsAppleSilicon() )
 	{
@@ -328,14 +329,13 @@ static NSString *SRSliceVerdict( long long cputype, long long cpusubtype )
 		 * Keyed on how THIS process is running, not on the hardware. A native
 		 * arm64 build of this app would otherwise report the Rosetta answer
 		 * while plainly not being translated, which is the sort of contradiction
-		 * that makes a report useless. The game has no arm64 slice either way;
-		 * that is issue #2.
+		 * that makes a report useless. Either way the game itself launches its
+		 * native arm64 slice; dyld prefers native over translation.
 		 */
 		if( SRIsTranslated() )
-			return @"served by our x86_64 slice, translated by Rosetta 2 "
-			        "(the game has no native arm64 slice)";
-		return @"running native arm64. The GAME has no arm64 slice and would run "
-		        "its\n  x86_64 slice under Rosetta 2 here";
+			return @"this app is running under Rosetta 2; the game has a native "
+			        "arm64\n  slice (needs macOS 11 or newer) and runs it natively";
+		return @"served by our native arm64 slice (needs macOS 11 or newer)";
 	}
 	if( cputype == CPU_TYPE_POWERPC )
 	{
@@ -356,14 +356,15 @@ static NSString *SRSliceVerdict( long long cputype, long long cpusubtype )
 		switch( SRIs64BitCapable() )
 		{
 		case 1:
-			return @"served by our x86_64 slice (needs 10.7 Lion or newer)";
+			return @"served by our x86_64 slice (needs 10.6.8 or newer)";
 		case 0:
 			/*
-			 * The game has no i386 slice. THIS app does, from 10.4, which is how
-			 * a Core Solo or Core Duo owner is able to run it and say so at all.
+			 * The 2006 Core Solo and Core Duo Macs. The game has an i386 slice
+			 * for exactly these machines; this app reaches further down still,
+			 * to 10.4, so a machine below the game's floor can still say so.
 			 */
-			return @"NO SLICE for the game - 32-bit-only Intel (Core Solo / Core Duo).\n"
-			        "  This report app has an i386 slice, which is why it started";
+			return @"served by our i386 slice - 32-bit-only Intel (Core Solo / Core Duo).\n"
+			        "  The game needs 10.6 Snow Leopard on this Mac";
 		default:
 			/*
 			 * Almost certainly a 64-bit Mac on 10.4, which does not publish the
@@ -371,7 +372,7 @@ static NSString *SRSliceVerdict( long long cputype, long long cpusubtype )
 			 * needs a newer OS. Ask rather than assert.
 			 */
 			return @"UNKNOWN - this OS does not report 64-bit capability.\n"
-			        "  If this Mac is a Core 2 Duo or newer it needs 10.7 to run the game.\n"
+			        "  If this Mac is a Core 2 Duo or newer it needs 10.6.8 to run the game.\n"
 			        "  Please report this, the exact model matters here";
 		}
 	}
@@ -440,11 +441,17 @@ static NSString *SROSRangeWarning( long long cputype, long long os )
 	}
 	if( cputype == CPU_TYPE_X86_64 || cputype == CPU_TYPE_X86 )
 	{
+		if( SRIs64BitCapable() == 0 )
+		{
+			/* 32-bit-only Intel: the game's i386 slice starts at 10.6. */
+			if( os < 10006000LL )
+				return @"THIS OS IS TOO OLD: the game's i386 slice needs 10.6 Snow Leopard.";
+			return nil;
+		}
 		if( SRIs64BitCapable() != 1 )
 			return nil;   /* already covered by the verdict above */
-		if( os < 10007000LL )
-			return @"THIS OS IS TOO OLD: the x86_64 slice needs 10.7 Lion.\n"
-			        "  10.6 Snow Leopard has no libc++, which the menu needs. See issue #16.";
+		if( os < 10006008LL )
+			return @"THIS OS IS TOO OLD: the x86_64 slice needs 10.6.8.";
 		return nil;
 	}
 	return nil;
@@ -454,8 +461,8 @@ static NSString *SROSRangeWarning( long long cputype, long long os )
  * Which slice THIS app is running as.
  *
  * The most direct evidence in the whole report: this bundle is a
- * [ppc, i386, x86_64] fat, so whatever it is executing as is what the loader
- * picked for that machine, observed rather than inferred from sysctl.
+ * [ppc, i386, x86_64, arm64] fat, so whatever it is executing as is what the
+ * loader picked for that machine, observed rather than inferred from sysctl.
  */
 static NSString *SRRunningArch( void )
 {
@@ -966,7 +973,7 @@ NSString *SRReportText( void )
 		                                   "anywhere.\n\n"
 		                                   "PowerPC from 10.3, 32-bit Intel from "
 		                                   "10.4, 64-bit Intel from 10.5, and "
-		                                   "Apple Silicon under Rosetta 2.\n\n"
+		                                   "Apple Silicon native.\n\n"
 		                                   "It deliberately runs on machines the "
 		                                   "game itself cannot."
 		                             bold:NO]];

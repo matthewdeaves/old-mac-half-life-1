@@ -187,6 +187,36 @@ def test_no_ppc970_in_shipped_strings():
           "\n".join(offenders))
 
 
+def test_no_retracted_slice_claims_in_shipped_strings():
+    """The slice set changed three times and the verdict strings lagged twice.
+
+    ppc970 (above) was the first time. The second was 2026-08: the System
+    Report app kept telling Apple Silicon owners there was no arm64 slice,
+    Core Solo owners there was NO SLICE, and 10.6.8 owners their OS was too
+    old, months after all three claims were retracted. The app people run when
+    the game will not start is the worst place for a stale claim, so the
+    retracted ones are pinned here as forbidden literals.
+    """
+    retracted = (
+        # claim fragment, why it is wrong now
+        ("no native arm64", "arm64 shipped 2026-08-08, issue #2"),
+        ("no arm64 slice", "arm64 shipped 2026-08-08, issue #2"),
+        ("NO SLICE for the game", "the i386 slice covers Core Solo/Duo, issue #22"),
+        ("needs 10.7", "the Intel floor is 10.6, docs/adr/0010"),
+        ("10.7 Lion or newer", "the Intel floor is 10.6, docs/adr/0010"),
+    )
+    offenders = []
+    for rel in ("sysreport/SRController.m", "installer/OMController.m",
+                "installer/OMInstaller.m", "scripts/build-pins.sh"):
+        body = read(rel)
+        for i, line in enumerate(body.splitlines(), 1):
+            for frag, why in retracted:
+                if frag in line:
+                    offenders.append("%s:%d  %s  (%s)" % (rel, i, line.strip(), why))
+    check("no shipped string repeats a retracted slice or floor claim",
+          not offenders, "\n".join(offenders))
+
+
 def test_build_info_slice_line_is_measured():
     """BUILD-INFO.txt must name the slices the binary actually has.
 
@@ -680,6 +710,7 @@ def main():
                test_every_branch_is_pinned,
                test_mod_count_is_consistent,
                test_no_ppc970_in_shipped_strings,
+    test_no_retracted_slice_claims_in_shipped_strings,
                test_build_info_slice_line_is_measured,
                test_menu_dictionary_is_shipped_and_sane,
                test_invocation_matcher_rejects_a_mention,
