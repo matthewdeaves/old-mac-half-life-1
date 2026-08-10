@@ -19,8 +19,9 @@
 #
 # WHY EACH SLICE TARGETS WHAT IT DOES
 #   The game's floors come from things this app does not have. Its Intel floor
-#   is 10.7 because mainui is C++11 and needs libc++; this app is plain
-#   Objective-C against Cocoa and links no C++ standard library. Its 64-bit
+#   is 10.6, where the engine's C++ runtime need bottoms out (docs/adr/0010);
+#   this app is plain Objective-C against Cocoa and links no C++ standard
+#   library at all. Its 64-bit
 #   requirement came from HLSDK; this app is about 240 KB and has no such tie.
 #   So it can go considerably lower, and the floors below are the oldest SDK on
 #   the build minis that supports each architecture at all:

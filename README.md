@@ -23,7 +23,7 @@ The port itself is carried as commits on our own branch of each upstream, so
 in any of the repositories below is exactly what this project changed and nothing
 else. Nothing rewrites a source tree on the way to the compiler.
 
-![Anatomy of the fat binary: three source trees build into three CPU slices that lipo fuses into one Half-Life.app](docs/img/fat-binary.svg)
+![Anatomy of the fat binary: three source trees build into five CPU slices that lipo fuses into one Half-Life.app](docs/img/fat-binary.svg)
 
 ## Download
 
@@ -81,9 +81,9 @@ paste into an
 and sends nothing.
 
 It deliberately reaches lower than the game, because the machines worth hearing
-about are the ones the game will not start on. It carries three slices: PowerPC
-from 10.3, 32-bit Intel from 10.4 and 64-bit Intel from 10.5, against the game's
-10.3.9 and 10.4. It can go that low because it is plain Objective-C against
+about are the ones the game will not start on. It carries four slices: PowerPC
+from 10.3, 32-bit Intel from 10.4, 64-bit Intel from 10.5 and native `arm64`,
+against the game's floors of 10.3.9 on PowerPC and 10.6 on Intel. It can go that low because it is plain Objective-C against
 Cocoa with no C++ in it at all. It used to be the only way a Core Solo or a
 10.6 machine could learn anything from this project, since the game had no slice
 for either; both now have one, so the report app is a diagnostic rather than a
@@ -133,7 +133,7 @@ Opposing Force, They Hunger, Poke 646, Echoes, Residual Point and the rest.
 authors' work) plus the game code that drives it, and only the code, about 3% of
 the bulk, needs rebuilding for these machines. Each mod's code is built from its
 own [hlsdk-portable](https://github.com/FWGS/hlsdk-portable) branch as a single
-fat `ppc + x86_64` dylib, so one file serves every machine here.
+fat `ppc + i386 + x86_64 + arm64` dylib, so one file serves every machine here.
 
 **Half-Life Mods.app** does the install. Press *Get Mods* and it fetches the
 content, mounts it and assembles each mod beside `Half-Life.app`; *Choose…* does
@@ -175,9 +175,8 @@ Half-Life splits into three separately-built parts, and all three are other
 people's code: the **engine** ([`xash3d-fwgs`](https://github.com/FWGS/xash3d-fwgs)),
 the **menu** ([`mainui_cpp`](https://github.com/FWGS/mainui_cpp)) and the **game
 code** ([`hlsdk-portable`](https://github.com/FWGS/hlsdk-portable)). The stock
-Steam `valve` DLLs are 32-bit x86 and unusable, so the game code is recompiled for
-every slice. PowerPC additionally needs big-endian forks and a set of local
-patches; Intel needs only a forced 64-bit build.
+Steam `valve` DLLs are 32-bit x86 and unusable, so the game code is recompiled
+for every slice, from the same branch of each tree on every architecture.
 
 None of that source is committed here. Upstream is cloned at pinned commits into
 a git-ignored `vendor/`, patched and built, so what this repo actually tracks is:
@@ -198,8 +197,8 @@ below. There is no separate PowerPC tree.
 
 | Project | Used for |
 |---|---|
-| [`FWGS/xash3d-fwgs`](https://github.com/FWGS/xash3d-fwgs) | the engine, all three slices |
-| [`FWGS/mainui_cpp`](https://github.com/FWGS/mainui_cpp) | the menu, all three slices |
+| [`FWGS/xash3d-fwgs`](https://github.com/FWGS/xash3d-fwgs) | the engine, all five slices |
+| [`FWGS/mainui_cpp`](https://github.com/FWGS/mainui_cpp) | the menu, all five slices |
 | [`FWGS/miniutl`](https://github.com/FWGS/miniutl) | the menu's containers |
 | [`FWGS/hlsdk-portable`](https://github.com/FWGS/hlsdk-portable) | game code, and the source of all 25 mods |
 | [`ianlancetaylor/libbacktrace`](https://github.com/ianlancetaylor/libbacktrace) | crash backtraces |
@@ -240,6 +239,13 @@ Gordon (UE4)" MetaHuman render, not that render as published. The mod installer'
 icon and its About picture are AI-generated images made for this project. Gordon Freeman is Valve's character. An unofficial
 fan project, not endorsed by Valve, and any of this artwork comes out or gets
 replaced on request.
+
+## License
+
+The code in this repository is under the [GPLv3](LICENSE), the same license as
+the Xash3D FWGS engine it builds. What that license does and does not cover
+here, including the artwork and the vendored trees, is written down in
+[`docs/LICENSING.md`](docs/LICENSING.md).
 
 ## More old-Mac game builds
 
@@ -282,9 +288,9 @@ on a G5 are the untested case listed further up.
 
 | Machine | CPU | GPU | macOS |
 |---|---|---|---|
-| Power Mac G5 (dual, partition 1) | dual PowerPC 970 @ 2.7 GHz | ATI Radeon 9650 | 10.3.9 Panther, onboarded, not yet run |
-| Power Mac G5 (dual, partition 2) | dual PowerPC 970 @ 2.7 GHz | ATI Radeon 9650 | 10.4.11 Tiger, onboarded, not yet run |
-| Power Mac G5 (dual, partition 3) | dual PowerPC 970 @ 2.7 GHz | ATI Radeon 9650 | 10.5.8 Leopard, onboarded, runs |
+| Power Mac G5 (dual, partition 1) | dual PowerPC 970 @ 2.7 GHz | ATI Radeon 9650 | 10.3.9 Panther, runs |
+| Power Mac G5 (dual, partition 2) | dual PowerPC 970 @ 2.7 GHz | ATI Radeon 9650 | 10.4.11 Tiger, runs |
+| Power Mac G5 (dual, partition 3) | dual PowerPC 970 @ 2.7 GHz | ATI Radeon 9650 | 10.5.8 Leopard, runs |
 
 The drive is one 465.8 GB disk cut into three 155.1 GB HFS+ volumes named
 Panther, Tiger and Leopard, and all three now carry a system.
@@ -296,7 +302,9 @@ image and a retail `valve/` staged on its Desktop. The machine is at
 10.188.1.188 by DHCP; all three partitions share the one NIC and so the one
 address, which is what lets an alias per partition hardcode it.
 
-The game has been run on the Leopard partition and it renders far slower than
-the single-CPU iMac G5 does, which is not yet explained. The measurements and
-what they rule out, plus the machine's full specs, are in
+The game has now been run and measured on all three partitions. An early
+onboarding run recorded 7 fps on Leopard; re-measured the next day it did not
+reproduce on any partition, and the dual G5 is the fastest PowerPC machine in
+the fleet at every resolution tried. The measurements, what they rule out, and
+the machine's full specs are in
 [`docs/BENCHMARKING.md`](docs/BENCHMARKING.md).

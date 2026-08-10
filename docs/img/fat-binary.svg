@@ -6,7 +6,7 @@
   </defs>
 
   <rect x="0" y="0" width="980" height="640" rx="10" fill="#f6f8fa"/>
-  <text x="24" y="38" font-size="21" font-weight="700" fill="#1f2328">One app, three source trees, three CPU slices</text>
+  <text x="24" y="38" font-size="21" font-weight="700" fill="#1f2328">One app, three source trees, five CPU slices</text>
 
   <!-- Source trees -->
   <g>
@@ -42,21 +42,29 @@
 
   <!-- Slice chips -->
   <g font-size="15" font-weight="700">
-    <rect x="16"  y="270" width="306" height="74" rx="8" fill="#ffffff" stroke="#8250df" stroke-width="1.5"/>
-    <text x="169" y="300" fill="#1f2328" text-anchor="middle">ppc750</text>
-    <text x="169" y="322" font-size="11.5" font-weight="400" fill="#57606a" text-anchor="middle">G3, no AltiVec · 10.3-10.5 · big-endian</text>
+    <rect x="16"  y="270" width="180" height="74" rx="8" fill="#ffffff" stroke="#8250df" stroke-width="1.5"/>
+    <text x="106" y="300" fill="#1f2328" text-anchor="middle">ppc750</text>
+    <text x="106" y="322" font-size="11" font-weight="400" fill="#57606a" text-anchor="middle">G3, no AltiVec · 10.3-10.5</text>
 
-    <rect x="337" y="270" width="306" height="74" rx="8" fill="#ffffff" stroke="#8250df" stroke-width="1.5"/>
-    <text x="490" y="300" fill="#1f2328" text-anchor="middle">ppc7400</text>
-    <text x="490" y="322" font-size="11.5" font-weight="400" fill="#57606a" text-anchor="middle">G4 and G5, AltiVec · 10.3-10.5 · big-endian</text>
+    <rect x="208" y="270" width="180" height="74" rx="8" fill="#ffffff" stroke="#8250df" stroke-width="1.5"/>
+    <text x="298" y="300" fill="#1f2328" text-anchor="middle">ppc7400</text>
+    <text x="298" y="322" font-size="11" font-weight="400" fill="#57606a" text-anchor="middle">G4/G5, AltiVec · 10.3-10.5</text>
 
-    <rect x="658" y="270" width="306" height="74" rx="8" fill="#ffffff" stroke="#0a7ea4" stroke-width="1.5"/>
-    <text x="811" y="300" fill="#1f2328" text-anchor="middle">x86_64</text>
-    <text x="811" y="322" font-size="11.5" font-weight="400" fill="#57606a" text-anchor="middle">Intel · 10.7+ · little-endian</text>
+    <rect x="400" y="270" width="180" height="74" rx="8" fill="#ffffff" stroke="#0a7ea4" stroke-width="1.5"/>
+    <text x="490" y="300" fill="#1f2328" text-anchor="middle">i386</text>
+    <text x="490" y="322" font-size="11" font-weight="400" fill="#57606a" text-anchor="middle">Core Solo/Duo · 10.6</text>
+
+    <rect x="592" y="270" width="180" height="74" rx="8" fill="#ffffff" stroke="#0a7ea4" stroke-width="1.5"/>
+    <text x="682" y="300" fill="#1f2328" text-anchor="middle">x86_64</text>
+    <text x="682" y="322" font-size="11" font-weight="400" fill="#57606a" text-anchor="middle">64-bit Intel · 10.6.8+</text>
+
+    <rect x="784" y="270" width="180" height="74" rx="8" fill="#ffffff" stroke="#1a7f37" stroke-width="1.5"/>
+    <text x="874" y="300" fill="#1f2328" text-anchor="middle">arm64</text>
+    <text x="874" y="322" font-size="11" font-weight="400" fill="#57606a" text-anchor="middle">Apple Silicon · 11.0+</text>
   </g>
 
   <line x1="490" y1="344" x2="490" y2="378" stroke="#57606a" stroke-width="1.5" marker-end="url(#arrow)"/>
-  <text x="504" y="367" font-size="12" font-style="italic" fill="#57606a">lipo - fuse the three slices into one fat Mach-O</text>
+  <text x="504" y="367" font-size="12" font-style="italic" fill="#57606a">lipo - fuse the five slices into one fat Mach-O</text>
 
   <!-- App bundle -->
   <rect x="16" y="380" width="948" height="178" rx="8" fill="#ffffff" stroke="#d0d7de"/>
@@ -64,9 +72,9 @@
   <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12.5" fill="#1f2328">
     <text x="34" y="436">Contents/MacOS/</text>
     <text x="60" y="458">xash3d</text><text x="300" y="458" fill="#57606a">launcher - sets OpenGL + display mode per machine</text>
-    <text x="60" y="480">xash3d.bin</text><text x="300" y="480" fill="#57606a">fat: ppc750 · ppc7400 · x86_64</text>
+    <text x="60" y="480">xash3d.bin</text><text x="300" y="480" fill="#57606a">fat: ppc750 · ppc7400 · i386 · x86_64 · arm64</text>
     <text x="60" y="502">libref_gl.dylib / libref_soft.dylib</text><text x="360" y="502" fill="#57606a">fat renderers (GL + software fallback)</text>
-    <text x="60" y="524">libSDL2-2.0.0.dylib</text><text x="300" y="524" fill="#57606a">x86_64 only - PPC slices link SDL statically</text>
+    <text x="60" y="524">libSDL2-2.0.0.dylib</text><text x="300" y="524" fill="#57606a">Intel and arm64 - PPC slices link SDL statically</text>
     <text x="34" y="546">Contents/Resources/Half-Life/valve/</text><text x="360" y="546" fill="#57606a">our game dylibs - your retail data sits beside the app</text>
   </g>
 

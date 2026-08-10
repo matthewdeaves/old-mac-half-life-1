@@ -53,7 +53,7 @@
     <text x="266" y="186">10.3-10.5</text>
     <text x="462" y="186">10.4 Tiger</text>
     <text x="658" y="186">10.5 Leopard</text>
-    <text x="861" y="186">10.7 Lion and up</text>
+    <text x="861" y="186">10.6.8 and up</text>
     <!-- Slice -->
     <text x="266" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">ppc750</text>
     <text x="462" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">ppc7400</text>
@@ -78,7 +78,7 @@
     <text x="266" y="416">fullscreen 800×600</text>
     <text x="462" y="416">borderless</text>
     <text x="658" y="416">borderless</text>
-    <text x="861" y="416">borderless</text>
+    <text x="861" y="416">fullscreen</text>
   </g>
 
   <!-- column separators -->

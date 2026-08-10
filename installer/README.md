@@ -4,7 +4,8 @@ A native Cocoa installer that puts Half-Life mods onto a PowerPC or Intel Mac
 running anything from **Mac OS X 10.3.9 Panther** to modern macOS, and makes them
 work with the port's `Half-Life.app`.
 
-One fat `ppc + x86_64` binary, no nibs, no frameworks beyond Cocoa itself.
+One fat `ppc + i386 + x86_64 + arm64` binary, no nibs, no frameworks beyond
+Cocoa itself.
 
 ![The app on startup](../docs/img/screenshots/g5-01-ready.png)
 
@@ -13,7 +14,7 @@ One fat `ppc + x86_64` binary, no nibs, no frameworks beyond Cocoa itself.
 | | |
 |---|---|
 | OS | Mac OS X **10.3.9** or later |
-| CPU | PowerPC or Intel (one fat `ppc + x86_64` binary) |
+| CPU | PowerPC, Intel or Apple Silicon (one fat `ppc + i386 + x86_64 + arm64` binary) |
 | Memory | **256 MB** minimum. The app checks at launch and refuses to start below it |
 | Disk | about **6 GB** free for the full set |
 | Network | needed for **Get Mods**, not for **Choose...** |
@@ -29,8 +30,8 @@ says so in two seconds instead.
 
 Mods are two things: **content** (maps, models, sounds, `liblist.gam`) and
 **game code** (`dlls/<mod>.dylib`, `cl_dlls/client.dylib`). This app supplies the
-code, rebuilt as one fat `ppc + x86_64` pair per mod from that mod's own source
-branch. The content comes from that mod's own public release, fetched at install
+code, rebuilt as one fat `ppc + i386 + x86_64 + arm64` pair per mod from that
+mod's own source branch. The content comes from that mod's own public release, fetched at install
 time.
 
 **We host no content.** Not in this repository, not in the disk image, nowhere.
@@ -61,14 +62,17 @@ detects them and installs the game code, and they work like everything else.
 Team Fortress Classic is supported by nobody: no open server implementation
 exists for this engine in any language, so there is nothing to compile. Issue #13.
 
-## The two buttons
+## The buttons
 
 **Get Mods** first looks for mod folders you already have and adds game code to
 those, which takes seconds and costs no bandwidth. Then it fetches everything
 else in turn.
 
-**Choose...** points at a mod folder you already have, or a folder holding
-several. Content may come from any platform's release, a Windows one included:
+**Choose Folder...** sets where mods install. The folder holding
+`Half-Life.app` is found automatically; this button is for installing somewhere
+else, such as another copy of the game or another volume. Mod content you
+already have goes in that folder, beside `Half-Life.app`, and **Get Mods**
+adopts it. It may come from any platform's release, a Windows one included:
 maps, models and sounds are identical everywhere.
 
 It **refuses what it cannot place**. We ship one build of game code per mod,
@@ -99,7 +103,7 @@ archive.org is still fetched over plain http, because it works there and the md5
 is the integrity check either way. ModDB is not used at all: it sits behind
 Cloudflare and answers a non-browser client with `403` before TLS matters.
 
-## Why Cocoa, and why only two slices
+## Why Cocoa, and why one PowerPC slice
 
 Carbon was never ported to 64-bit, so a Carbon app could not produce the `x86_64`
 slice at all. Cocoa has everything this UI needs as far back as 10.3:
@@ -149,9 +153,11 @@ Two traps:
 | `mods.map` | content gamedir to build branch |
 | `mod-sources.txt` | per-mod URL, format, size, md5 and subtree |
 
-Built by `scripts/build-installer.sh`, which compiles the whole app twice - Apple
-gcc-4.0 against the 10.3.9 SDK for PowerPC, Xcode clang against the 10.7 SDK for
-`x86_64` - and `lipo`s the results together.
+Built by `scripts/build-installer.sh` on the Lion mini, which compiles the whole
+app three times - Apple gcc-4.0 against the 10.3.9 SDK for PowerPC, Xcode clang
+against the 10.7 SDK for `i386` and for `x86_64` - plus
+`scripts/build-installer-arm64.sh` on the Apple Silicon box for the `arm64`
+slice, and `lipo`s the results together.
 
 ## One binary, both architectures
 

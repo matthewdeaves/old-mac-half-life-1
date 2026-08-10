@@ -57,7 +57,7 @@ Each check corresponds to a real defect:
   Leopard mis-grade a fat that mixes generic and specific PowerPC slices and
   refuse to exec on a 750 host, so this one is invisible until a G3 owner reports
   that nothing happens.
-- **PowerPC slices carry no `LC_VERSION_MIN`, `x86_64` carries 10.7.** The
+- **PowerPC slices carry no `LC_VERSION_MIN`, the Intel slices carry 10.6.** The
   PowerPC OS floor cannot be read off the binary at all, which is why it has to
   be established by comparing undefined symbols. See
   [ADR 0001](../docs/adr/0001-slices-are-chosen-by-cpu-capability.md).
@@ -76,18 +76,20 @@ Each check corresponds to a real defect:
   neither.
 - **The System Report app reaches lower than the game.** Its whole purpose is the
   machine nobody in the fleet owns, so an Intel floor equal to the game's makes
-  it useless on precisely the two cases the game rules out. The test asserts
-  three slices and the exact floors, because a silent revert to a single
-  10.7 x86_64 slice would still mount, still launch here, and still look right.
+  it useless on precisely the cases the game rules out. The test asserts four
+  slices (`ppc i386 x86_64 arm64`) and the exact floors, 10.4 for `i386` and
+  10.5 for `x86_64`, because a silent revert to a single high-floor slice would
+  still mount, still launch here, and still look right.
 - **Patch scripts are invoked, not merely named.** The wiring tests used to ask
   whether a script's filename appeared anywhere in a driver.
   `patch-mainui-miniutl-endian.py` passed on the strength of a comment in
-  a retired driver that said, in so many words, that it does not run it. A
-  driver is now reduced to the text that executes (comments cut, heredoc bodies
-  dropped, backslash continuations joined), split into shell words, and the name
-  has to be the argument of an interpreter standing in command position. A
-  self-test in the same file feeds the matcher a comment, an `echo` and a heredoc
-  and asserts none of them count, so the hardening cannot rot back.
+  a retired driver that said, in so many words, that it does not run it.
+  Whole-line comments are now stripped before matching. That check was a
+  quote-aware shell tokenizer for a while; an adversarial review measured the
+  tokenizer against the simple version across every patch and driver pairing
+  and found zero disagreements, so the tokenizer came out again. The comment
+  block above `shell_commands` in `test-repo.py` records the measurement and
+  the one shape the naive version would miss.
 - **No patch script is an orphan.** `patch-mainui-*` and `patch-net-*` are the
   only families the wiring tests police by name. Everything else in
   `scripts/patch-*.py` is wired by one line in one driver, so losing that line

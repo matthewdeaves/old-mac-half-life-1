@@ -12,7 +12,7 @@
  *
  *   gcc-4.0 -arch ppc -isysroot /Developer/SDKs/MacOSX10.3.9.sdk \
  *           -mmacosx-version-min=10.3 -framework Cocoa -Wno-long-double \
- *           -o md5progress-test md5progress-test.m OMDiskImage.m
+ *           -o md5progress-test md5progress-test.m OMUtil.m
  *
  *   ./md5progress-test <path> [expected-md5]
  */

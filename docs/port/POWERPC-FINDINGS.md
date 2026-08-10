@@ -164,7 +164,7 @@ pass through `R_RenderBrushPoly`, then a separate lightmap pass through
 Brush models got the same treatment separately.
 
 **Verified.** G3, +30%. See `docs/GL-OPTIMIZATION-CASE-STUDY.md` for the
-measurement method, and note entry 12 below for the part of this that was got
+measurement method, and note entry 13 below for the part of this that was got
 wrong twice.
 
 ---
@@ -256,16 +256,16 @@ Publishing only the diagnoses that survived would misrepresent the work. Three
 mechanisms were stated as fact and retracted in one session, which is what the
 project's refutation-pass rule exists for.
 
-### 9. The G3 guard-door freeze was blamed on a gcc miscompile
+### 10. The G3 guard-door freeze was blamed on a gcc miscompile
 
 It is entry 1 above: `dladdr` and the leading underscore. The compiler was never
 involved.
 
-### 10. Two diagnoses in the endianness work, made, measured and withdrawn
+### 11. Two diagnoses in the endianness work, made, measured and withdrawn
 
 Recorded in `PPC-PORT-NOTES.md`. Kept there rather than restated here.
 
-### 11. The studio model byteswap that was applied twice
+### 12. The studio model byteswap that was applied twice
 
 Mod game code carried a swap of the studio animation offsets in the client
 renderer, on the theory that PowerPC needed it. The engine already swaps that
@@ -276,7 +276,7 @@ offsets go back to little-endian and the pointer arithmetic in
 PowerPC machine as soon as a real map loaded a studio model. The graft was
 removed rather than fixed.
 
-### 12. The single-pass world draw, three times, and then withdrawn
+### 13. The single-pass world draw, three times, and then withdrawn
 
 The +30% in entry 6 was real, but the first two attempts shipped visual faults:
 a flicker traced to running `R_CheckLightMap` before the base draw, and a
@@ -324,7 +324,7 @@ two-pass path better and the new one worse, and the work was dropped. The gain
 was narrow to begin with: fogged and underwater scenes, on the one machine in the
 fleet that is fillrate-bound, in a game with few of them.
 
-### 13. The blue tint that was not a rendering fault at all
+### 14. The blue tint that was not a rendering fault at all
 
 Screenshots came out blue. It was the screenshot capture path, not the renderer:
 `ref_soft` wrote pixels as a native-order word instead of as bytes
@@ -334,12 +334,18 @@ Screenshots came out blue. It was the screenshot capture path, not the renderer:
 
 ## Still open
 
-- **Menu frame rate collapses while the multiplayer name dialog is up**, on 10.3
-  and 10.4. The 15-second `getaddrinfo` stall (entry 4) was a separate fault with
-  the same appearance and is fixed; this is what remains. Leading candidate,
-  **not measured**: SDL's Cocoa text input attaches an AppKit subview over the
-  NSOpenGL content view and pre-Leopard AppKit composites it every frame.
-  Issue #29.
+- **The multiplayer name dialog on PowerPC**, issue #29. The collapse the issue
+  describes no longer reproduces: measured with the dialog up, the G3 runs at
+  66.7 fps on 10.4.11 (an 11% drop from the main menu) and 60.0 fps on 10.3.9
+  (a 40% drop). The larger Panther cost is the first evidence for the text-input
+  hypothesis above, but at 60 fps the mouse is sampled sixty times a second, so
+  the unresponsive-clicks mechanism has no frame rate to stand on. What remains
+  is thirty seconds at the machine confirming the dialog can be filled in and
+  dismissed with the mouse.
+- **A mod join across machines is kicked by the file consistency check**,
+  issue #38. The reproduction predates the move to a single engine tree for all
+  slices, so the first job is to re-run it, not to reason from the old logs.
 - **Single-pass disables itself under fog**, which is backwards: single pass is
-  the case that needs no fog compensation. Issue #31.
-- **G3 menu text is blurry.** Issue #35.
+  the case that needs no fog compensation. Attempted, measured, and withdrawn;
+  entry 13 above is the full account, issue #45 the mechanism, and the work is
+  parked on the engine fork's `fog-singlepass-wip` branch.

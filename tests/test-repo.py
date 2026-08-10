@@ -18,10 +18,6 @@ import sys
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# Slices actually shipped. The executable carries exact subtypes; the dylibs
-# carry generic ppc deliberately, because dlopen grades those fine on a 750.
-EXEC_SLICES = ["ppc750", "ppc7400", "i386", "x86_64"]
-
 FAILED = []
 PASSED = []
 VERBOSE = "-v" in sys.argv
@@ -483,11 +479,10 @@ def test_no_script_calls_a_helper_that_is_gone():
 def test_surviving_patch_scripts_are_still_wired():
     """The few patch scripts left over patch trees that are not ours to fork.
 
-    Three kinds survive: the installer's copy of mbedTLS, and the two that are
-    applied to the separate source tree of each mod we build. There is no single
-    repository for those to be commits in, so they stay scripts, and the original
-    rule still applies to them: a patch script nobody runs is a fix that never
-    shipped.
+    Every survivor is applied to the separate source tree of each mod we build.
+    There is no single repository for those to be commits in, so they stay
+    scripts, and the original rule still applies to them: a patch script nobody
+    runs is a fix that never shipped.
     """
     names = patch_scripts()
     check("there are surviving patch scripts to check", bool(names))
@@ -643,10 +638,11 @@ def test_every_repo_path_a_driver_reads_is_synced():
         if m:
             covered += [ln.strip() for ln in m.group(1).splitlines() if ln.strip()]
 
-    # build-installer.sh and build-sysreport.sh count too. They are not called by
-    # build-all.sh yet, which is exactly why their sources went unsynced for so
-    # long without anything showing: the Mods app and the System Report app were
-    # being compiled on the build host from whatever was there.
+    # build-installer.sh and build-sysreport.sh count too. build-all.sh runs
+    # them now, but for a while nothing did, which is exactly why their sources
+    # went unsynced for so long without anything showing: the Mods app and the
+    # System Report app were being compiled on the build host from whatever was
+    # there.
     drivers = ["build-lion.sh", "build-ppc-tiger.sh", "build-ppc-panther.sh",
                "make-universal.sh", "make-app.sh",
                "build-installer.sh", "build-sysreport.sh", "build-mod.sh"]

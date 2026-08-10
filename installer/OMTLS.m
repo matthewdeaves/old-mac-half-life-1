@@ -70,8 +70,9 @@
  * against the 10.3.9 SDK with a bare `#error "No mbedtls_ms_time available"`.
  *
  * gettimeofday is not monotonic, so this can step if the clock is set while a
- * download runs. mbedTLS uses this value only for TLS 1.3 / DTLS timers, neither
- * of which we build, so nothing here depends on it advancing smoothly.
+ * download runs. mbedTLS uses this value only for its TLS 1.3 and DTLS timers;
+ * we negotiate TLS 1.3 but build no DTLS, and nothing here depends on the value
+ * advancing smoothly.
  */
 mbedtls_ms_time_t mbedtls_ms_time( void )
 {
