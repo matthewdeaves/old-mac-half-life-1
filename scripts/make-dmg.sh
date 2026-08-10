@@ -213,6 +213,16 @@ for a in ppc7400 i386 x86_64; do
   has_arch "$a" || { echo "[make-dmg] fat binary missing $a slice (got: ${ARCHS:-none})" >&2; exit 1; }
 done
 has_arch ppc || has_arch ppc750 || { echo "[make-dmg] fat binary missing the generic ppc (G3) slice" >&2; exit 1; }
+# arm64 is built on a different machine, so a fuse without it is possible by
+# design and every fuse must SAY which way it went rather than leave it to be
+# discovered from the finished image.
+if has_arch arm64; then
+  echo "[make-dmg] arm64 slice present"
+  HAVE_ARM64=1
+else
+  echo "[make-dmg] NOTE: no arm64 slice on this image - Apple Silicon will not launch it" >&2
+  HAVE_ARM64=0
+fi
 
 # Confirm the game code for both endian families is present, INSIDE the bundle.
 # GAMEDATA sits under the engine's read-only root, which FS_AppleBundledGameRoot
@@ -230,6 +240,13 @@ for g in cl_dlls/client_ppc.dylib cl_dlls/client_amd64.dylib cl_dlls/client.dyli
          dlls/hl_ppc.dylib dlls/hl_amd64.dylib dlls/hl.dylib; do
   [ -f "$IMG/$GAMEDATA/$g" ] || { echo "[make-dmg] missing shipped game code: $GAMEDATA/$g" >&2; exit 1; }
 done
+# An arm64 engine with no arm64 game code would launch to "missing game
+# library" on exactly the machines the slice was added for.
+if [ "$HAVE_ARM64" = 1 ]; then
+  for g in cl_dlls/client_arm64.dylib dlls/hl_arm64.dylib; do
+    [ -f "$IMG/$GAMEDATA/$g" ] || { echo "[make-dmg] arm64 engine but missing game code: $GAMEDATA/$g" >&2; exit 1; }
+  done
+fi
 # Nothing but the two apps and the text files may ship. A stray valve folder here
 # would put our dylibs back outside the bundle and reintroduce the merge step.
 [ -e "$IMG/valve" ] && { echo "[make-dmg] a valve folder is staged - we ship none" >&2; exit 1; }
@@ -237,7 +254,9 @@ true
 
 # Our PORT version - single source of truth is the repo VERSION file (arg overrides).
 if [ -n "${1:-}" ]; then
-  PORTVER="$1"
+  # Strip a leading v: the usage line's own example used to produce vv0.21,
+  # which is the mistake test-artifact.sh exists to catch after the fact.
+  PORTVER="${1#v}"
 else
   PORTVER="$(tr -d ' \t\n' < "$REPO_ROOT/VERSION" 2>/dev/null || true)"
   [ -n "$PORTVER" ] || PORTVER="$(git -C "$REPO_ROOT" rev-parse --short HEAD)"
@@ -391,9 +410,9 @@ Half-Life - Old-Mac universal build ($VERSION)
 ==============================================
 
 Half-Life 1 on the open-source Xash3D FWGS engine, as ONE universal app for
-PowerPC and Intel Macs. The right code slice (PowerPC G3, PowerPC G4/G5, or
-Intel x86_64) and the right renderer + display mode are chosen automatically at
-launch.
+PowerPC, Intel and Apple Silicon Macs. The right code slice (PowerPC G3,
+PowerPC G4/G5, 32-bit Intel, 64-bit Intel or Apple Silicon) and the right
+renderer + display mode are chosen automatically at launch.
 
 CHECK YOUR MAC IS COVERED
 -------------------------
@@ -401,21 +420,22 @@ The app carries one code slice per CPU family, and macOS picks by CPU alone -
 it ignores the OS version. So an unsupported combination does NOT fall back to
 a slice that would have worked; it just fails to launch. Check this table:
 
-    G3  (PowerPC 750)        10.3.9 Panther, 10.4 Tiger or 10.5 Leopard
-    G4  (PowerPC 7400/7450)  10.3.9 Panther, 10.4 Tiger or 10.5 Leopard
-    G5  (PowerPC 970)        10.3.9 Panther, 10.4 Tiger or 10.5 Leopard
-    Intel, 64-bit            10.7 Lion or newer - not 10.6
-    Apple Silicon            the Intel slice, under Rosetta 2
+    G3  (PowerPC 750)              10.3.9 Panther, 10.4 Tiger or 10.5 Leopard
+    G4  (PowerPC 7400/7450)        10.3.9 Panther, 10.4 Tiger or 10.5 Leopard
+    G5  (PowerPC 970)              10.3.9 Panther, 10.4 Tiger or 10.5 Leopard
+    Intel, 32-bit (Core Solo/Duo)  10.6 Snow Leopard
+    Intel, 64-bit                  10.6.8 Snow Leopard or newer
+    Apple Silicon                  macOS 11 or newer, native arm64
 
 Every PowerPC slice is built for 10.3.9, so any PowerPC Mac from Panther up
-should run this. Confirmed here on a G3 under 10.3.9 and 10.4, a G4 under 10.4,
-a G5 under 10.5, an Intel mini under 10.7 and an M5 under macOS 26. The other
-PowerPC combinations are untested only because there is no machine set up that
-way, and a report either way is useful - see below.
+should run this. Confirmed here on a G3 under 10.3.9 and 10.4, a G4 under
+10.4, G5s under 10.3.9, 10.4 and 10.5, Intel minis under 10.6.8 and 10.7, and
+an M5 under macOS 26. The other combinations are untested only because there
+is no machine set up that way, and a report either way is useful - see below.
 
-Not covered: 32-bit-only Intel Macs (Core Solo / Core Duo), which would need an
-i386 slice, and 64-bit Intel on 10.6, which has no libc++. There is no native
-Apple Silicon slice; an Apple Silicon Mac runs the Intel one through Rosetta 2.
+One honest gap: the 32-bit Intel slice has not yet been run on a real Core
+Solo or Core Duo Mac, only proven loadable on 64-bit machines. If you have a
+2006 Mac mini, iMac, MacBook or MacBook Pro, your report is especially useful.
 
 This is a Mac OS X / macOS build and is NOT for Mac OS 9 / Classic.
 
@@ -484,10 +504,9 @@ is and which slice it would load, and copies that to the clipboard in one press
 so you can paste it into a report at:
    https://github.com/matthewdeaves/old-mac-halflife/issues
 
-It reads only and sends nothing anywhere. It runs on any PowerPC Mac from 10.3
-and any 64-bit Intel Mac from 10.7, so it will start on machines where the game
-does not. It cannot help on the two cases ruled out above, 32-bit-only Intel and
-Intel on 10.6, because it has no slice those can load either.
+It reads only and sends nothing anywhere. It runs on any PowerPC Mac from
+10.3, 32-bit Intel from 10.4, 64-bit Intel from 10.5 and Apple Silicon
+natively, so it starts on machines where the game does not.
 
 The tested list above is the hardware available here, not the limit of what can
 work. Reports are how that list gets widened, and a report that it simply worked
@@ -536,10 +555,20 @@ Half-Life.app/Contents/MacOS/filesystem_stdio.dylib
 Half-Life.app/Contents/MacOS/libSDL2-2.0.0.dylib
 Half-Life.app/Contents/Resources/Half-Life/valve/cl_dlls/client_ppc.dylib
 Half-Life.app/Contents/Resources/Half-Life/valve/cl_dlls/client_amd64.dylib
+Half-Life.app/Contents/Resources/Half-Life/valve/cl_dlls/client.dylib
 Half-Life.app/Contents/Resources/Half-Life/valve/dlls/hl_ppc.dylib
 Half-Life.app/Contents/Resources/Half-Life/valve/dlls/hl_amd64.dylib
+Half-Life.app/Contents/Resources/Half-Life/valve/dlls/hl.dylib
 Half-Life.app/Contents/Resources/Half-Life/valve/userconfig.cfg
 LIST
+# The corruption this list exists to catch is exactly as fatal in the arm64
+# pair, when it shipped, as in any other. The unsuffixed pair above is i386.
+if [ "$HAVE_ARM64" = 1 ]; then
+  cat >> "$SHIP_LIST" <<'LIST'
+Half-Life.app/Contents/Resources/Half-Life/valve/cl_dlls/client_arm64.dylib
+Half-Life.app/Contents/Resources/Half-Life/valve/dlls/hl_arm64.dylib
+LIST
+fi
 
 # Every mod dylib we ship gets the same byte-for-byte treatment as the engine.
 # That is ~130 MB across 48 files, and it is the point: the corruption this check
@@ -549,6 +578,7 @@ if [ "$SHIP_SR_APP" = yes ]; then
   SRBIN="$IMG/Half-Life System Report.app/Contents/MacOS/HalfLifeSystemReport"
   [ -f "$SRBIN" ] || { echo "[make-dmg] system report app has no executable" >&2; exit 1; }
   echo "[make-dmg] system report slices: $(lipo -archs "$SRBIN")"
+  echo "Half-Life System Report.app/Contents/MacOS/HalfLifeSystemReport" >> "$SHIP_LIST"
 fi
 
 if [ "$SHIP_MODS_APP" = yes ]; then
@@ -573,7 +603,11 @@ if [ "$SHIP_MODS_APP" = yes ]; then
       [ -f "$f" ] || { echo "[make-dmg] mod $b is missing $role.dylib" >&2; exit 1; }
       a=$(lipo -archs "$f" 2>/dev/null || echo)
       case " $a " in *" ppc "*) ;; *) echo "[make-dmg] mod $b $role.dylib is not fat ppc (got: ${a:-none})" >&2; exit 1;; esac
+      case " $a " in *" i386 "*) ;; *) echo "[make-dmg] mod $b $role.dylib is not fat i386 (got: ${a:-none})" >&2; exit 1;; esac
       case " $a " in *" x86_64 "*) ;; *) echo "[make-dmg] mod $b $role.dylib is not fat x86_64 (got: ${a:-none})" >&2; exit 1;; esac
+      if [ "$HAVE_ARM64" = 1 ]; then
+        case " $a " in *" arm64 "*) ;; *) echo "[make-dmg] mod $b $role.dylib has no arm64 slice beside an arm64 engine (got: ${a:-none})" >&2; exit 1;; esac
+      fi
       echo "Half-Life Mods.app/Contents/Resources/mods/$b/$role.dylib" >> "$SHIP_LIST"
     done
     nmods=$((nmods + 1))
