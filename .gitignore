@@ -1,8 +1,6 @@
-# Vendored upstream sources - cloned locally, not committed here.
-# Anchored to repo root so it does NOT swallow patches/vendor/ (our captured edits).
-/vendor/
-# ...but keep the reproducibility manifest that lives alongside the clones.
-!/vendor/
+# Vendored upstream sources - cloned locally, not committed here. Anchored to
+# the repo root, and per-entry rather than the whole directory, so the
+# reproducibility manifest that lives alongside the clones stays tracked.
 /vendor/*
 !/vendor/MANIFEST.md
 
