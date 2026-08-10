@@ -321,7 +321,7 @@
 			if( [sink omCancelled] )
 			{
 				[self log:@"cancelled - partial file kept for resume"];
-				*err = @"cancelled";
+				if( err ) *err = @"cancelled";
 				break;
 			}
 
@@ -332,7 +332,7 @@
 			r = OMConnRead( conn, buf, OM_BUFSZ );
 			if( r < 0 )
 			{
-				*err = @"network read failed";
+				if( err ) *err = @"network read failed";
 				break;
 			}
 			if( r == 0 )
@@ -340,7 +340,7 @@
 				/* clean EOF: complete only if we got everything we were promised */
 				if( total < 0 || got >= total )
 					ok = YES;
-				else
+				else if( err )
 					*err = [NSString stringWithFormat:
 						@"connection closed early (%lld of %lld bytes)", got, total];
 				break;
@@ -348,7 +348,7 @@
 
 			if( fwrite( buf, 1, (size_t)r, out ) != (size_t)r )
 			{
-				*err = @"write failed (disk full?)";
+				if( err ) *err = @"write failed (disk full?)";
 				break;
 			}
 			got += r;

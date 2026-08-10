@@ -241,12 +241,23 @@ if [ -d "$MODDIR" ]; then
 	# Only the engine EXECUTABLE needs exact cpusubtypes.
 	WANT_MOD="$(printf '%s\n' arm64 i386 ppc x86_64 | sort | tr '\n' ' ' | sed 's/ *$//')"
 	THIN=""
+	BADFLOOR=""
 	for m in "$MODDIR"/*/*.dylib; do
 		[ -f "$m" ] || continue
 		[ "$(archs "$m")" = "$WANT_MOD" ] || THIN="$THIN $(basename "$(dirname "$m")")/$(basename "$m")($(archs "$m"))"
+		# The fault that shipped once already: mod dylibs at version-min 10.7
+		# beside a 10.6 game, so on 10.6 every slice was present and correct
+		# and no mod would load. Only running dlopen on a 10.6 box caught it;
+		# the floor is on the load command, so assert it here too.
+		mv="$(otool -arch x86_64 -l "$m" 2>/dev/null | awk '/LC_VERSION_MIN_MACOSX/{f=1} f&&/version/{print $2; exit}')"
+		if [ -n "$mv" ] && [ "$mv" != "10.6" ]; then
+			BADFLOOR="$BADFLOOR $(basename "$(dirname "$m")")/$(basename "$m")($mv)"
+		fi
 	done
 	[ -z "$THIN" ] && ok "every mod dylib is fat ppc i386 x86_64 arm64" \
 	                || bad "mod dylibs have the wrong slices:" "$THIN"
+	[ -z "$BADFLOOR" ] && ok "every mod dylib x86_64 floor is 10.6" \
+	                    || bad "mod dylibs above the game's 10.6 floor:" "$BADFLOOR"
 	# Artwork and blurbs are what make a mod look installed rather than broken.
 	for sub in artwork descriptions; do
 		n="$(ls "$MODS/Contents/Resources/$sub" 2>/dev/null | wc -l | tr -d ' ')"

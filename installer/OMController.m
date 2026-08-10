@@ -1358,7 +1358,12 @@ static BOOL om_is_heading( NSString *line )
 
 - (void)dealloc
 {
-	[window release]; [artView release]; [titleField release]; [statusField release];
+	/* titleField and statusField are NOT released here: labelAt: returns them
+	 * autoreleased and nothing ever retained them, so their only owner is the
+	 * superview the [window release] above tears down. Releasing them again was
+	 * a latent over-release, unreachable only because terminate: exits before
+	 * this ever runs. */
+	[window release]; [artView release];
 	[progress release]; [logView release];
 	[forceButton release]; [helpWindow release]; [aboutWindow release];
 	[destRoot release]; [logPath release]; [logFile release];

@@ -648,8 +648,15 @@ static BOOL omShouldSkipPath( NSString *rel )
 				NSString *dcl = [dest stringByAppendingPathComponent:@"cl_dlls/client.dylib"];
 				if( [fm fileExistsAtPath:dsv] ) [fm removeFileAtPath:dsv handler:nil];
 				if( [fm fileExistsAtPath:dcl] ) [fm removeFileAtPath:dcl handler:nil];
-				[fm copyPath:sv toPath:dsv handler:nil];
-				[fm copyPath:cl toPath:dcl handler:nil];
+				/* Checked, same as the adopt path: a failed copy here left the
+				 * mod with stale or missing dylibs while the log said it was
+				 * refreshed. */
+				if( ![fm copyPath:sv toPath:dsv handler:nil] ||
+				    ![fm copyPath:cl toPath:dcl handler:nil] )
+				{
+					if( err ) *err = @"could not refresh game dylibs";
+					return NO;
+				}
 			}
 			[self fixLiblist:dest serverDLL:dllName];
 
