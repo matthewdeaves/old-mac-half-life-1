@@ -1,1 +1,2 @@
-Single-player campaign mod.
+Single-player campaign, 27 maps.
+Ships its own training map.

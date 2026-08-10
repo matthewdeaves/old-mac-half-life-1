@@ -1,1 +1,2 @@
-Single-player campaign mod.
+Single-player campaign, version 2.1.
+Opens on its own intro map.
