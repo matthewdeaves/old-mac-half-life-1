@@ -276,13 +276,53 @@ offsets go back to little-endian and the pointer arithmetic in
 PowerPC machine as soon as a real map loaded a studio model. The graft was
 removed rather than fixed.
 
-### 12. The single-pass world draw, twice
+### 12. The single-pass world draw, three times, and then withdrawn
 
 The +30% in entry 6 was real, but the first two attempts shipped visual faults:
 a flicker traced to running `R_CheckLightMap` before the base draw, and a
 dynamic-lightmap branch that rebound the base texture in a case that could never
 fire ([`a95988c8`](../../), [`327336b5`](../../)). The second was found only by
 reading the code back after the first was fixed.
+
+A third attempt tried to let the path run under fog, where it disables itself and
+so gives the gain up exactly where the G3 can least afford it. That attempt was
+abandoned, and how it failed is worth more than the change would have been.
+
+The premise held up: `GL_SetupFogColorForSurfacesEx` pre-compensates the fog
+colour because fog is applied once per pass and the passes composite by
+multiplication, and its `passes < 2` branch sets the true colour and returns. One
+pass is the case needing no correction, and it was the case the guard refused.
+
+Three faults followed, each hidden by the way the previous one was checked.
+
+**The water trap.** `EmitWaterPolys` sets the fog colour twice by itself: the
+true colour going in, the multi-pass colour coming out. The compensating restore
+was written inside a `Mod_HaveLightmappedWater()` branch, which is false on every
+stock map, so it never ran, and one water surface left every following surface
+over-compensated. Underwater, water is always in view.
+
+**The default that made it a no-op.** The change declined single-pass when fog
+and detail textures were both on, on the belief that `r_detailtextures` was off
+in practice. It defaults to `"1"`. So under fog, on a default install, the change
+written to make single-pass work under fog did nothing at all.
+
+**And a measurement that could not have detected either.** Screenshots of
+single-pass off against on differed by a mean of 0.07 of 255, which was read as
+the compensation being correct. It was 0.07 because both frames were the same
+renderer. A screenshot comparison cannot separate "it ran and matched" from "it
+declined and fell back", because matching output is precisely what the change is
+supposed to produce.
+
+The check that settles it in a minute: `r_lightmap 1` strips textures in
+`R_BlendLightmaps`, which single-pass surfaces never reach, so a live single-pass
+path leaves those surfaces textured while the fallback ones go flat. Toggling
+`gl_singlepass` under `r_lightmap 1` changed nothing, which said at once that the
+path was dead.
+
+With all of that fixed, a person looking at the screen judged the classic
+two-pass path better and the new one worse, and the work was dropped. The gain
+was narrow to begin with: fogged and underwater scenes, on the one machine in the
+fleet that is fillrate-bound, in a game with few of them.
 
 ### 13. The blue tint that was not a rendering fault at all
 
