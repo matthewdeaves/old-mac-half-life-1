@@ -709,7 +709,7 @@ NSString *SRReportText( void )
 
 	[r appendString:@"WHAT TO DO WITH THIS\n"];
 	[r appendString:@"  Paste it into a new issue at\n"];
-	[r appendString:@"  https://github.com/matthewdeaves/old-mac-halflife/issues\n"];
+	[r appendString:@"  https://github.com/matthewdeaves/old-mac-half-life-1/issues\n"];
 	[r appendString:@"\n"];
 	[r appendString:@"  Please also add anything else you can, even if it looks irrelevant:\n"];
 	[r appendString:@"    - did the game launch at all, and how far did it get\n"];
@@ -811,7 +811,7 @@ NSString *SRReportText( void )
 
 	NSRunAlertPanel( @"Copied",
 		@"The report is on the clipboard. Paste it into a new issue at\n"
-		 "github.com/matthewdeaves/old-mac-halflife/issues",
+		 "github.com/matthewdeaves/old-mac-half-life-1/issues",
 		@"OK", nil, nil );
 }
 

@@ -131,7 +131,7 @@ provenance_table() {
 	cat <<EOF
 Half-Life-OldMac ${ver}
 =======================
-Our build id : old-mac-halflife git ${h} (${d})
+Our build id : old-mac-half-life-1 git ${h} (${d})
 Fat slices   : ${slices}
 Base engine  : Xash3D FWGS ${XASH_VERSION}
 
@@ -150,6 +150,6 @@ To see exactly what this port changes, in any of them:
     git log --oneline <upstream>..oldmac
     git diff <upstream>..oldmac
 
-Project: https://github.com/matthewdeaves/old-mac-halflife
+Project: https://github.com/matthewdeaves/old-mac-half-life-1
 EOF
 }

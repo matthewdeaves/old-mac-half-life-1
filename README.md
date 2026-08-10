@@ -28,7 +28,7 @@ else. Nothing rewrites a source tree on the way to the compiler.
 ## Download
 
 Grab the latest `.dmg` from the
-[**Releases page**](https://github.com/matthewdeaves/old-mac-halflife/releases/latest),
+[**Releases page**](https://github.com/matthewdeaves/old-mac-half-life-1/releases/latest),
 copy `Half-Life.app` out of it into any folder, and drop your own retail `valve/`
 folder in beside it. That is the whole install.
 
@@ -77,7 +77,7 @@ that mixes generic and specific PowerPC slices and refuse to launch it at all.
 Run **Half-Life System Report.app**, also on the disk image. It says what your Mac
 is and which slice it would load, and copies that to the clipboard in one press to
 paste into an
-[issue](https://github.com/matthewdeaves/old-mac-halflife/issues). It reads only
+[issue](https://github.com/matthewdeaves/old-mac-half-life-1/issues). It reads only
 and sends nothing.
 
 It deliberately reaches lower than the game, because the machines worth hearing
@@ -209,7 +209,7 @@ Exact pinned commits are in [`scripts/build-pins.sh`](scripts/build-pins.sh),
 and the mod branch pins in [`vendor/MANIFEST.md`](vendor/MANIFEST.md).
 
 **This is an independent repackaging, not an upstream release.** Report problems
-with this build [here](https://github.com/matthewdeaves/old-mac-halflife/issues),
+with this build [here](https://github.com/matthewdeaves/old-mac-half-life-1/issues),
 never on anyone else's release page.
 
 ## Credits

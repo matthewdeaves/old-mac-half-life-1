@@ -502,7 +502,7 @@ IF IT DOES NOT LAUNCH, OR YOU HAVE AN UNTESTED MAC
 Run "Half-Life System Report.app" from this disk image. It says what your Mac
 is and which slice it would load, and copies that to the clipboard in one press
 so you can paste it into a report at:
-   https://github.com/matthewdeaves/old-mac-halflife/issues
+   https://github.com/matthewdeaves/old-mac-half-life-1/issues
 
 It reads only and sends nothing anywhere. It runs on any PowerPC Mac from
 10.3, 32-bit Intel from 10.4, 64-bit Intel from 10.5 and Apple Silicon
@@ -533,7 +533,7 @@ If you like this, you may also like my old-Mac universal builds of Quake:
   Quake II  (yquake2)    : https://github.com/matthewdeaves/old-mac-quake2
   Quake III (ioquake3)   : https://github.com/matthewdeaves/old-mac-quake3
 
-Project: https://github.com/matthewdeaves/old-mac-halflife
+Project: https://github.com/matthewdeaves/old-mac-half-life-1
 EOF
 
 # ---- the shippable, corruption-sensitive files, verified end-to-end ---------
