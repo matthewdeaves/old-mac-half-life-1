@@ -175,8 +175,14 @@ EOF
 # --- 1) SDL2 (panther-sdl2 2.0.3, static ppc, cross mode, min-10.3) ----------
 # The SDL fixes this slice needs are commits on our panther-sdl2 branch, so the
 # tree scripts/fetch-sources.sh checked out is already ported.
-if [ ! -x "$SDLPREFIX/bin/sdl2-config" ]; then
+# The prefix records which panther-sdl2 commit built it. Without that, the
+# sdl2-config existence gate cannot tell a bumped pin from a built one: the
+# SOURCE tree is pin-checked above, but nothing tied the installed prefix to
+# it, so a pin bump would ship the previous pin's SDL silently.
+if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
+   [ "$(cat "$SDLPREFIX/.built-from" 2>/dev/null)" != "$PIN_SDL_COMMIT" ]; then
 	echo "==> [1] cross-building panther-sdl2 (ppc, static, 10.3)"
+	rm -rf "$SDLPREFIX"
 	( cd "$SDLSRC" && make distclean >/dev/null 2>&1 || true
 	  # --disable-altivec: SDL 2.0.3 otherwise compiles AltiVec blitters (calc_swizzle32 etc.).
 	  # They're runtime-guarded by SDL_HasAltiVec(), but the G3 ppc750 has NO AltiVec, so build
@@ -186,6 +192,7 @@ if [ ! -x "$SDLPREFIX/bin/sdl2-config" ]; then
 	              --disable-joystick --disable-haptic --without-x --disable-shared --enable-static \
 	              --disable-altivec
 	  make -j"$(sysctl -n hw.ncpu)" && make install )
+	printf '%s\n' "$PIN_SDL_COMMIT" > "$SDLPREFIX/.built-from"
 fi
 export PATH="$SDLPREFIX/bin:$PATH"
 

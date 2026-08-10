@@ -186,8 +186,14 @@ EOF
 # test written for a *native* Panther/Tiger compiler, and our Lion cross-SDK DOES define
 # that macro. That fix, and the rest this slice needs, are commits on our panther-sdl2
 # branch, so the tree scripts/fetch-sources.sh checked out is already ported.
-if [ ! -x "$SDLPREFIX/bin/sdl2-config" ]; then
+# The prefix records which panther-sdl2 commit built it. Without that, the
+# sdl2-config existence gate cannot tell a bumped pin from a built one: the
+# SOURCE tree is pin-checked above, but nothing tied the installed prefix to
+# it, so a pin bump would ship the previous pin's SDL silently.
+if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
+   [ "$(cat "$SDLPREFIX/.built-from" 2>/dev/null)" != "$PIN_SDL_COMMIT" ]; then
 	echo "==> [1] cross-building panther-sdl2 (ppc, static, 10.3, AltiVec ON)"
+	rm -rf "$SDLPREFIX"
 	( cd "$SDLSRC" && make distclean >/dev/null 2>&1 || true
 	  # AltiVec LEFT ON (no --disable-altivec): the G4 has AltiVec; SDL's blitters are
 	  # runtime-guarded by SDL_HasAltiVec anyway. gcc-4.0 + GCCINC for the 10.3.9 SDK.
@@ -195,6 +201,7 @@ if [ ! -x "$SDLPREFIX/bin/sdl2-config" ]; then
 	  ./configure --prefix="$SDLPREFIX" --host=powerpc-apple-darwin8 --build=i686-apple-darwin11 \
 	              --disable-joystick --disable-haptic --without-x --disable-shared --enable-static
 	  make -j"$(sysctl -n hw.ncpu)" && make install )
+	printf '%s\n' "$PIN_SDL_COMMIT" > "$SDLPREFIX/.built-from"
 fi
 export PATH="$SDLPREFIX/bin:$PATH"
 

@@ -35,7 +35,7 @@ ICON="${3:-}"
 # LSMinimumSystemVersion must NOT exceed the running OS or LaunchServices refuses to open
 # the app - on 10.4 Tiger that surfaces as the "you can't use this application with this
 # version of Mac OS X" dialog (10.3 Panther does NOT enforce it, which is why the G3 ran).
-# For the UNIVERSAL bundle the floor is the OLDEST supported OS = 10.3.0, so every machine
+# For the UNIVERSAL bundle the floor is the OLDEST supported OS = 10.3.9, so every machine
 # (10.3/10.4/10.5/10.7) is allowed to launch; each slice's own LC_VERSION_MIN still gates
 # the actual code per arch. Override only for a single-OS build.
 MIN_OS="${MIN_OS:-10.3.9}"
@@ -167,6 +167,10 @@ They are almost certainly left over from an older version. Move them to the Tras
 		:   # caller asked for no prompts, warning already logged and printed
 	elif [ ! -t 0 ] && ! osascript -e 'return 1' >/dev/null 2>&1; then
 		:   # no terminal and no window server, so nobody to ask
+	else
+		# Somebody is there: a terminal, or a window server for the dialog.
+		# This block used to sit inside the nobody-to-ask branch above, so the
+		# Quit / Run anyway choice could never appear anywhere.
 		ANSWER="\$(osascript -e "display dialog \"\$MSG\" buttons {\"Quit\", \"Run anyway\"} default button 1 with icon caution with title \"Old Half-Life files are in the way\"" 2>/dev/null)"
 		case "\$ANSWER" in
 			*"Run anyway"*) ;;                      # they were told, they chose

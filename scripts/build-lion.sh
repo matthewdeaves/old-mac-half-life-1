@@ -225,10 +225,25 @@ check_sub libbacktrace "$ENGINE/3rdparty/libbacktrace/libbacktrace" "$PIN_LIBBAC
 check_pin hlsdk  "$HLSDK"  "$PIN_HLSDK_COMMIT"
 
 # --- 0) SDL2 from source (once) ---------------------------------------------
-if [ ! -x "$SDLPREFIX/bin/sdl2-config" ]; then
-	echo "==> [0/3] building SDL $SDL_VER (x86_64, $INTEL_MIN, Metal disabled)"
+# The prefix records what built it (version, arch, floor). Without that, the
+# sdl2-config existence gate cannot tell a bumped SDL_VER or changed floor from
+# a built prefix, and the previous build's SDL ships silently.
+SDL_WANT="$SDL_VER $INTEL_ARCH $INTEL_MIN"
+if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
+   [ "$(cat "$SDLPREFIX/.built-from" 2>/dev/null)" != "$SDL_WANT" ]; then
+	echo "==> [0/3] building SDL $SDL_VER ($INTEL_ARCH, $INTEL_MIN, Metal disabled)"
+	rm -rf "$SDLPREFIX"
 	SRC="/tmp/SDL2-$SDL_VER"
-	[ -d "$SRC" ] || curl -fsSL "https://www.libsdl.org/release/SDL2-$SDL_VER.tar.gz" | tar xz -C /tmp
+	# Extract to a scratch name and mv into place, so an interrupted download
+	# cannot leave a truncated tree at the name this gate checks (the same
+	# shape build-arm64.sh already uses).
+	if [ ! -d "$SRC" ]; then
+		rm -rf "/tmp/sdl2-extract.$$"
+		mkdir -p "/tmp/sdl2-extract.$$"
+		curl -fsSL "https://www.libsdl.org/release/SDL2-$SDL_VER.tar.gz" | tar xz -C "/tmp/sdl2-extract.$$"
+		mv "/tmp/sdl2-extract.$$/SDL2-$SDL_VER" "$SRC"
+		rmdir "/tmp/sdl2-extract.$$"
+	fi
 	# Configure caches results per source dir, and this tree is shared between the
 	# 10.6 and 10.7 prefixes, so a cached probe from the other floor would be
 	# reused. Start it clean.
@@ -241,6 +256,7 @@ if [ ! -x "$SDLPREFIX/bin/sdl2-config" ]; then
 	              --disable-render-metal --disable-video-x11
 	  make -j"$(sysctl -n hw.ncpu)"
 	  make install )
+	printf '%s\n' "$SDL_WANT" > "$SDLPREFIX/.built-from"
 fi
 export PATH="$SDLPREFIX/bin:$PATH"
 export PKG_CONFIG_PATH="$SDLPREFIX/lib/pkgconfig"

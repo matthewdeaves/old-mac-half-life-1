@@ -115,8 +115,13 @@ check_pin libbacktrace "$ENGINE/3rdparty/libbacktrace/libbacktrace"  "$PIN_LIBBA
 check_pin hlsdk        "$HLSDK"                                      "$PIN_HLSDK_COMMIT"
 
 # --- 0) SDL2 from source (once) ----------------------------------------------
-if [ ! -x "$SDLPREFIX/bin/sdl2-config" ]; then
+# The prefix records what built it, so a bumped SDL_VER or floor rebuilds
+# instead of silently reusing the previous build's SDL.
+SDL_WANT="$SDL_VER $ARCH $ARM64_MIN"
+if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
+   [ "$(cat "$SDLPREFIX/.built-from" 2>/dev/null)" != "$SDL_WANT" ]; then
 	echo "==> [0/3] building SDL $SDL_VER (arm64, macOS $ARM64_MIN)"
+	rm -rf "$SDLPREFIX"
 	SRC="/tmp/SDL2-arm64-$SDL_VER"
 	if [ ! -d "$SRC" ]; then
 		curl -fsSL "https://www.libsdl.org/release/SDL2-$SDL_VER.tar.gz" | tar xz -C /tmp
@@ -131,6 +136,7 @@ if [ ! -x "$SDLPREFIX/bin/sdl2-config" ]; then
 	              --disable-render-metal --disable-video-x11
 	  make -j"$(sysctl -n hw.ncpu)"
 	  make install )
+	printf '%s\n' "$SDL_WANT" > "$SDLPREFIX/.built-from"
 fi
 export PATH="$SDLPREFIX/bin:$PATH"
 export PKG_CONFIG_PATH="$SDLPREFIX/lib/pkgconfig"
