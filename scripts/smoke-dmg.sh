@@ -30,6 +30,7 @@ case "$HOST" in
   imac-g5|g5-imac|g5-panther|g5-tiger|g5-leopard|g5-desktop)
                           MINALIVE=10; TIMEOUT=60 ;;    # G5, any partition
   mini-intel|mini-intel2) MINALIVE=6;  TIMEOUT=40 ;;    # Intel Lion (both minis: same Macmini2,1)
+  mini-sl|snow-build1)    MINALIVE=6;  TIMEOUT=40 ;;    # Intel Snow Leopard (Macmini3,1), the 10.6 floor
   *) echo "unknown machine: $HOST" >&2; exit 2 ;;
 esac
 
