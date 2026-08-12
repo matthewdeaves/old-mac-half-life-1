@@ -22,6 +22,12 @@ and plays 25 Half-Life mods as well as the base game.
 2. Copy `Half-Life.app` out of it into any folder.
 3. Put your retail `valve/` folder beside it, exactly as it came off your copy.
 
+On macOS Catalina and later, pick a folder outside Desktop, Documents and
+Downloads: `/Applications` or your home folder both work. Those three folders
+are privacy-gated per app, and an unsigned app has its writes silently denied
+there, so the game cannot save. The launcher explains this if it happens. On
+Mac OS X 10.3 through 10.14 any folder works, the Desktop included.
+
 That is the whole install. Nothing is merged: everything this project builds
 lives inside the app, and saves and settings are written to your folder, so a
 newer build swaps in without losing anything. Tested against the retail Game of
