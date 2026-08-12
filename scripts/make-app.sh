@@ -110,8 +110,23 @@ LOG="\$XASH3D_BASEDIR/last-run.log"
 if df "\$XASH3D_BASEDIR" 2>/dev/null | tail -1 | grep -q "read-only" ||
    ! touch "\$XASH3D_BASEDIR/.hlwritetest" 2>/dev/null; then
 	rm -f "\$XASH3D_BASEDIR/.hlwritetest" 2>/dev/null
-	MSG="Half-Life cannot run from the disk image. Copy Half-Life.app into a normal folder (your Desktop is fine), put your Half-Life valve folder beside it, then launch it from there."
-	osascript -e "display dialog \"\$MSG\" buttons {\"OK\"} default button 1 with icon stop with title \"Copy Half-Life out of the disk image first\"" >/dev/null 2>&1 ||
+	# Two very different reasons land here, and they need different advice.
+	# A read-only volume is the mounted disk image. A WRITABLE volume whose
+	# write test still failed is modern macOS privacy protection: the Desktop,
+	# Documents and Downloads are gated per-app, an unsigned app launched from
+	# the Finder gets the write denied without any prompt, and before this
+	# branch existed the launcher then told the user they were running from
+	# the disk image, or died with no message at all when the dialog was
+	# denied too. Measured on macOS 26: Finder launch died in this write test
+	# while the same script ran fine from a terminal that held disk access.
+	if df "\$XASH3D_BASEDIR" 2>/dev/null | tail -1 | grep -q "read-only"; then
+		MSG="Half-Life cannot run from the disk image. Copy Half-Life.app into a normal folder (your Desktop is fine), put your Half-Life valve folder beside it, then launch it from there."
+		TITLE="Copy Half-Life out of the disk image first"
+	else
+		MSG="macOS privacy protection is blocking Half-Life from writing its settings and saves next to the app. Open System Settings, go to Privacy and Security, then Full Disk Access, add Half-Life.app and launch it again. Or move the whole Half-Life folder somewhere outside Desktop, Documents and Downloads, such as your home folder."
+		TITLE="macOS is blocking Half-Life"
+	fi
+	osascript -e "display dialog \"\$MSG\" buttons {\"OK\"} default button 1 with icon stop with title \"\$TITLE\"" >/dev/null 2>&1 ||
 		echo "\$MSG" >&2
 	exit 1
 fi
@@ -220,6 +235,22 @@ else
 	# decision about its Rage 128 rather than anything to do with Panther.
 	if [ "\$(uname -p)" = "powerpc" ]; then
 		PROFILE="-ref gl -borderless"    # G4/G5, 10.3 through 10.5: native-res borderless
+		# A video.cfg carried over from a release older than issue #41 archives
+		# exclusive fullscreen, and on the iMac G5 under Leopard that launch
+		# dies in SDL_ShowWindow with "minimize failed (-4959)" (issue #57).
+		# Isolated to this FILE on that machine: same build, same config.cfg
+		# and opengl.cfg, old video.cfg crashes and a fresh one runs. Which of
+		# the two keys is the trigger was not separated, so both are set to
+		# what a fresh engine writes under -borderless. The G3 branch above
+		# keeps exclusive fullscreen deliberately and is not touched. sed -i
+		# does not exist on 10.3, hence the temp file.
+		VCFG="\$XASH3D_BASEDIR/valve/video.cfg"
+		if [ -f "\$VCFG" ] &&
+		   { grep -q '^fullscreen "1"' "\$VCFG" 2>/dev/null || grep -q '^vid_maximized "1"' "\$VCFG" 2>/dev/null; }; then
+			sed -e 's/^fullscreen "1"/fullscreen "2"/' -e 's/^vid_maximized "1"/vid_maximized "0"/' "\$VCFG" > "\$VCFG.hlfix" 2>/dev/null &&
+				cat "\$VCFG.hlfix" > "\$VCFG" 2>/dev/null
+			rm -f "\$VCFG.hlfix" 2>/dev/null
+		fi
 	else
 		# Intel: exclusive fullscreen AT THE DESKTOP RESOLUTION.
 		#
