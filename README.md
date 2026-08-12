@@ -89,8 +89,6 @@ public release, each mod from wherever its author published it, verified by
 checksum. We host no content. Installed mods appear under **Custom Game** in
 the main menu with artwork and a description.
 
-![The mod installer part way through a run, showing the current mod's artwork and a log of what has been installed](docs/img/screenshots/intel-04-installing-induction.png)
-
 A mod is content, the authors' maps, models and sounds, plus the game code that
 drives it, and only the code, about 3% of the bulk, needs rebuilding for these
 machines. Each mod's code is built from its own
