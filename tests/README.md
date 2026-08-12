@@ -4,7 +4,7 @@ Three layers, split by what they need to run.
 
 | | Needs | Runs |
 |---|---|---|
-| `test-repo.py` | a checkout and Python 3 | anywhere; run it before a release (CI is switched off, it billed real money) |
+| `test-repo.py` | a checkout and Python 3 | anywhere; CI also runs it on every push, free on a public repo |
 | `test-artifact.sh` | a Mac and a built `.dmg` | by hand before cutting a release |
 | `test-mod-dylibs.sh` | a Mac and a folder of mod dylibs | on each machine in the fleet |
 
