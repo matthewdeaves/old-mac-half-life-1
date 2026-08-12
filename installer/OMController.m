@@ -211,31 +211,26 @@ static BOOL om_is_heading( NSString *line );
 	 * where the user is already reading. It scrolls away once install output
 	 * starts, which is what the Help menu is for.
 	 */
-	[self omLog:@"WHAT THIS DOES"];
+	[self omLog:@"WHAT THIS APP DOES"];
 	[self omLog:@""];
-	[self omLog:@"This supplies Mac game code for 25 Half-Life mods, rebuilt for PowerPC"];
-	[self omLog:@"and Intel, so they appear in the game's Custom Game menu."];
+	[self omLog:@"Sets up 25 Half-Life mods to play on this Mac. Press Get Mods and"];
+	[self omLog:@"leave it running; when it finishes, play them from Custom Game in"];
+	[self omLog:@"Half-Life's main menu."];
 	[self omLog:@""];
-	[self omLog:@"18 of them it can also download for you. Press Get Mods and leave it:"];
+	[self omLog:@"IT DOWNLOADS AND SETS UP THESE 18"];
 	[self omLogTitleList:[self introTitlesDownloadable:YES]];
+	[self omLog:@"Each one comes from its author's own public release, checked against"];
+	[self omLog:@"a known checksum. This project hosts no content."];
 	[self omLog:@""];
-	[self omLog:@"The other 7 it will not download, because they are not free downloads:"];
-	[self omLog:@"Blue Shift, Opposing Force and Deathmatch Classic are Valve games you"];
-	[self omLog:@"buy, and four more are only published as Windows installers. If you"];
-	[self omLog:@"already have any of them, put the mod's folder in this folder and press"];
-	[self omLog:@"Get Mods - it will add the game code and they will work too:"];
+	[self omLog:@"IT SETS UP THESE 7 FROM A COPY YOU PROVIDE"];
 	[self omLogTitleList:[self introTitlesDownloadable:NO]];
+	[self omLog:@"No free download exists for these: three are Valve games you buy, and"];
+	[self omLog:@"four were only released as Windows installer programs. Put the mod's"];
+	[self omLog:@"folder in this folder before pressing Get Mods and it is set up like"];
+	[self omLog:@"the rest."];
 	[self omLog:@""];
-	[self omLog:@"No mod content is bundled here. Everything downloaded comes from that"];
-	[self omLog:@"mod's own public release."];
-	[self omLog:@""];
-	[self omLog:@"You can stop at any time and run this again: finished mods are left"];
-	[self omLog:@"alone and a part-finished download carries on from where it stopped."];
-	[self omLog:@""];
-	[self omLog:@"Needs about 6 GB free and at least 256 MB of memory."];
-	[self omLog:@""];
-	[self omLog:@"Mods install next to Half-Life.app. Play them from Custom Game inside"];
-	[self omLog:@"the game, not from here."];
+	[self omLog:@"Stop at any time: running it again carries on where it stopped. Needs"];
+	[self omLog:@"about 6 GB free, 256 MB of memory and an internet connection."];
 	[self omLog:@""];
 	[self omLog:@"  Full instructions: Help menu, or press Cmd-?"];
 	[self omLog:@""];
@@ -498,10 +493,13 @@ static BOOL om_is_heading( NSString *line );
 	return titles;
 }
 
-/* Print a list of titles comma-joined and wrapped, two-space indented so the
- * log styles the lines as detail under the sentence above them. */
-- (void)omLogTitleList:(NSArray *)titles
+/* Titles comma-joined and wrapped at the log's width, each line two-space
+ * indented: the log styles that as detail, and formattedHelp keeps it
+ * monospaced. One wrapper feeds both, so the intro and the Help window can
+ * never disagree. */
+- (NSString *)wrappedTitleLines:(NSArray *)titles
 {
+	NSMutableArray *out = [NSMutableArray array];
 	NSMutableString *line = [NSMutableString string];
 	unsigned i;
 
@@ -510,7 +508,7 @@ static BOOL om_is_heading( NSString *line );
 		NSString *t = [titles objectAtIndex:i];
 		if( [line length] > 0 && [line length] + [t length] > 66 )
 		{
-			[self omLog:[NSString stringWithFormat:@"  %@,", line]];
+			[out addObject:[NSString stringWithFormat:@"  %@,", line]];
 			[line setString:@""];
 		}
 		if( [line length] > 0 )
@@ -518,7 +516,18 @@ static BOOL om_is_heading( NSString *line );
 		[line appendString:t];
 	}
 	if( [line length] > 0 )
-		[self omLog:[NSString stringWithFormat:@"  %@", line]];
+		[out addObject:[NSString stringWithFormat:@"  %@", line]];
+	return [out componentsJoinedByString:@"\n"];
+}
+
+- (void)omLogTitleList:(NSArray *)titles
+{
+	NSArray *lines = [[self wrappedTitleLines:titles]
+		componentsSeparatedByString:@"\n"];
+	unsigned i;
+
+	for( i = 0; i < [lines count]; i++ )
+		[self omLog:[lines objectAtIndex:i]];
 }
 
 - (void)showArtworkFor:(OMMod *)mod
@@ -1069,113 +1078,98 @@ done:
 /* ------------------------------------------------------------------- help -- */
 
 /*
- * One string, used twice: a trimmed version is printed into the log at launch,
- * where the user is already looking, and the whole of it backs the Help window
- * for when that has scrolled away under install output.
+ * The Help window text. The two mod lists are generated from the same bundled
+ * tables Get Mods works from (see introTitlesDownloadable:), so the help can
+ * never disagree with what the app actually installs. Hard-wrapped because
+ * formattedHelp keeps two-space-indented lines monospaced and joins the rest
+ * into wrapping paragraphs.
  */
 - (NSString *)helpText
 {
-	return
+	return [NSString stringWithFormat:
 	@"WHAT THIS APP DOES\n"
 	 "\n"
-	 "It installs Half-Life mods so they work with Half-Life.app on this Mac.\n"
-	 "The game code is built for PowerPC and Intel, so the same install works on a\n"
-	 "G3, G4, G5 or an Intel Mac.\n"
+	 "It sets up 25 Half-Life mods to play with Half-Life.app. One install works\n"
+	 "on every Mac the game runs on: the game code inside this app is built for\n"
+	 "PowerPC and Intel.\n"
 	 "\n"
-	 "This app supplies the CODE. The CONTENT - maps, models, sounds - comes from\n"
-	 "each mod's own public release, downloaded from wherever its author published\n"
-	 "it. We host none of it, and we never will.\n"
+	 "A mod is two things: content, the maps, models and sounds its authors made,\n"
+	 "and game code that drives it. This app downloads content only from each\n"
+	 "author's own public release, and supplies game code built for these Macs.\n"
+	 "It hosts no content, and it never will.\n"
 	 "\n"
-	 "MINIMUM SPECS\n"
+	 "WHAT YOU NEED FIRST\n"
 	 "\n"
+	 "  Half-Life.app and your retail valve folder, together in one folder\n"
 	 "  Mac OS X 10.3.9 or later, PowerPC or Intel\n"
-	 "  256 MB of memory (512 MB or more if you want the largest mods)\n"
+	 "  256 MB of memory (512 MB or more for the largest mods)\n"
 	 "  About 6 GB of free disk space for the full set\n"
-	 "  A working internet connection for Get Mods\n"
+	 "  An internet connection\n"
 	 "\n"
-	 "The memory figure is not arbitrary. The largest mod, Echoes, expands to\n"
-	 "about 450 MB and is stored as one compressed block, so unpacking it is the\n"
-	 "hungriest thing this app ever does. It has been measured doing exactly that\n"
-	 "on a 450 MHz G3 with 448 MB.\n"
+	 "This app finds Half-Life.app by itself and says where; if it cannot, it\n"
+	 "asks. Use Choose Folder... to install into a different copy of the game or\n"
+	 "onto another volume.\n"
 	 "\n"
-	 "BEFORE YOU START\n"
+	 "Run both apps from a normal folder, not from the disk image. A disk image\n"
+	 "is read-only, so nothing can be installed while they run from it.\n"
 	 "\n"
-	 "You need Half-Life.app and your own retail Half-Life valve folder sitting\n"
-	 "in the same folder. This app finds Half-Life.app by itself and says where;\n"
-	 "if it cannot, it asks you to point at the folder holding it.\n"
+	 "The memory figure is measured, not guessed: the largest mod, Echoes,\n"
+	 "expands from one 450 MB compressed block, and has been unpacked on a\n"
+	 "450 MHz G3 with 448 MB.\n"
 	 "\n"
-	 "Both this app and Half-Life.app must be copied OUT of the disk image first.\n"
-	 "A disk image is read-only, so nothing can be installed while they run from\n"
-	 "it.\n"
+	 "THE 18 IT DOWNLOADS AND SETS UP\n"
 	 "\n"
-	 "WHICH MODS\n"
+	 "%@\n"
 	 "\n"
-	 "This app knows 25 specific mods and no others. It works by supplying the Mac\n"
-	 "game code for each one, compiled per mod from that mod's own source, so a mod\n"
-	 "not on the list cannot be installed here however you point at it. That code\n"
-	 "is also not interchangeable between mods, which is why anything unrecognised\n"
-	 "is refused rather than installed hopefully.\n"
+	 "Get Mods fetches each one from wherever its author published it, checks it\n"
+	 "against a known checksum, unpacks it, and installs it with its game code.\n"
+	 "Downloads are kept in your Downloads folder under Half-Life Mods, so a\n"
+	 "second run does not fetch them again; delete that folder when you are done\n"
+	 "if you want the space back.\n"
 	 "\n"
-	 "Of the 25:\n"
+	 "THE 7 IT SETS UP FROM A COPY YOU PROVIDE\n"
 	 "\n"
-	 "  18  have a public download this app can fetch and unpack. Get Mods does\n"
-	 "      these unattended.\n"
+	 "%@\n"
 	 "\n"
-	 "   4  Afraid of Monsters, Escape from the Darkness, Poke646 Vendetta and\n"
-	 "      The Gate. Their only public releases are Windows installer programs\n"
-	 "      in formats no Mac tool can open, so there is nothing here to unpack.\n"
-	 "      Install the mod's folder yourself and this app will add its game code.\n"
+	 "No free public download exists for these. Blue Shift, Opposing Force and\n"
+	 "Deathmatch Classic are Valve products you buy; the other four were only\n"
+	 "ever released as Windows installer programs no Mac tool can open.\n"
 	 "\n"
-	 "   3  Blue Shift, Opposing Force and Deathmatch Classic. These are Valve\n"
-	 "      products you buy, not free mods, so this app will not download them\n"
-	 "      from anywhere. If you own them and their folders are already next to\n"
-	 "      Half-Life.app, Get Mods adds the game code and they work.\n"
+	 "If you have one, put the mod's folder beside Half-Life.app before pressing\n"
+	 "Get Mods. The folder may come from any platform's release, a Windows one\n"
+	 "included: maps, models, sounds and liblist.gam are the same everywhere, and\n"
+	 "this app adds the Mac game code. Get Mods always does these first, before\n"
+	 "downloading anything.\n"
 	 "\n"
-	 "Team Fortress Classic is not supported at all: no open server code exists for\n"
-	 "this engine in any language, so there is nothing to compile. That is not a\n"
-	 "licensing matter and not content being withheld.\n"
+	 "Only these 25 are supported. Each mod's game code is compiled from that\n"
+	 "mod's own source, so the code is not interchangeable between mods, and\n"
+	 "anything unrecognised is refused rather than installed hopefully. Team\n"
+	 "Fortress Classic is missing because no open server code exists for this\n"
+	 "engine in any language, so there is nothing to compile.\n"
 	 "\n"
-	 "THE BUTTONS\n"
+	 "STOPPING, RESUMING AND REINSTALLING\n"
 	 "\n"
-	 "Get Mods fetches each mod in turn from its own publisher, checks it against a\n"
-	 "known checksum, unpacks it, and installs it with the right game code. It also\n"
-	 "looks for mod folders you already have and adds game code to those first,\n"
-	 "before downloading anything.\n"
+	 "Stop at any time: press Cancel, or just quit. Running it again carries on:\n"
+	 "finished mods are skipped and a part-finished download resumes where it\n"
+	 "stopped. A mod that was only part-copied is removed rather than left\n"
+	 "looking installed.\n"
 	 "\n"
-	 "Choose Folder... sets where mods install. Normally the folder holding\n"
-	 "Half-Life.app is found automatically; use this to install somewhere else,\n"
-	 "such as another copy of the game or another volume. Mod content you already\n"
-	 "have goes IN that folder, beside Half-Life.app, and Get Mods picks it up. It\n"
-	 "may come from any platform's release, a Windows one included: maps, models,\n"
-	 "sounds and liblist.gam are the same everywhere, and this app supplies the Mac\n"
-	 "game code.\n"
-	 "\n"
-	 "IF YOU STOP PART WAY\n"
-	 "\n"
-	 "Both are resumable. Cancel, or quit and come back, and running it again\n"
-	 "carries on: finished mods are skipped, and a part-finished download picks up\n"
-	 "from exactly where it stopped rather than starting over. A mod that was only\n"
-	 "part-copied is removed rather than left looking installed.\n"
-	 "\n"
-	 "Downloads are kept in your Downloads folder, under Half-Life Mods, so a\n"
-	 "second run does not fetch them again. Delete that folder when you are done if\n"
-	 "you want the space back.\n"
-	 "\n"
-	 "Reinstall mods that are already installed forces every mod to be fetched and\n"
-	 "copied again from scratch. Use it if a mod's files were damaged or edited and\n"
-	 "you want the shipped state back. It is slow, which is why it is off by\n"
-	 "default.\n"
+	 "Reinstall mods that are already installed forces every mod to be fetched\n"
+	 "and copied again from scratch. Use it if a mod's files were damaged and you\n"
+	 "want the shipped state back. It is slow, which is why it is off by default.\n"
 	 "\n"
 	 "PLAYING A MOD\n"
 	 "\n"
-	 "Mods install next to Half-Life.app, and you start them from inside the game,\n"
-	 "not from this app. Launch Half-Life.app, then choose Custom Game from the\n"
-	 "main menu and pick the mod from the list.\n"
+	 "Mods are played from inside the game, not from this app. Launch\n"
+	 "Half-Life.app, choose Custom Game from the main menu, and pick the mod.\n"
+	 "Each installed mod appears there with its artwork and a description.\n"
 	 "\n"
 	 "IF SOMETHING GOES WRONG\n"
 	 "\n"
-	 "Everything printed in the window is also written to a log file, named at the\n"
-	 "top of the window. Keep that if you need to report a problem.\n";
+	 "Everything printed in the window is also written to a log file, named at\n"
+	 "the top of the window. Keep that file if you report a problem.\n",
+	[self wrappedTitleLines:[self introTitlesDownloadable:YES]],
+	[self wrappedTitleLines:[self introTitlesDownloadable:NO]]];
 }
 
 /* Append `s` in one font and paragraph style. Written out longhand because

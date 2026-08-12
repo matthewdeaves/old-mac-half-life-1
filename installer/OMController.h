@@ -49,6 +49,7 @@
 - (NSAttributedString *)formattedHelp;
 - (NSDictionary *)attributesForLogLine:(NSString *)line;
 - (NSArray *)introTitlesDownloadable:(BOOL)wantDownloadable;
+- (NSString *)wrappedTitleLines:(NSArray *)titles;
 - (void)omLogTitleList:(NSArray *)titles;
 - (BOOL)ensureDestination;
 - (BOOL)pickDestination;
