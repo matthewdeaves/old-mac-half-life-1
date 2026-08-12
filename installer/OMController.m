@@ -279,18 +279,30 @@ static BOOL om_is_heading( NSString *line );
 - (NSDictionary *)attributesForLogLine:(NSString *)line
 {
 	NSFont *font = [NSFont systemFontOfSize:11.0];
-	NSColor *colour = [NSColor blackColor];
+	/* +textColor dates to 10.0 but resolves per-appearance on modern macOS,
+	 * so the arm64 slice follows dark mode; black text on the dark-mode
+	 * window background was unreadable. The vintage slices never see a dark
+	 * appearance and keep drawing the light values. The accent and grey
+	 * colours only gained semantic equivalents in 10.10, so those are probed
+	 * at runtime; the fallbacks are what every slice shipped before. */
+	NSColor *colour = [NSColor textColor];
 
 	if( [line hasPrefix:@"OK"] )
 	{
 		font = [NSFont boldSystemFontOfSize:11.0];
-		colour = [NSColor colorWithCalibratedRed:0.0 green:0.45 blue:0.05 alpha:1.0];
+		if( [NSColor respondsToSelector:@selector(systemGreenColor)] )
+			colour = [NSColor performSelector:@selector(systemGreenColor)];
+		else
+			colour = [NSColor colorWithCalibratedRed:0.0 green:0.45 blue:0.05 alpha:1.0];
 	}
 	else if( [line hasPrefix:@"FAIL"] || [line hasPrefix:@"ERROR"] ||
 	         [line hasPrefix:@"WARNING"] || [line hasPrefix:@"!!"] )
 	{
 		font = [NSFont boldSystemFontOfSize:11.0];
-		colour = [NSColor colorWithCalibratedRed:0.65 green:0.0 blue:0.0 alpha:1.0];
+		if( [NSColor respondsToSelector:@selector(systemRedColor)] )
+			colour = [NSColor performSelector:@selector(systemRedColor)];
+		else
+			colour = [NSColor colorWithCalibratedRed:0.65 green:0.0 blue:0.0 alpha:1.0];
 	}
 	else if( om_is_heading( line ) )
 	{
@@ -299,7 +311,10 @@ static BOOL om_is_heading( NSString *line );
 	else if( [line hasPrefix:@"  "] )
 	{
 		/* Detail under a heading: same face, a shade lighter, nothing else. */
-		colour = [NSColor colorWithCalibratedWhite:0.25 alpha:1.0];
+		if( [NSColor respondsToSelector:@selector(secondaryLabelColor)] )
+			colour = [NSColor performSelector:@selector(secondaryLabelColor)];
+		else
+			colour = [NSColor colorWithCalibratedWhite:0.25 alpha:1.0];
 	}
 
 	return [NSDictionary dictionaryWithObjectsAndKeys:
