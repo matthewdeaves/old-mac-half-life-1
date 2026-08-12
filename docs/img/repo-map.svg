@@ -26,11 +26,12 @@
     <text x="30" y="302" font-size="10.5" font-weight="700" fill="#57606a">SDL2</text>
     <text x="30" y="322">alex-free legacy SDL2 (PPC)</text>
     <text x="30" y="340">libsdl.org 2.0.22 (Intel)</text>
+    <text x="30" y="358">libsdl.org 2.32.x (arm64)</text>
   </g>
-  <text x="30" y="378" font-size="10.5" fill="#57606a">Pinned to exact commits in</text>
-  <text x="30" y="393" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">scripts/build-pins.sh</text>
-  <text x="30" y="414" font-size="10.5" fill="#57606a">One tree per component:</text>
-  <text x="30" y="426" font-size="10.5" fill="#57606a">every slice builds from it</text>
+  <text x="30" y="382" font-size="10.5" fill="#57606a">Pinned to exact commits in</text>
+  <text x="30" y="397" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">scripts/build-pins.sh</text>
+  <text x="30" y="415" font-size="10.5" fill="#57606a">One tree per component:</text>
+  <text x="30" y="427" font-size="10.5" fill="#57606a">every slice builds from it</text>
 
   <line x1="238" y1="244" x2="262" y2="244" stroke="#57606a" stroke-width="1.5" marker-end="url(#a2)"/>
 
@@ -66,13 +67,13 @@
     <text x="496" y="130" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">scripts/build-all.sh</text>
     <text x="496" y="160">Compile each slice</text>
     <text x="496" y="176" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">scripts/build-*.sh (waf)</text>
-    <text x="496" y="196" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">gcc-4.x (PPC) · clang (Intel)</text>
+    <text x="496" y="196" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">gcc-4.x (PPC) · clang (Intel, arm64)</text>
     <text x="496" y="226">Fuse the slices</text>
     <text x="496" y="242" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">make-universal.sh (lipo)</text>
     <text x="496" y="272">Wrap the bundle</text>
     <text x="496" y="288" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">make-app.sh</text>
-    <text x="496" y="326">Sticky per-machine</text>
-    <text x="496" y="342">settings from</text>
+    <text x="496" y="326">Pinned defaults and</text>
+    <text x="496" y="342">first-run binds from</text>
     <text x="496" y="358" font-size="10.5" font-family="ui-monospace, Menlo, monospace" fill="#57606a">configs/</text>
   </g>
 
@@ -84,18 +85,20 @@
   <rect x="702" y="74" width="262" height="14" fill="#0a7ea4"/>
   <text x="716" y="78" font-size="12.5" font-weight="700" fill="#ffffff">4 · One universal app</text>
   <text x="716" y="116" font-size="15" font-weight="700" fill="#1f2328">Half-Life.app</text>
-  <text x="716" y="138" font-size="11" fill="#57606a">fat: ppc750 · ppc7400 · x86_64</text>
+  <text x="716" y="138" font-size="10.5" fill="#57606a">fat: ppc750 · ppc7400 · i386 · x86_64 · arm64</text>
   <text x="716" y="156" font-size="11" fill="#57606a">+ your retail valve/ data</text>
   <line x1="716" y1="172" x2="948" y2="172" stroke="#d0d7de"/>
   <g font-size="11.5" fill="#1f2328">
-    <text x="716" y="198">Power Mac G3 · 10.3-10.5</text>
-    <text x="716" y="228">Power Mac / mini G4 · 10.4</text>
-    <text x="716" y="258">iMac G5 · 10.5</text>
-    <text x="716" y="288">Intel Mac mini · 10.7+</text>
+    <text x="716" y="196">Power Mac G3 · 10.3-10.5</text>
+    <text x="716" y="221">Power Mac / mini G4 · 10.4</text>
+    <text x="716" y="246">Power Mac / iMac G5 · 10.3-10.5</text>
+    <text x="716" y="271">Intel 32-bit · 10.6</text>
+    <text x="716" y="296">Intel 64-bit · 10.6.8+</text>
+    <text x="716" y="321">Apple Silicon · macOS 11+</text>
   </g>
-  <text x="716" y="330" font-size="11" fill="#57606a">Each machine loads only its</text>
-  <text x="716" y="345" font-size="11" fill="#57606a">slice and self-configures the</text>
-  <text x="716" y="360" font-size="11" fill="#57606a">renderer + window at launch.</text>
+  <text x="716" y="356" font-size="11" fill="#57606a">Each machine loads only its</text>
+  <text x="716" y="371" font-size="11" fill="#57606a">slice and self-configures the</text>
+  <text x="716" y="386" font-size="11" fill="#57606a">renderer + window at launch.</text>
 
   <!-- ===== Driver ribbon ===== -->
   <rect x="16" y="452" width="948" height="128" rx="8" fill="#ddf4ff" stroke="#0969da"/>

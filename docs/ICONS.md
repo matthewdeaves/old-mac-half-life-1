@@ -15,15 +15,14 @@ restate that app's own icon.
 | `installer/About-Gordon.png` | the mod installer's About box | `icon-source-gordon-crowbar.png` |
 
 The bust reads better at 32×32 and 16×16 than a full figure, which is most of what
-the Dock and Finder draw, and it shipped before v1.2.0. The full-figure sources
+the Dock and Finder draw. The full-figure sources
 are 1086×1448 on solid black; `icon-source-lrz.png` is 1169×1346, also on black.
 
 ### Sizes shipped, and the Panther ceiling
 
 Both `.icns` carry the legacy chunks (16/32/48/128) **plus `ic08`, a 256×256
 PNG**, so 10.5 and later render 256 natively instead of upscaling the 128×128
-`it32`. Nothing larger ships: a hardware finding, from five identical test bundles
-differing only in their icon, on the G3 on 10.3.9:
+`it32`. Nothing larger ships, measured on the G3 on 10.3.9:
 
 | Chunks | Panther Finder |
 |---|---|
@@ -77,9 +76,8 @@ The game icon is the LRZ bust, not the crowbar render, and its operating point
 differs again. It **needs `--top-seed`**: the bust's shoulders run off the bottom
 and both sides and are near-black, so seeding from every edge lets the fill walk
 in through them. On the 256px chunk the lower body goes from **88.8% opaque to
-99.8%**; the missing 11% was semi-transparent shoulder, visible as background
-through the suit at 256, invisible at 128px, and it shipped briefly before being
-caught by eye on an Intel machine.
+99.8%**; without it the shoulder is semi-transparent, visible as background
+through the suit at 256 and invisible at 128px.
 
     .venv/bin/python scripts/make-icon.py MacOSX/icon-source-lrz.png \
         --bg black --hard 250 --soft 246 --top-seed --fill-holes \
@@ -119,9 +117,8 @@ images of Gordon Freeman made for this project in 2026-07:
 `MacOSX/icon-source-gordon-crowbar.png`.
 
 Gordon Freeman is Valve's character; this is a non-commercial fan project, and any
-of this artwork comes out or gets replaced on request. The Half-Life-wiki stand-in
-once kept beside the LRZ render as a rights-clean fallback was **removed in
-v1.2.0**, recoverable from git history (`MacOSX/icon-wiki.icns`,
+of this artwork comes out or gets replaced on request. A rights-clean stand-in
+is recoverable from git history (`MacOSX/icon-wiki.icns`,
 `MacOSX/icon-source-wiki.png`).
 
 ### Files

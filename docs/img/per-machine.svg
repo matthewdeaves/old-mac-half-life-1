@@ -15,19 +15,22 @@
 
   <!-- column headers -->
   <g>
-    <rect x="170" y="60" width="192" height="50" rx="6" fill="#8250df"/>
-    <rect x="366" y="60" width="192" height="50" rx="6" fill="#8250df"/>
-    <rect x="562" y="60" width="192" height="50" rx="6" fill="#8250df"/>
-    <rect x="758" y="60" width="206" height="50" rx="6" fill="#0a7ea4"/>
+    <rect x="150" y="60" width="158" height="50" rx="6" fill="#8250df"/>
+    <rect x="312" y="60" width="158" height="50" rx="6" fill="#8250df"/>
+    <rect x="474" y="60" width="158" height="50" rx="6" fill="#8250df"/>
+    <rect x="636" y="60" width="158" height="50" rx="6" fill="#0a7ea4"/>
+    <rect x="798" y="60" width="162" height="50" rx="6" fill="#1a7f37"/>
     <g fill="#ffffff" text-anchor="middle">
-      <text x="266" y="82" font-size="14" font-weight="700">Power Mac G3</text>
-      <text x="266" y="100" font-size="11" fill="#e9d8fd">Yosemite tower</text>
-      <text x="462" y="82" font-size="14" font-weight="700">Power Mac / mini G4</text>
-      <text x="462" y="100" font-size="11" fill="#e9d8fd">Quicksilver + mini</text>
-      <text x="658" y="82" font-size="14" font-weight="700">iMac G5</text>
-      <text x="658" y="100" font-size="11" fill="#e9d8fd">Radeon 9600</text>
-      <text x="861" y="82" font-size="14" font-weight="700">Intel Mac mini</text>
-      <text x="861" y="100" font-size="11" fill="#c7ecf5">Core 2 Duo</text>
+      <text x="229" y="82" font-size="13.5" font-weight="700">G3</text>
+      <text x="229" y="100" font-size="10.5" fill="#e9d8fd">Power Mac (Yosemite)</text>
+      <text x="391" y="82" font-size="13.5" font-weight="700">G4</text>
+      <text x="391" y="100" font-size="10.5" fill="#e9d8fd">Power Mac + mini</text>
+      <text x="553" y="82" font-size="13.5" font-weight="700">G5</text>
+      <text x="553" y="100" font-size="10.5" fill="#e9d8fd">iMac + Power Mac</text>
+      <text x="715" y="82" font-size="13.5" font-weight="700">Intel</text>
+      <text x="715" y="100" font-size="10.5" fill="#c7ecf5">Mac mini, Core 2 Duo</text>
+      <text x="879" y="82" font-size="13.5" font-weight="700">Apple Silicon</text>
+      <text x="879" y="100" font-size="10.5" fill="#c9ebd4">MacBook Air M5</text>
     </g>
   </g>
 
@@ -43,57 +46,68 @@
   </g>
 
   <!-- values -->
-  <g font-size="12.5" fill="#1f2328" text-anchor="middle">
+  <g font-size="11.5" fill="#1f2328" text-anchor="middle">
     <!-- CPU -->
-    <text x="266" y="140">PowerPC G3</text>
-    <text x="462" y="140">PowerPC G4</text>
-    <text x="658" y="140">PowerPC G5 (970)</text>
-    <text x="861" y="140">Intel Core 2 Duo</text>
+    <text x="229" y="140">PowerPC 750</text>
+    <text x="391" y="140">PowerPC 7450</text>
+    <text x="553" y="140">PowerPC 970</text>
+    <text x="715" y="140">Intel Core 2 Duo</text>
+    <text x="879" y="140">Apple M-series</text>
     <!-- macOS -->
-    <text x="266" y="186">10.3-10.5</text>
-    <text x="462" y="186">10.4 Tiger</text>
-    <text x="658" y="186">10.5 Leopard</text>
-    <text x="861" y="186">10.6.8 and up</text>
+    <text x="229" y="186">10.3.9, 10.4</text>
+    <text x="391" y="186">10.4</text>
+    <text x="553" y="186">10.3.9-10.5</text>
+    <text x="715" y="186">10.6.8 and up</text>
+    <text x="879" y="186">11 and up</text>
     <!-- Slice -->
-    <text x="266" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">ppc750</text>
-    <text x="462" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">ppc7400</text>
-    <text x="658" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">ppc7400</text>
-    <text x="861" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">x86_64</text>
+    <text x="229" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">ppc750</text>
+    <text x="391" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">ppc7400</text>
+    <text x="553" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">ppc7400</text>
+    <text x="715" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">x86_64</text>
+    <text x="879" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">arm64</text>
     <!-- Byte order -->
-    <text x="266" y="278">big-endian</text>
-    <text x="462" y="278">big-endian</text>
-    <text x="658" y="278">big-endian</text>
-    <text x="861" y="278">little-endian</text>
+    <text x="229" y="278">big-endian</text>
+    <text x="391" y="278">big-endian</text>
+    <text x="553" y="278">big-endian</text>
+    <text x="715" y="278">little-endian</text>
+    <text x="879" y="278">little-endian</text>
     <!-- SDL2 -->
-    <text x="266" y="324">panther-sdl2 2.0.3</text>
-    <text x="462" y="324">panther-sdl2 2.0.3</text>
-    <text x="658" y="324">panther-sdl2 2.0.3</text>
-    <text x="861" y="324">SDL 2.0.22</text>
+    <text x="229" y="324">2.0.3 static</text>
+    <text x="391" y="324">2.0.3 static</text>
+    <text x="553" y="324">2.0.3 static</text>
+    <text x="715" y="324">2.0.22 dylib</text>
+    <text x="879" y="324">2.32.x dylib</text>
     <!-- Renderer -->
-    <text x="266" y="370">OpenGL · Rage 128</text>
-    <text x="462" y="370">OpenGL</text>
-    <text x="658" y="370">OpenGL · Radeon 9600</text>
-    <text x="861" y="370">OpenGL</text>
+    <text x="229" y="370">OpenGL · Rage 128</text>
+    <text x="391" y="370">OpenGL</text>
+    <text x="553" y="370">OpenGL</text>
+    <text x="715" y="370">OpenGL</text>
+    <text x="879" y="370">OpenGL</text>
     <!-- Window -->
-    <text x="266" y="416">fullscreen 800×600</text>
-    <text x="462" y="416">borderless</text>
-    <text x="658" y="416">borderless</text>
-    <text x="861" y="416">fullscreen</text>
+    <text x="229" y="416">fullscreen 800×600</text>
+    <text x="391" y="416">borderless, desktop res</text>
+    <text x="553" y="416">borderless, desktop res</text>
+    <text x="715" y="416">fullscreen, desktop res</text>
+    <text x="879" y="416">fullscreen, desktop res</text>
   </g>
 
   <!-- column separators -->
   <g stroke="#d0d7de" stroke-width="1">
-    <line x1="162" y1="112" x2="162" y2="434"/>
-    <line x1="362" y1="112" x2="362" y2="434"/>
-    <line x1="558" y1="112" x2="558" y2="434"/>
-    <line x1="754" y1="112" x2="754" y2="434"/>
+    <line x1="146" y1="112" x2="146" y2="434"/>
+    <line x1="308" y1="112" x2="308" y2="434"/>
+    <line x1="470" y1="112" x2="470" y2="434"/>
+    <line x1="632" y1="112" x2="632" y2="434"/>
+    <line x1="794" y1="112" x2="794" y2="434"/>
   </g>
 
   <!-- legend -->
   <g>
     <rect x="16" y="452" width="14" height="14" rx="3" fill="#8250df"/>
-    <text x="36" y="464" font-size="12" fill="#57606a">PowerPC (big-endian) - endian-fix forks + local patches</text>
-    <rect x="520" y="452" width="14" height="14" rx="3" fill="#0a7ea4"/>
-    <text x="540" y="464" font-size="12" fill="#57606a">Intel (little-endian) - FWGS mainline, 64-bit</text>
+    <text x="36" y="464" font-size="12" fill="#57606a">PowerPC, static panther-sdl2</text>
+    <rect x="240" y="452" width="14" height="14" rx="3" fill="#0a7ea4"/>
+    <text x="260" y="464" font-size="12" fill="#57606a">Intel</text>
+    <rect x="320" y="452" width="14" height="14" rx="3" fill="#1a7f37"/>
+    <text x="340" y="464" font-size="12" fill="#57606a">Apple Silicon</text>
+    <text x="960" y="464" font-size="12" fill="#57606a" text-anchor="end">One app; every slice builds from the same branch of every source tree.</text>
   </g>
 </svg>

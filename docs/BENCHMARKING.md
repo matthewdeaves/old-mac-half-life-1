@@ -1,7 +1,7 @@
 # Benchmarking Half-Life on the old-Mac fleet
 
 A deterministic, demo-free FPS harness for the fleet (PPC G3/G4/G5 plus Intel).
-It drove the G3 GL work, `docs/GL-OPTIMIZATION-CASE-STUDY.md`.
+Worked example: `docs/GL-OPTIMIZATION-CASE-STUDY.md`.
 
 ## Why not `timedemo`?
 
@@ -10,8 +10,7 @@ with `SIGBUS at 0x4` in the demo writer ("Spooling demo header"), and an
 Intel-recorded `.dem` floods `svc_bad` / `CL_EDICT_NUM: bad number`, a
 little-endian stream read big-endian. `timedemo` is also realtime-paced (it
 sleeps to the ~30 Hz demo/server rate), capping fast machines at ~30 fps, so it
-can never report throughput. PPC demos are a real Half-Life feature, tracked
-separately, but not needed here.
+cannot report throughput.
 
 ## The `timerefresh` command
 
@@ -25,9 +24,8 @@ timerefresh: <N> frames <T> seconds <F> fps
 
 Demo-free, so identical on Intel and PPC. Deterministic (fixed map, spawn, sweep,
 frame count), reproducible to **±0.7%** on the G3. Flat-out, so it measures render
-throughput, not a 30 Hz cap, and is directly sensitive to renderer changes. The
-sweep covers the whole scene around the spawn, so the number is average-case
-geometry and overdraw, not one lucky angle.
+throughput, not a 30 Hz cap; the sweep covers the whole scene around the spawn,
+so the number is average-case geometry and overdraw, not one lucky angle.
 
 ```
 map c0a0
@@ -110,11 +108,11 @@ the Intel Lion minis.
 display attached and its NVIDIA 9400 will not hand out an accelerated context
 without one, so `GL_RENDERER` comes back `Apple Software Renderer` and the number
 is 5 to 10 times too low. `bench.sh` fails the run rather than printing it (pass
-`-S` if software GL is the point). This is not simply a headless rule: measured
+`-S` if software GL is the point). This is not a headless rule: measured
 2026-08-08 over the same ssh path, `mini-intel2` is equally headless and its GMA
-950 gives hardware GL quite happily, while `mini-g4` has a monitor and is fine. A
-DVI/HDMI dummy EDID plug on `mini-sl` would fix it. It remains a perfectly good
-FUNCTIONAL test target for the 10.6 floor, which is what it is there for.
+950 gives hardware GL, while `mini-g4` has a monitor and is fine. A DVI/HDMI
+dummy EDID plug on `mini-sl` would fix it. It remains a functional test target
+for the 10.6 floor, which is what it is there for.
 
 Rows are labelled with the **ssh alias**, not the machine's own hostname, because
 the G3 and the G5 each multi-boot several OSes from one IP and every partition
@@ -127,8 +125,8 @@ The dual G5 (10.188.1.188, short name `powermacg5`) boots 10.3, 10.4 and 10.5 on
 at a time, so like `yosemite` / `yosemite-tiger` it gets **one alias per partition
 sharing the IP**, each with `HostKeyAlias` and `CheckHostIP no` so host keys never
 clash. Onboard each partition separately per the runbook below or `fleet-bench.sh`
-skips it as unreachable; all three done as of 2026-07-27. Switching is remote, and
-the machine returns on the same IP in about 60 seconds:
+skips it as unreachable. Switching is remote, and the machine returns on the same
+IP in about 60 seconds:
 
 ```sh
 ssh g5-panther 'sudo bless --mount /Volumes/Tiger --setBoot && sudo shutdown -r now'
@@ -249,8 +247,6 @@ whichever OS is booted, so the volume names tell you which one you are in.
 
 ### Dual G5 specs, as the machine reports them
 
-First `ppc970` machine the fleet has had below 10.5, so recorded verbatim.
-
 | item | value |
 |---|---|
 | `sw_vers` | Mac OS X 10.3.9, build 7W98 (the install disc shipped 10.3.5, build 7P134) |
@@ -295,11 +291,17 @@ Backups: `/etc/sudoers.bak.pre-retro-2026-07-27` on all three partitions,
 
 ### The 7 fps on this machine did not reproduce (2026-07-28)
 
-Onboarding recorded **7.0 fps** on `c0a0` on the Leopard partition. Re-measured
-across all three partitions the next day it does not reproduce; every partition of
-the dual 2.7 is now the fastest PowerPC box in the fleet. All rows below are `gl`,
-map `c0a0`, `gl_vsync 0`, one warmup discarded, median of three; `MODE:` is the
-engine's own line, not the request.
+Onboarding recorded **7.0 fps** on `c0a0` on the Leopard partition. It did not
+reproduce on re-measurement across all three partitions, the mechanism is not
+known, and there is no longer a fault to explain: every partition of the dual 2.7
+is the fastest PowerPC box in the fleet. The slow rows stay in
+`benchmarks/results.csv` under `g5-leopard-onboard`; the 2026-07-28 rows carry
+`g5-osdiff-*`, `g5-ressweep-*` and `g5-leopard-gl-*`, and the two `ref_soft` rows
+`g5-leopard-SOFT-not-comparable-to-gl`, because a soft number must never be read
+against a gl one.
+
+All rows below are `gl`, map `c0a0`, `gl_vsync 0`, one warmup discarded, median
+of three; `MODE:` is the engine's own line, not the request.
 
 | partition | requested | engine `MODE:` | median fps |
 |---|---|---|---|
@@ -314,21 +316,21 @@ engine's own line, not the request.
 | Leopard 10.5.8 | 800x600 windowed | 800x600 | 140.7 |
 | Leopard 10.5.8 | 1680x1050 | 1680x1050 | 56.4 |
 
-**The sweep says the opposite of the onboarding pair.** Fillrate scales close to
-linearly: fit the Panther rows and it is about **3.3 ms fixed cost plus 8.2 ns per
-thousand pixels**, within a few percent from 640x480 to 1680x1050. The earlier
-"3.5x the pixels costs nothing, so it is not fillrate" reading came from the CSV
-recording the request rather than the mode; do not carry it forward.
+Fillrate scales close to linearly: fit the Panther rows and it is about **3.3 ms
+fixed cost plus 8.2 ns per thousand pixels**, within a few percent from 640x480
+to 1680x1050. A retracted earlier reading, "3.5x the pixels costs nothing, so it
+is not fillrate", came from the CSV recording the request rather than the mode;
+do not carry it forward.
 
-Two driver substitutions show only in `MODE:`: 320x240 landed on **640x480**,
-1280x1024 on **1680x1050**. `bench.sh` records the request, so read `MODE:` when
-the pixel count matters. **The substitution is per machine and it bites fleet
-comparisons**: under `-r gl -W 800 -H 600 -s fullscreen` the same night, `imac-g5`
-reports `MODE: 1440x900`, its native panel size, and measures 61.7 fps, where the
-dual G5 reports `MODE: 800x600`. So historical fullscreen rows differ in pixel
-count. The `windowed` iMac G5 rows of 2026-07-24 (86.8 and 95.8 fps) really were
-800x600, and the dual G5's 140.7 fps windowed 800x600 is about 1.6x those, the
-shape expected from two cores at 2.7 GHz against one at 1.8.
+**The driver substitutes modes, per machine, and it bites fleet comparisons.**
+The substitution shows only in `MODE:`: here 320x240 landed on **640x480** and
+1280x1024 on **1680x1050**, and under `-r gl -W 800 -H 600 -s fullscreen`
+`imac-g5` reports `MODE: 1440x900`, its native panel size, and measures 61.7 fps,
+where the dual G5 reports `MODE: 800x600`. `bench.sh` records the request, so
+read `MODE:` when the pixel count matters; historical fullscreen rows differ in
+pixel count. The `windowed` iMac G5 rows of 2026-07-24 (86.8 and 95.8 fps) really
+were 800x600, and the dual G5's 140.7 fps windowed 800x600 is about 1.6x those,
+the shape expected from two cores at 2.7 GHz against one at 1.8.
 
 Ruled out, each by measurement:
 
@@ -338,27 +340,18 @@ Ruled out, each by measurement:
   fastest. `GL_VERSION` differs (`1.5 ATI-1.3.42` Panther, `1.5 ATI-1.4.18` Tiger,
   `2.0 ATI-1.5.48` Leopard) to no measurable effect.
 - **Just-booted transient**: 149.1 fps 41 seconds after a Leopard boot.
-- **Spotlight indexing**, live in the original session: 136.2 fps during a forced
-  reindex (`mdutil -E /`, `mds` over 100 percent CPU, `mdworker` at 47).
+- **Spotlight indexing**: 136.2 fps during a forced reindex (`mdutil -E /`, `mds`
+  over 100 percent CPU, `mdworker` at 47).
 - **CPU contention**: 89.6 fps with both cores pinned by busy loops; total
   starvation costs 40 percent, not 20x.
 - **Software-rasterizer fallback**: `ref_soft` measures 28.9 fps at 800x600, four
   times *faster* than 7 fps, and 15.6 fps at 1680x1050.
 
-Unexplained: the original session. The Leopard log puts that boot at 22:44:02 and
-the first slow row 64 seconds later, on the partition's first boot after the game
-was staged; nothing since has recreated it. **The mechanism is not known and there
-is no longer a fault to explain.** Those rows stay in `benchmarks/results.csv`
-under `g5-leopard-onboard`; the 2026-07-28 rows carry `g5-osdiff-*`,
-`g5-ressweep-*` and `g5-leopard-gl-*`, and the two `ref_soft` rows
-`g5-leopard-SOFT-not-comparable-to-gl`, because a soft number must never be read
-against a gl one.
-
 **`ref_soft` renders in wrong colours** on this fleet: blocky, dark, light sprites
-magenta where they should be white, confirmed on the G5 under Leopard while taking
-these rows. That is `ref_soft` big-endian palette behaviour, not a GL regression;
-`gl_texture_nearest` was `0` throughout and GL renders correctly. Expect a
-bystander watching a `bench.sh -r soft` run to call it a rendering bug.
+magenta where they should be white, confirmed on the G5 under Leopard. That is
+`ref_soft` big-endian palette behaviour, not a GL regression; `gl_texture_nearest`
+was `0` throughout and GL renders correctly. Expect a bystander watching a
+`bench.sh -r soft` run to call it a rendering bug.
 
 **Provenance caveat for rows dated on or before 2026-07-27**: because of the trap
 below, any row reading `fullscreen` may have asked for another mode. `windowed`
@@ -370,9 +363,8 @@ batch ran fullscreen whatever it asked for.
 ### A trap in fleet-bench.sh, found while measuring the above (fixed)
 
 `fleet-bench.sh` parsed `-s fullscreen|borderless|windowed` into `SCREENMODE` but
-**never passed it to `bench.sh`**, which used its own default of `fullscreen`. The
+never passed it to `bench.sh`, which used its own default of `fullscreen`. The
 CSV records what actually ran, so every row is honest, but the request was lost
-with no warning, and it had been that way since the harness landed in `7e122d3`.
-Fixed: it now canonicalises the mode, passes `-s` through, and compares it against
-field 4 of the line `bench.sh` returns, shouting `SCREENMODE MISMATCH` on stderr
-if the two disagree.
+with no warning. It now canonicalises the mode, passes `-s` through, and compares
+it against field 4 of the line `bench.sh` returns, shouting `SCREENMODE MISMATCH`
+on stderr if the two disagree.

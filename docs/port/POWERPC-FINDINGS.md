@@ -330,6 +330,23 @@ Screenshots came out blue. It was the screenshot capture path, not the renderer:
 `ref_soft` wrote pixels as a native-order word instead of as bytes
 ([`a7bb7bd3`](../../)). What was on screen had always been correct.
 
+### 15. The welder that went dark twice, both times by archive
+
+v1.7.0 hands-on testing: the welder's dynamic light did not reach the floor on
+the G3, while the iMac G5 lit correctly. The lead was "it worked before the
+move onto our own forks", which pointed at the re-ported single-pass world
+draw. The code was innocent: the pre-fork single-pass implementation was
+recovered from this repo's history (the deleted patch script) and is
+line-for-line what the fork carries. Measured on the machine instead:
+`r_dynamic` is `FCVAR_ARCHIVE` and the G3's carried-over `config.cfg` held it
+at `"0"`, written by an old benchmark probe and preserved across every deploy
+since, because a deploy never touches the player folder. The engine history
+records the same machine going dark the same way once before. The change is a
+`r_dynamic "1"` pin in the shipped `userconfig.cfg` (`10c4b06`), the third
+cvar pinned there against archive contamination; the light was then confirmed
+on the G3. The moral repeats entry 13's: on this fleet, "worked before X"
+dates the config, not the code.
+
 ---
 
 ## Still open

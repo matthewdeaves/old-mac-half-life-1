@@ -4,7 +4,7 @@ Three layers, split by what they need to run.
 
 | | Needs | Runs |
 |---|---|---|
-| `test-repo.py` | a checkout and Python 3 | anywhere, and in CI on every push |
+| `test-repo.py` | a checkout and Python 3 | anywhere; run it before a release (CI is switched off, it billed real money) |
 | `test-artifact.sh` | a Mac and a built `.dmg` | by hand before cutting a release |
 | `test-mod-dylibs.sh` | a Mac and a folder of mod dylibs | on each machine in the fleet |
 
@@ -21,38 +21,32 @@ The first two exit with the number of failed checks.
 the only test here whose answer depends on which machine runs it. `dlopen` only
 ever hands back the slice for the CPU it is running on, so the same command
 tests the `ppc` slice on a G4, the `i386` slice on a Core Duo and the `arm64`
-slice on Apple Silicon. It is worth running on each in turn, and none of them
-can answer for the others.
+slice on Apple Silicon. Run it on each in turn; none of them can answer for the
+others.
 
-It exists because `lipo` answers the wrong question. `lipo` says whether a slice
-for this architecture is present, which is what the build drivers already check.
-It cannot say whether `dyld` will accept the file, or whether the entry point
-the engine looks up is in it. Those come apart: mod dylibs once shipped at
-version-min 10.7 beside a 10.6 game, and on 10.6 every slice was present and
-correct and no mod would load.
+`lipo` says whether a slice for an architecture is present, which the build
+drivers already check. It cannot say whether `dyld` will accept the file, or
+whether the entry point the engine looks up is in it. Those come apart: a
+version-min above the host OS leaves every slice present and correct and no mod
+loading.
 
 ## Why these checks and not others
 
-This project's failure mode is not a crash in a function. It is a build that
-completes, an image that mounts, an app that launches on the machine in front of
-you, and a claim somewhere that stopped being true. Several of those shipped.
+Each check corresponds to a real defect that shipped or nearly did.
 
-Each check corresponds to a real defect:
-
-- **Mod tables agree.** Xen Warrior shipped in v1.4.0 with its game code but no
-  manifest row, no artwork and no description, so it installed unverified and
-  appeared in Custom Game as a blank entry.
-- **Every branch is pinned.** `sohl1.2` shipped with no commit recorded in
-  `vendor/MANIFEST.md`, so that release could not be reproduced from the manifest.
-- **Mod count is consistent.** v1.4.0's disk image and in-app help both said 24
-  while the app installed 25.
-- **No `ppc970` in shipped strings.** The slice was dropped in v1.4.0, but the
-  System Report app still told a G5 owner they needed Leopard, which was the
-  exact thing that release fixed. That app is what someone runs when the game
-  will not start, so it was the worst place for it to be wrong.
-- **`BUILD-INFO` matches `lipo`.** v1.4.0 declared four slices and carried three.
-- **`BUILD-INFO` is not `+dirty`.** v1.4.0 was built from an uncommitted tree, one
-  commit before the change that defined it.
+- **Mod tables agree.** A mod with game code but no manifest row, artwork or
+  description installs unverified and appears in Custom Game as a blank entry.
+- **Every branch is pinned.** A branch with no commit in `vendor/MANIFEST.md`
+  cannot be reproduced from the manifest.
+- **Mod count is consistent.** The disk image, the in-app help and the number of
+  mods the app installs must agree.
+- **No `ppc970` in shipped strings.** There is no `ppc970` slice, so no shipped
+  text may tell a G5 owner they need Leopard. The System Report app is what
+  someone runs when the game will not start, so it is the worst place to be
+  wrong.
+- **`BUILD-INFO` matches `lipo`.** The slices declared must be the slices
+  carried.
+- **`BUILD-INFO` is not `+dirty`.** A release must build from a committed tree.
 - **Exact cpusubtypes, no generic `ppc (ALL)` executable slice.** Tiger and
   Leopard mis-grade a fat that mixes generic and specific PowerPC slices and
   refuse to exec on a 750 host, so this one is invisible until a G3 owner reports
@@ -74,22 +68,16 @@ Each check corresponds to a real defect:
   supplies these but us. The file existing and the copy step existing are two
   separate things, and having one without the other looks exactly like having
   neither.
-- **The System Report app reaches lower than the game.** Its whole purpose is the
-  machine nobody in the fleet owns, so an Intel floor equal to the game's makes
-  it useless on precisely the cases the game rules out. The test asserts four
-  slices (`ppc i386 x86_64 arm64`) and the exact floors, 10.4 for `i386` and
-  10.5 for `x86_64`, because a silent revert to a single high-floor slice would
-  still mount, still launch here, and still look right.
-- **Patch scripts are invoked, not merely named.** The wiring tests used to ask
-  whether a script's filename appeared anywhere in a driver.
-  `patch-mainui-miniutl-endian.py` passed on the strength of a comment in
-  a retired driver that said, in so many words, that it does not run it.
-  Whole-line comments are now stripped before matching. That check was a
-  quote-aware shell tokenizer for a while; an adversarial review measured the
-  tokenizer against the simple version across every patch and driver pairing
-  and found zero disagreements, so the tokenizer came out again. The comment
-  block above `shell_commands` in `test-repo.py` records the measurement and
-  the one shape the naive version would miss.
+- **The System Report app reaches lower than the game.** An Intel floor equal to
+  the game's makes it useless on precisely the cases the game rules out. The test
+  asserts four slices (`ppc i386 x86_64 arm64`) and the exact floors, 10.4 for
+  `i386` and 10.5 for `x86_64`, because a silent revert to a single high-floor
+  slice would still mount, still launch here, and still look right.
+- **Patch scripts are invoked, not merely named.** Whole-line comments are
+  stripped before matching, so a comment that names a script does not count as
+  wiring. The matcher is deliberately the simple version, not a shell tokenizer:
+  the comment block above `shell_commands` in `test-repo.py` records the
+  measurement behind that choice and the one shape the simple version would miss.
 - **No patch script is an orphan.** `patch-mainui-*` and `patch-net-*` are the
   only families the wiring tests police by name. Everything else in
   `scripts/patch-*.py` is wired by one line in one driver, so losing that line

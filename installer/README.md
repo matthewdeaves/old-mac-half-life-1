@@ -19,12 +19,10 @@ Cocoa itself.
 | Disk | about **6 GB** free for the full set |
 | Network | needed for **Get Mods**, not for **Choose...** |
 
-The memory figure is measured, not guessed. The largest mod, Echoes, expands to
-450 MB and is stored as a single solid compressed block, so unpacking it is the
-hungriest thing this app ever does. It was measured completing on a 450 MHz G3
-with 448 MB of RAM, peaking at 380 MB resident. Below 256 MB a machine would
-swap for hours and then fail, most likely after a long download, so `main.m`
-says so in two seconds instead.
+The memory figure is measured: the largest mod, Echoes, is a single solid
+compressed block that expands to 450 MB, and unpacking it peaks at 380 MB
+resident (measured on a 450 MHz G3 with 448 MB). Below 256 MB the unpack swaps
+for hours and then fails, so `main.m` refuses at launch instead.
 
 ## What it actually does
 
@@ -169,13 +167,12 @@ The same code path on a Power Mac G3 running 10.3.9 and on an Intel mini running
 | ![On Panther](../docs/img/screenshots/panther-01-ready.png) | ![Intel, installing](../docs/img/screenshots/intel-04-installing-induction.png) |
 | Panther, 10.3.9 | Lion, 10.7.5 |
 
-Panther is where two 10.3-only faults surfaced that no newer system showed.
-`hdiutil` there predates `-puppetstrings`, so mounting failed outright until the
-app learned to retry without it; and `NSButton` on 10.3 *clips* an oversized image
-where 10.5 scales it, so the About artwork lost its head and legs until the image
-was pinned to an explicit size. It is also why the log is styled by line shape
-rather than set in one face: headings stand out, prose reads as prose, and the
-two-column list keeps its alignment because those lines stay fixed-pitch.
+Two more 10.3-only traps, seen on no newer system: `hdiutil` on 10.3 predates
+`-puppetstrings`, so the app retries a failed mount without it; and `NSButton`
+on 10.3 *clips* an oversized image where 10.5 scales it, so the About artwork is
+pinned to an explicit size. The log is styled by line shape rather than set in
+one face: headings stand out, prose reads as prose, and the two-column list
+stays fixed-pitch to keep its alignment.
 
 ## There is an easter egg
 
@@ -199,8 +196,8 @@ Two hosts carry most of it and neither is ours:
   as plain archives with working resume.
 - **[archive.org](https://archive.org)**, for the rest.
 
-Fetching per mod means the catalogue no longer depends on one file on one
-mirror, and no Valve retail game passes through here at any point.
+Fetching per mod means the catalogue does not depend on one file on one mirror,
+and no Valve retail game passes through here at any point.
 
 ---
 

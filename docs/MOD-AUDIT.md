@@ -17,10 +17,9 @@ from source (`vendor/hlsdk-portable-mirror.git` holds all 57), so this is a read
 of real code, not an inference from binaries. Each mod was diffed against
 `git merge-base master <branch>` and only the mod's OWN added lines were audited;
 inherited code was confirmed present but not re-audited, being shared with the
-already-working `valve` build. A first regex pass flagged 55 pointer-cast
-dereferences in zombie-x alone, all benign or in files the build excludes, so
-everything was read in context: confirming a false positive costs a physical boot of
-a 20-year-old machine.
+already-working `valve` build. Everything flagged was read in context, not
+regex-matched: a first regex pass flagged 55 pointer-cast dereferences in zombie-x
+alone, all benign or in files the build excludes.
 
 Categories looked for: multi-byte reads out of byte buffers crossing a file, network
 or save-game boundary; custom binary file formats; hand-packed network messages;
@@ -59,10 +58,10 @@ build being 32-bit and Intel 64-bit.
 
 ## Findings
 
-**Status, 2026-07-26.** All are implemented as two guarded patch scripts wired into
-`build-mod.sh` and applied to **both** trees, not only the PowerPC one: apart from
-the DMC byteswap these are arch-neutral, so patching `-ppc` alone would ship an
-Intel slice still carrying them.
+All are implemented as two guarded patch scripts wired into `build-mod.sh` and
+applied to **both** trees, not only the PowerPC one: apart from the DMC byteswap
+these are arch-neutral, so patching `-ppc` alone would ship an Intel slice still
+carrying them.
 
 - `scripts/patch-hlsdk-shared-clientbugs.py` for #34, shared hlsdk code. The same
   two faults sit in the base game's own client dylib, fixed there by a commit on our

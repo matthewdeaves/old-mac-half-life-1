@@ -19,7 +19,8 @@ to overwrite.
 
 Everything we build lives at
 `Half-Life.app/Contents/Resources/Half-Life/valve/` (game dylibs,
-`userconfig.cfg`, Custom Game artwork). The engine mounts
+`userconfig.cfg`, the first-run `config.cfg` with WASD binds, Custom Game
+artwork). The engine mounts
 `Contents/Resources/Half-Life` as its READ-ONLY root (`fs_rodir`, found by
 `FS_AppleBundledGameRoot`); the writable root stays the folder containing the
 `.app` (`XASH3D_BASEDIR`), so saves and configs land in the player's folder.

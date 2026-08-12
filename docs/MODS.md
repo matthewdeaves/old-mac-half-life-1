@@ -6,10 +6,10 @@ How Half-Life mods run on the old-Mac port, and how to rebuild them.
 
 The mod **content** is its authors' work and this project supplies none of it.
 Each mod is fetched at install time from that mod's own public release: mostly
-[runthinkshootlive.com](https://www.runthinkshootlive.com), Phillip's long-running
-Half-Life single-player archive, and [archive.org](https://archive.org) for the
-rest. `installer/mod-sources.txt` records the URL, format, size, md5 and subtree
-for every one, and the reason for each of the seven that have no usable source.
+[runthinkshootlive.com](https://www.runthinkshootlive.com), Phillip's Half-Life
+single-player archive, and [archive.org](https://archive.org) for the rest.
+`installer/mod-sources.txt` records the URL, format, size, md5 and subtree for
+every one, and the reason for each of the seven that have no usable source.
 
 We add the game code only, rebuilt for **PowerPC** and 64-bit Intel from each
 mod's own source branch; the only other Mac builds are i386 and need 10.5.8+.
@@ -27,50 +27,43 @@ and models, and the engine derives the Mac dylib name from a Windows `gamedll` l
 
 ## One fat dylib per role
 
-Xash normally loads game code by **arch-suffixed** name
-(`dlls/bshift_amd64.dylib`, `cl_dlls/client_ppc.dylib`), one file per
-architecture. We ship one, because the engine also accepts the **plain** name from
-the mod's own `liblist.gam`: `SV_InitGame()` (`engine/server/sv_init.c`) tries the
-suffixed name then retries `COM_GetGameDllPathFromGameInfo()`, and `CL_Init()`,
-which had no retry and called `Host_Error` on the first failure, gets the
-mirror-image fallback. Both are one commit on our engine branch, `mods: load game
-code from liblist.gam's plain name as well as the suffixed one`.
+Xash loads game code by **arch-suffixed** name (`dlls/bshift_amd64.dylib`,
+`cl_dlls/client_ppc.dylib`), one file per architecture, and also accepts the
+**plain** name from the mod's own `liblist.gam`: `SV_InitGame()`
+(`engine/server/sv_init.c`) tries the suffixed name then retries
+`COM_GetGameDllPathFromGameInfo()`, and `CL_Init()` has the mirror-image
+fallback. Both are one commit on our engine branch, `mods: load game code from
+liblist.gam's plain name as well as the suffixed one`. The fallback fires only
+when the suffixed name is missing, and `valve/` is untouched.
 
 `lipo`-ing the slices into `dlls/bshift.dylib` gives one file that loads on every
 machine, under the exact filename existing Mac mod releases use, so installing is
-a straight overwrite. The suffixed layout still works, `valve/` is untouched, and
-the fallback fires only when the suffixed name is missing. One generic `ppc`
-slice covers all three PPC machines: `dlopen()` grades a `ppc (ALL)` slice
-correctly on a 750, and only the engine *executable* needs an exact cpusubtype
-(the ppc750 re-stamp in `build-ppc-panther.sh`).
+a straight overwrite. One generic `ppc` slice covers all three PPC machines:
+`dlopen()` grades a `ppc (ALL)` slice correctly on a 750, and only the engine
+*executable* needs an exact cpusubtype (the ppc750 re-stamp in
+`build-ppc-panther.sh`).
 
-**Four slices**, matching the game everywhere it matters: `ppc`, `i386`,
-`x86_64`, `arm64`. The game's fifth is only the `ppc750`/`ppc7400` split, which
-these do not need for the reason just given.
+**Four slices**: `ppc`, `i386`, `x86_64`, `arm64`. The game's fifth is only the
+`ppc750`/`ppc7400` split, which these do not need.
 
-`arm64` is built somewhere else, because no build mini can produce it: Xcode 4.6
-on Lion predates the architecture by seven years. `scripts/build-mod-arm64.sh`
-runs on the Apple Silicon box, `push-mod-arm64.sh` carries the thin slices over,
-and `fuse-mod-arm64.sh` adds them on the build host. Lion's `lipo` fuses arm64
-quite happily and only fails to NAME it, printing `cputype (16777228)`; `otool`
-and `install_name_tool` do parse load commands and refuse the file outright,
-which is why nothing in that path uses them.
+`arm64` cannot be built on a mini: Xcode 4.6 on Lion predates the architecture.
+`scripts/build-mod-arm64.sh` runs on the Apple Silicon box,
+`push-mod-arm64.sh` carries the thin slices over, and `fuse-mod-arm64.sh` adds
+them on the build host. Lion's `lipo` fuses arm64 and only fails to NAME the
+slice, printing `cputype (16777228)`; `otool` and `install_name_tool` refuse
+the whole file, which is why nothing in that path uses them.
 
-That one file really is one file. The same four-slice `CAd/server.dylib` was
-`dlopen`ed as `ppc` on a Tiger G4 and as `arm64` on an Apple Silicon Mac, and
-`tests/test-mod-dylibs.sh` is the check that says so. Run it on each machine in
-turn: `dlopen` only ever returns the slice for the CPU it is running on, so the
-answer is different, and only meaningful, on each.
+`tests/test-mod-dylibs.sh` verifies a fat dylib by `dlopen`. Run it on each
+machine in turn: `dlopen` only ever returns the slice for the CPU it is running
+on, so the answer is different, and only meaningful, on each.
 
 ## Switching mods: fork before you exec
 
-Picking a mod in Custom Game re-execs the engine with a new `-game`. On PowerPC it
-printed `execv(.../Contents/MacOS/xash3d.bin) failed: Operation not supported` and
-left a live windowless process needing a force-quit.
+Picking a mod in Custom Game re-execs the engine with a new `-game`.
 
 **Darwin refuses `execve()` from a process with more than one thread**, returning
 `ENOTSUP` (errno 45) rather than replacing the image. Measured on a G4 under
-10.4.11 with a purpose-built test binary:
+10.4.11:
 
 ```
 threads created: 0 -> exec succeeded
@@ -78,20 +71,13 @@ threads created: 4 -> execv FAILED: Operation not supported (errno 45)
 ```
 
 `Sys_NewInstance()` runs after `Host_Shutdown`, but SDL's helper threads are still
-alive, so the exec was refused every time. Two plausible culprits are **not** to
-blame. Not the path: the engine already retried with `host.argv[0]`, both attempts
-resolving to the same `xash3d.bin`, both failing identically. Not fat-binary
-grading: the same fat binary `execv`s fine from an ordinary process on that
-machine, generic `ppc` or `ppc7400` (the real Tiger fat-mis-grading bug in
-`CLAUDE.md` is the obvious suspect and is not the cause).
-
-Fix: `Sys_RestartExec()`, one commit on our engine branch, `mods: fork before exec
-so "change game" can actually restart the engine`. Try the direct exec; if it
-returns, `fork()` and exec from the child, single-threaded by construction. A
-close-on-exec pipe tells the parent which happened, so it stands down only on real
-success and a child that could not exec is still a reported failure. On hardware,
-valve → gearbox re-execs in about a second and the new process logs
-`FS_AddGameHierarchy( gearbox )` and brings up video.
+alive, so a direct exec is refused. `Sys_RestartExec()`, one commit on our engine
+branch (`mods: fork before exec so "change game" can actually restart the
+engine`), tries the direct exec; if it returns, it `fork()`s and execs from the
+child, single-threaded by construction. A close-on-exec pipe tells the parent
+which happened, so it stands down only on real success and a child that could not
+exec is still a reported failure. On hardware, valve to gearbox re-execs in about
+a second and the new process logs `FS_AddGameHierarchy( gearbox )`.
 
 ## Big-endian: what a mod tree does and does not get
 
@@ -104,8 +90,8 @@ carry it.
 **No studio-model byte swap is applied to a mod tree.** The engine already swaps
 studio animation offsets and values as it loads the model, so a swap in the
 client's `StudioModelRenderer.cpp` on top of that is a second swap, and a second
-swap is the identity undone. It crashed the base game on map load until it was
-removed: `docs/port/PPC-PORT-NOTES.md`.
+swap is the identity undone; adding one crashes the base game on map load.
+`docs/port/PPC-PORT-NOTES.md`.
 
 ## Building
 
@@ -183,25 +169,21 @@ not mistaken for a bug and "fixed" back.
 `installer/` builds **Half-Life Mods.app**: native Cocoa, fat `ppc` + `i386` +
 `x86_64` + `arm64`, `LSMinimumSystemVersion 10.3.0`.
 
-`i386` is not a nicety here, it closes a hole the width of a whole class of
-machine. The game grew an i386 slice for the 2006 Core Solo and Core Duo Macs and
-so did the mod dylibs, so without it an owner of one of those could run Half-Life
-and could run every mod, but could not launch the app that installs them. `arm64`
-is built by `scripts/build-installer-arm64.sh` on the Apple Silicon box and is
-optional at the far end, since the `x86_64` slice already runs under Rosetta 2.
+The `i386` slice matches the game and the mod dylibs: without it, a 2006 Core
+Solo or Core Duo owner could run Half-Life and every mod but not the app that
+installs them. `arm64` is built by `scripts/build-installer-arm64.sh` on the
+Apple Silicon box and is optional at the far end, since the `x86_64` slice
+already runs under Rosetta 2.
 
-One `ppc` slice, unlike the game. The rule against a generic `ppc (ALL)` slice
-exists because Tiger and Leopard mis-grade a fat holding SEVERAL ppc slices on a
-750 host; one generic ppc slice beside the Intel ones is the ordinary 2006 case
-and grades correctly everywhere.
+One generic `ppc` slice, unlike the game: Tiger and Leopard mis-grade a fat
+holding SEVERAL ppc slices on a 750 host, while one generic ppc slice beside the
+Intel ones grades correctly everywhere.
 
-Cocoa rather than Carbon because Carbon was never ported to 64-bit and so cannot
-produce our x86_64 slice; rather than SDL because this should look like a Mac app.
 Downloading is hand-written HTTP/1.1 with `Range:` resume over raw sockets, with
-mbed TLS 3.6 built into every slice; NSURLConnection was not used because its byte
-counters are 32-bit, the same flaw that makes the engine's own HTTP client unusable
-here (`httpfile_t.size` is an `int`). `installer/README.md` covers the networking
-and the 10.3-era Cocoa rules in full.
+mbed TLS 3.6 built into every slice. NSURLConnection is not used: its byte
+counters are 32-bit, the same flaw that makes the engine's own HTTP client
+unusable here (`httpfile_t.size` is an `int`). `installer/README.md` covers the
+networking and the 10.3-era Cocoa rules in full.
 
 ### What it refuses to copy
 
@@ -235,14 +217,13 @@ each one rather than saying "no build shipped" for all of them.
 | `tfc`, `tfc_german` | Team Fortress Classic: the shipped dylib is i386 and there is no source to rebuild it from. FWGS deleted its `tfc` branch; 43 forks still carry it and all 19 TFC server `.cpp` files in it are zero bytes. Velaron/tf15-client is client-only by design, Toodles2You/tfc needs C++17 and i386-only Steam/VGUI binaries, and Valve never released TFC source. Closed as not achievable, issue #13 |
 | `gearbox_german` | a whole German localisation of a game we install in English: content only, deliberately not installed |
 
-`bshift_hd` and `gearbox_hd` used to be in that list and **are now installed**. They
-are not mods: `models/`, `sound/`, `sprites/`, no game code. The engine mounts them
-over their parent, so a gearbox launch logs `FS_AddGameHierarchy( gearbox )` then
-`Adding directory: gearbox/` and `Adding directory: gearbox_hd/`; skipping them
-silently cost the HD models for Blue Shift and Opposing Force, for 21 MB. `OMMod`
-carries a `companion` flag; a `<parent>_hd` whose parent is in `mods.map` is copied
-as content only, with no dylibs, no `liblist.gam` rewrite and no manifest check,
-still staged via `.partial`.
+`bshift_hd` and `gearbox_hd` **are installed**. They are not mods: `models/`,
+`sound/`, `sprites/`, no game code. The engine mounts them over their parent, so
+a gearbox launch logs `FS_AddGameHierarchy( gearbox )` then
+`Adding directory: gearbox/` and `Adding directory: gearbox_hd/`. `OMMod`
+carries a `companion` flag; a `<parent>_hd` whose parent is in `mods.map` is
+copied as content only, with no dylibs, no `liblist.gam` rewrite and no manifest
+check, still staged via `.partial`.
 
 ## Custom Game menu
 
@@ -252,15 +233,11 @@ it truncating titles at 32 characters.
 
 The artwork cannot be read from the mod's own folder: while the engine is running
 `valve` the mod directory is not in the filesystem search path, so
-`PIC_Load("bshift/game.tga")` finds nothing. Since v1.2.0 all banners and blurbs
-ship INSIDE the game app, at
+`PIC_Load("bshift/game.tga")` finds nothing. All banners and blurbs ship INSIDE
+the game app, at
 `Half-Life.app/Contents/Resources/Half-Life/valve/gfx/shell/mods/<gamedir>.tga`
 and `.txt`, copied there by `make-universal.sh` from `installer/artwork/` and
 `installer/descriptions/`. That is where the menu's own art lives, so no engine
 change is needed: `COM_LoadFile` on a `gfx/shell/...` path is what
-`menus/Controls.cpp` already does.
-
-The installer used to copy them into the player's own `valve/gfx/shell/mods/`.
-Shipping them in the app means we never write into the player's game data, the
-artwork survives them replacing that folder, and it shows for a hand-installed mod
-too.
+`menus/Controls.cpp` already does. Nothing is written into the player's game
+data, and the artwork shows for a hand-installed mod too.
