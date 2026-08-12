@@ -360,6 +360,15 @@ if [ -f "$REPO_ROOT/configs/userconfig.cfg" ]; then
   echo "[make-dmg] $GAMEDATA/userconfig.cfg: shipped repo canonical"
 fi
 
+# First-run key bindings: WASD movement instead of Valve's 1998 arrow-only
+# defaults. Lives at the rodir valve/ level, the lowest-priority searchpath, so
+# the engine only sees it on a machine with no config.cfg of its own; the
+# player's own config always outranks it.
+if [ -f "$REPO_ROOT/configs/config.cfg" ]; then
+  cp "$REPO_ROOT/configs/config.cfg" "$IMG/$GAMEDATA/config.cfg"
+  echo "[make-dmg] $GAMEDATA/config.cfg: shipped first-run binds (WASD)"
+fi
+
 # Stamp ALL THREE bundles, not just the game. Get Info on the mod installer and
 # the system report app used to show no version and no provenance at all, which
 # is unhelpful precisely when someone is reporting a problem with one of them.
