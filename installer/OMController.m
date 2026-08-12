@@ -56,8 +56,12 @@ static BOOL om_is_heading( NSString *line );
 	[window center];
 	content = [window contentView];
 
-	/* artwork - mod banners are 'game.tga', typically wider than tall */
-	artView = [[NSImageView alloc] initWithFrame:NSMakeRect( 20, 330, 192, 120 )];
+	/* artwork - mod banners are 'game.tga', typically wider than tall.
+	 * The frame stops at y 370 so the button row at y 330 sits clear below
+	 * it; the old 120-point-tall frame reached down to the row and the
+	 * Choose Folder button overlapped the bezel's bottom edge, which read
+	 * as a button lost inside an empty box whenever no banner was up. */
+	artView = [[NSImageView alloc] initWithFrame:NSMakeRect( 20, 370, 192, 80 )];
 	[artView setImageFrameStyle:NSImageFrameGrayBezel];
 	[artView setImageScaling:NSScaleProportionally];
 	[content addSubview:artView];
@@ -90,7 +94,7 @@ static BOOL om_is_heading( NSString *line );
 	 * happened to find, and the panel only appeared when the search FAILED, so a
 	 * wrong guess was unfixable from the UI.
 	 */
-	chooseButton = [self buttonAt:NSMakeRect(  56, 330, 160, 32 ) title:@"Choose Folder..." action:@selector(chooseDestination:)];
+	chooseButton = [self buttonAt:NSMakeRect(  36, 330, 160, 32 ) title:@"Choose Folder..." action:@selector(chooseDestination:)];
 	[content addSubview:chooseButton];
 	getButton    = [self buttonAt:NSMakeRect( 228, 330, 160, 32 ) title:@"Get Mods" action:@selector(getMods:)];
 	cancelButton = [self buttonAt:NSMakeRect( 400, 330, 160, 32 ) title:@"Cancel"   action:@selector(cancel:)];

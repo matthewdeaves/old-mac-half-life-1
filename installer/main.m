@@ -25,13 +25,49 @@ static void om_installMenuBar( void )
 	             keyEquivalent:@""] setTarget:nil];
 	[appMenu addItem:[NSMenuItem separatorItem]];
 	[appMenu addItemWithTitle:@"Hide Half-Life Mods" action:@selector(hide:) keyEquivalent:@"h"];
-	[appMenu addItemWithTitle:@"Hide Others" action:@selector(hideOtherApplications:) keyEquivalent:@""];
+	/* Hide Others is Cmd-Opt-H everywhere. The key equivalent alone would
+	 * collide with Hide's Cmd-H; the alternate mask is what separates them. */
+	[[appMenu addItemWithTitle:@"Hide Others" action:@selector(hideOtherApplications:) keyEquivalent:@"h"]
+		setKeyEquivalentModifierMask:( NSCommandKeyMask | NSAlternateKeyMask )];
 	[appMenu addItemWithTitle:@"Show All" action:@selector(unhideAllApplications:) keyEquivalent:@""];
 	[appMenu addItem:[NSMenuItem separatorItem]];
 	[appMenu addItemWithTitle:@"Quit Half-Life Mods" action:@selector(terminate:) keyEquivalent:@"q"];
 
 	[appItem setSubmenu:appMenu];
 	[mainMenu addItem:appItem];
+
+	/* File carries Close. The window IS the app - the delegate returns YES from
+	 * -applicationShouldTerminateAfterLastWindowClosed: - so Cmd-W quits, and it
+	 * still runs the mid-install confirmation in -applicationShouldTerminate:. */
+	{
+		NSMenuItem *fileItem = [[[NSMenuItem alloc] initWithTitle:@"File" action:NULL keyEquivalent:@""] autorelease];
+		NSMenu *fileMenu = [[[NSMenu alloc] initWithTitle:@"File"] autorelease];
+
+		[fileMenu addItemWithTitle:@"Close" action:@selector(performClose:) keyEquivalent:@"w"];
+		[fileItem setSubmenu:fileMenu];
+		[mainMenu addItem:fileItem];
+	}
+
+	/* Edit menu, so Cmd-C can copy log lines out of the text view without a nib. */
+	{
+		NSMenuItem *editItem = [[[NSMenuItem alloc] initWithTitle:@"Edit" action:NULL keyEquivalent:@""] autorelease];
+		NSMenu *editMenu = [[[NSMenu alloc] initWithTitle:@"Edit"] autorelease];
+
+		[editMenu addItemWithTitle:@"Copy" action:@selector(copy:) keyEquivalent:@"c"];
+		[editMenu addItemWithTitle:@"Select All" action:@selector(selectAll:) keyEquivalent:@"a"];
+		[editItem setSubmenu:editMenu];
+		[mainMenu addItem:editItem];
+	}
+
+	/* Window, so Cmd-M minimizes like every other app. */
+	{
+		NSMenuItem *winItem = [[[NSMenuItem alloc] initWithTitle:@"Window" action:NULL keyEquivalent:@""] autorelease];
+		NSMenu *winMenu = [[[NSMenu alloc] initWithTitle:@"Window"] autorelease];
+
+		[winMenu addItemWithTitle:@"Minimize" action:@selector(performMiniaturize:) keyEquivalent:@"m"];
+		[winItem setSubmenu:winMenu];
+		[mainMenu addItem:winItem];
+	}
 
 	/*
 	 * Help. A plain menu opening our own window, NOT an Apple Help book: a help
