@@ -48,6 +48,8 @@
  * it has not seen yet. */
 - (NSAttributedString *)formattedHelp;
 - (NSDictionary *)attributesForLogLine:(NSString *)line;
+- (NSArray *)introTitlesDownloadable:(BOOL)wantDownloadable;
+- (void)omLogTitleList:(NSArray *)titles;
 - (BOOL)ensureDestination;
 - (BOOL)pickDestination;
 - (void)quitWhenIdle:(NSTimer *)t;

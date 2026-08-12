@@ -216,13 +216,15 @@ static BOOL om_is_heading( NSString *line );
 	[self omLog:@"This supplies Mac game code for 25 Half-Life mods, rebuilt for PowerPC"];
 	[self omLog:@"and Intel, so they appear in the game's Custom Game menu."];
 	[self omLog:@""];
-	[self omLog:@"18 of them it can also download for you. Press Get Mods and leave it."];
+	[self omLog:@"18 of them it can also download for you. Press Get Mods and leave it:"];
+	[self omLogTitleList:[self introTitlesDownloadable:YES]];
 	[self omLog:@""];
 	[self omLog:@"The other 7 it will not download, because they are not free downloads:"];
 	[self omLog:@"Blue Shift, Opposing Force and Deathmatch Classic are Valve games you"];
 	[self omLog:@"buy, and four more are only published as Windows installers. If you"];
 	[self omLog:@"already have any of them, put the mod's folder in this folder and press"];
-	[self omLog:@"Get Mods - it will add the game code and they will work too."];
+	[self omLog:@"Get Mods - it will add the game code and they will work too:"];
+	[self omLogTitleList:[self introTitlesDownloadable:NO]];
 	[self omLog:@""];
 	[self omLog:@"No mod content is bundled here. Everything downloaded comes from that"];
 	[self omLog:@"mod's own public release."];
@@ -419,6 +421,105 @@ static BOOL om_is_heading( NSString *line );
 - (void)mainSetRunning:(NSNumber *)n { [self setRunning:[n boolValue]]; }
 
 - (NSString *)resourcesPath { return [[NSBundle mainBundle] resourcePath]; }
+
+/*
+ * The two mod lists the intro prints, derived from the same bundled tables the
+ * install pass works from: mods.map for every mod and its display title,
+ * mod-sources.txt for which of them this app can fetch. Derived, not written
+ * out by hand, so the intro cannot drift from what Get Mods actually does.
+ */
+- (NSArray *)introTitlesDownloadable:(BOOL)wantDownloadable
+{
+	NSString *res = [self resourcesPath];
+	NSString *text;
+	NSMutableArray *titles = [NSMutableArray array];
+	NSMutableDictionary *sourced = [NSMutableDictionary dictionary];
+	NSArray *lines;
+	unsigned i;
+
+	text = [NSString stringWithContentsOfFile:
+		[res stringByAppendingPathComponent:@"mod-sources.txt"]];
+	lines = ( text != nil ) ? [text componentsSeparatedByString:@"\n"] : [NSArray array];
+	for( i = 0; i < [lines count]; i++ )
+	{
+		NSString *line = [[lines objectAtIndex:i]
+			stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+		if( [line hasPrefix:@"mod "] || [line hasPrefix:@"mod\t"] )
+		{
+			NSString *dir = [[line substringFromIndex:4]
+				stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+			if( [dir length] > 0 )
+				[sourced setObject:@"y" forKey:dir];
+		}
+	}
+
+	text = [NSString stringWithContentsOfFile:
+		[res stringByAppendingPathComponent:@"mods.map"]];
+	lines = ( text != nil ) ? [text componentsSeparatedByString:@"\n"] : [NSArray array];
+	for( i = 0; i < [lines count]; i++ )
+	{
+		NSString *line = [[lines objectAtIndex:i]
+			stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+		NSArray *raw;
+		NSMutableArray *f;
+		unsigned j;
+
+		if( [line length] == 0 || [line hasPrefix:@"#"] )
+			continue;
+
+		raw = [line componentsSeparatedByString:@" "];
+		f = [NSMutableArray array];
+		for( j = 0; j < [raw count]; j++ )
+		{
+			NSString *t = [[raw objectAtIndex:j]
+				stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
+			if( [t length] > 0 ) [f addObject:t];
+		}
+		if( [f count] < 3 )
+			continue;
+
+		{
+			NSString *gamedir = [f objectAtIndex:0];
+			NSString *title;
+			BOOL downloadable = ( [sourced objectForKey:gamedir] != nil );
+
+			if( downloadable != wantDownloadable )
+				continue;
+			if( [f count] > 3 )
+				title = [[f subarrayWithRange:NSMakeRange( 3, [f count] - 3 )]
+					componentsJoinedByString:@" "];
+			else
+				title = gamedir;
+			[titles addObject:title];
+		}
+	}
+
+	[titles sortUsingSelector:@selector(caseInsensitiveCompare:)];
+	return titles;
+}
+
+/* Print a list of titles comma-joined and wrapped, two-space indented so the
+ * log styles the lines as detail under the sentence above them. */
+- (void)omLogTitleList:(NSArray *)titles
+{
+	NSMutableString *line = [NSMutableString string];
+	unsigned i;
+
+	for( i = 0; i < [titles count]; i++ )
+	{
+		NSString *t = [titles objectAtIndex:i];
+		if( [line length] > 0 && [line length] + [t length] > 66 )
+		{
+			[self omLog:[NSString stringWithFormat:@"  %@,", line]];
+			[line setString:@""];
+		}
+		if( [line length] > 0 )
+			[line appendString:@", "];
+		[line appendString:t];
+	}
+	if( [line length] > 0 )
+		[self omLog:[NSString stringWithFormat:@"  %@", line]];
+}
 
 - (void)showArtworkFor:(OMMod *)mod
 {
