@@ -123,11 +123,19 @@ if df "\$XASH3D_BASEDIR" 2>/dev/null | tail -1 | grep -q "read-only" ||
 		MSG="Half-Life cannot run from the disk image. Copy Half-Life.app into a normal folder (your Desktop is fine), put your Half-Life valve folder beside it, then launch it from there."
 		TITLE="Copy Half-Life out of the disk image first"
 	else
-		MSG="macOS privacy protection is blocking Half-Life from writing its settings and saves next to the app. Open System Settings, go to Privacy and Security, then Full Disk Access, add Half-Life.app and launch it again. Or move the whole Half-Life folder somewhere outside Desktop, Documents and Downloads, such as your home folder."
+		MSG="macOS privacy protection is blocking Half-Life from writing its settings and saves next to the app. Move the whole Half-Life folder somewhere outside Desktop, Documents and Downloads - your home folder or Applications both work - and launch it from there. Granting the app Full Disk Access is not enough on current macOS: the app is unsigned, so the permission cannot attach to it."
 		TITLE="macOS is blocking Half-Life"
 	fi
-	osascript -e "display dialog \"\$MSG\" buttons {\"OK\"} default button 1 with icon stop with title \"\$TITLE\"" >/dev/null 2>&1 ||
-		echo "\$MSG" >&2
+	# Measured on macOS 26: osascript is suppressed in the same Finder-launch
+	# context that fails the write test, so a dialog alone leaves the user with
+	# a silent bounce-and-quit. A text file in /tmp is writable regardless, and
+	# open(1) can still hand it to a text editor; last resort is stderr.
+	if ! osascript -e "display dialog \"\$MSG\" buttons {\"OK\"} default button 1 with icon stop with title \"\$TITLE\"" >/dev/null 2>&1; then
+		BLOCKNOTE="/tmp/why-half-life-did-not-open.txt"
+		printf '%s\n\n%s\n' "\$TITLE" "\$MSG" > "\$BLOCKNOTE" 2>/dev/null &&
+			open -e "\$BLOCKNOTE" 2>/dev/null ||
+			echo "\$MSG" >&2
+	fi
 	exit 1
 fi
 rm -f "\$XASH3D_BASEDIR/.hlwritetest" 2>/dev/null
