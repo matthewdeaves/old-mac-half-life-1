@@ -89,6 +89,8 @@ public release, each mod from wherever its author published it, verified by
 checksum. We host no content. Installed mods appear under **Custom Game** in
 the main menu with artwork and a description.
 
+![The mod installer on Tiger part way through a run: Xen Warrior downloading, with the log recording game code added to mods the user already had](docs/img/screenshots/tiger-installing-xen-warrior.png)
+
 A mod is content, the authors' maps, models and sounds, plus the game code that
 drives it, and only the code, about 3% of the bulk, needs rebuilding for these
 machines. Each mod's code is built from its own
