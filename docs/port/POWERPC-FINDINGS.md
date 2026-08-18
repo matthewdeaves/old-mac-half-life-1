@@ -349,6 +349,94 @@ dates the config, not the code.
 
 ---
 
+## The perf-ppc branch (2026-08-18)
+
+### 16. The Rage 128's remaining fps lived in the pixel format, not the code
+
+**`make-app.sh` G3 profile; `ref/gl/gl_opengl.c`, `gl_image.c`;
+`engine/platform/sdl2/vid_sdl2.c`**
+
+**Symptom.** Not a bug. After the single-pass work the G3 still spent ~83% of
+each frame blocked on the GPU at 30 fps.
+
+**Cause.** Three costs a config could not reach: the framebuffer ran 32-bit
+because SDL's Cocoa backend ignores the GL color size attributes and derives
+the depth from the current display mode; the min filter was hardcoded
+trilinear, which the Rage 128 samples in two cycles; and the default pixel
+format carried a 24-bit Z plus an 8-bit stencil nothing shipped reads, when the
+card's native Z is 16-bit.
+
+**Change.** Four launch knobs the G3 profile passes and every other machine
+never sees: `-bpp 16` switches the display mode itself (which also flips
+texture uploads to RGB5/RGBA4 via `desktopBitsPixel`), `-bilinear` selects
+single-mip filtering and is read at the filter site so an archived
+`opengl.cfg` cannot defeat it, `-gldepth16` and `-glnostencil` trim the
+context. Each has a `-no` form and the bench harness passes launch args
+through (`fleet-bench -A`).
+
+**Verified.** Knob isolation on the G3, c0a0, 800x600, interleaved: 16-bit
+mode +23%, bilinear +14%, lean Z and no stencil +5%. Together 30.0 to 44.6
+fps, measured identically on 10.3.9 and 10.4.11. The 16-bit look was judged
+by eye on a same-frame screenshot pair before shipping; the Rage 128 dithers
+its 16-bit output and the verdict was very little visible difference. The
+same `-bpp 16` measured +33% on the G4 mini's Radeon 9200 (92.5 to 123.6)
+and is deliberately not shipped there: the G4s already run above 90 fps and
+keep the clean framebuffer.
+
+### 17. Client vertex arrays are slower than immediate mode on Apple's PowerPC GL driver
+
+**`ref/gl/gl_rsurf.c`, `R_SinglePassBrushPoly`; cvar `gl_singlepass_arrays`**
+
+**Symptom.** The branch cost the dual G5 12% (209 to 183 fps on Leopard)
+while the G4 mini, running the same ppc7400 slice, measured nothing.
+
+**Cause.** The single-pass draw had been converted from per-vertex immediate
+mode to one `glDrawArrays` per surface, reasoned from call counts: three
+indirect GL calls per vertex against a handful per surface. Apple's driver
+prices it the other way. A `sample` profile on the G5 shows every
+per-surface draw rebuilding the driver's vertex submit dispatch
+(`gleSetVertexArrayFunc`, `gldUpdateDispatch` under
+`gleDrawArraysOrElements`): about 2.4x the submission CPU of the plain
+`glBegin` path, with the dispatch churn bleeding into the studio path. The
+GPU-bound G3 and G4 hid the cost entirely; only the 209 fps G5 exposed it.
+
+**Change.** `gl_singlepass_arrays` defaults 0 and is deliberately not
+`FCVAR_GLCONFIG`, so the fleet's archived "1" from the experiment window
+cannot override the new default. The code stays for a per-session experiment
+on a CPU-bound machine.
+
+**Verified.** With arrays off the G5 came back to parity and slightly ahead
+(fresh boots: +1.9% on Tiger, +1.7% on Panther against v1.7.2).
+
+**Got wrong on the way, twice.** The regression was first pinned on
+`-mtune=7450`, publicly enough to land in a commit message; a tuned/untuned
+build pair measured identical (183 fps both) and refuted it, and the flag
+stays dropped only because it buys nothing measurable. Before that, a round
+of single-cvar A/Bs seemed to show every knob innocent, because the bench
+boxes drift: the Intel mini sagged from 124 to 99 fps and the G5's Leopard
+partition from 209 to 180 across the day, for both builds alike. Only
+interleaved neighbor pairs, the protocol the single-pass work already used,
+produced numbers that meant anything.
+
+### 18. The branch changes that are visually free
+
+**Engine fork, ten commits on `oldmac..perf-ppc`.**
+
+Beyond entries 16 and 17: animated lightstyles (the 1..31 band designers use
+for flicker and pulse) were permanently stuck on the two-pass dynamic chain
+because `R_CheckLightMap` returned before refreshing `cached_light`; they now
+TexSubImage in place and stay single-pass (`gl_lightstyle_upload`). Opaque
+world chains draw near to far instead of the pessimal far to near
+(`gl_front_to_back`). The dlight BSP marking walked 27x the useful node
+volume (`r_dlight_virtual_radius` 3 to 1) and ran even with `r_dynamic` off.
+Two 32 KB per-frame array clears became ranged clears. PowerPC mixes sound
+at 22 kHz, the assets' native rate, on the integer fast path. All of it is
+neutral at the c0a0 bench viewpoint and scene-dependent by design; the
+flicker-lit and dlight-heavy scenes it targets have not been measured in
+isolation, and a hands-on look at a flickering light remains on the list.
+
+---
+
 ## Still open
 
 - **The multiplayer name dialog on PowerPC**, issue #29. The collapse the issue
