@@ -37,14 +37,14 @@ XASH_VERSION="0.21"
 # and would omit these commits until the merge.
 PIN_ENGINE_URL="https://github.com/matthewdeaves/xash3d-fwgs.git"
 PIN_ENGINE_BRANCH="perf-ppc"
-PIN_ENGINE_COMMIT="9a924fefc2bb5fcebbd70b3388b138141ab24313"
+PIN_ENGINE_COMMIT="46382cc91374e698608ef352a33d6f109770bd91"
 PIN_ENGINE_UPSTREAM="FWGS/xash3d-fwgs@f0ea3a19"
 
 # --- menu: submodule of the engine, re-pointed by our engine branch ----------
 # Fork of FWGS/mainui_cpp, branched at 510c30c5.
 PIN_MENU_URL="https://github.com/matthewdeaves/mainui_cpp.git"
-PIN_MENU_BRANCH="oldmac"
-PIN_MENU_COMMIT="06aceb1320c1164aa9e0d82c05a0a4b1a4f1d9cd"
+PIN_MENU_BRANCH="perf-ppc"
+PIN_MENU_COMMIT="c94674e21659764854728bb03c9d6f9c99a8c4fa"
 PIN_MENU_UPSTREAM="FWGS/mainui_cpp@510c30c5"
 
 # --- miniutl: submodule of the menu ------------------------------------------

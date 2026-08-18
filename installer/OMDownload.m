@@ -373,6 +373,21 @@
 	return ok;
 }
 
+/* A failure worth a second try: a 5xx or 429 from the server, a dropped read,
+ * or a connection that closed early. archive.org's /download/ endpoint bounces
+ * every request to a storage node, and a node can serve HTTP 500 for a minute
+ * while its neighbours are fine (measured 2026-08-18: five mods failed that
+ * way on the G5 and every one of the same URLs answered 200 shortly after).
+ * Re-entering through the ORIGINAL source URL re-rolls that redirect, so a
+ * retry usually lands a healthy node. A 4xx, a full disk, or a cancel is not
+ * retryable and fails straight away. */
+static BOOL OMErrIsTransient( NSString *e )
+{
+	return [e hasPrefix:@"HTTP 5"] || [e hasPrefix:@"HTTP 429"]
+	    || [e isEqualToString:@"network read failed"]
+	    || [e hasPrefix:@"connection closed early"];
+}
+
 - (BOOL)fetchURLs:(NSArray *)urls toPath:(NSString *)destPath error:(NSString **)err
 {
 	unsigned i;
@@ -381,16 +396,33 @@
 	for( i = 0; i < [urls count]; i++ )
 	{
 		NSString *url = [urls objectAtIndex:i];
-		NSString *e = nil;
+		unsigned attempt;
 
-		[sink omStatus:[NSString stringWithFormat:@"Downloading (source %u of %u)...", i + 1, (unsigned)[urls count]]];
-		if( [self fetchOneURL:url toPath:destPath error:&e] )
-			return YES;
+		for( attempt = 1; attempt <= 3; attempt++ )
+		{
+			NSString *e = nil;
 
-		lastErr = ( e != nil ? e : @"unknown error" );
-		if( [lastErr isEqualToString:@"cancelled"] )
-			break;                                  /* user asked to stop; do not try mirrors */
-		[self log:[NSString stringWithFormat:@"source %u failed: %@", i + 1, lastErr]];
+			if( attempt > 1 )
+			{
+				[self log:[NSString stringWithFormat:@"retrying source %u in %u s (attempt %u of 3)", i + 1, 2 * ( attempt - 1 ), attempt]];
+				sleep( 2 * ( attempt - 1 ));
+			}
+
+			[sink omStatus:[NSString stringWithFormat:@"Downloading (source %u of %u)...", i + 1, (unsigned)[urls count]]];
+			if( [self fetchOneURL:url toPath:destPath error:&e] )
+				return YES;
+
+			lastErr = ( e != nil ? e : @"unknown error" );
+			if( [lastErr isEqualToString:@"cancelled"] )
+			{
+				if( err != NULL ) *err = lastErr;
+				return NO;                          /* user asked to stop; no retries, no mirrors */
+			}
+			[self log:[NSString stringWithFormat:@"source %u failed: %@", i + 1, lastErr]];
+
+			if( !OMErrIsTransient( lastErr ))
+				break;                              /* permanent for this source; try the next one */
+		}
 	}
 
 	if( err != NULL )
