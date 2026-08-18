@@ -1,5 +1,5 @@
 0fde4eaf5511386ce1e4f016d278d658  build-all.sh
-ee3f771c59c8baba26aae22620cb69f3  build-pins.sh
+f9160630e807dd867555b41cd87fe461  build-pins.sh
 fc367b41a04db904418e7346ba0e09ba  fetch-sources.sh
 a8713b0a4a29194b30c8deea048df1f0  build-lion.sh
 8ec7f6607a2780f6ccf333188243783e  build-ppc-tiger.sh
