@@ -102,3 +102,6 @@ timestamp,label,host,renderer,resolution,screenmode,map,frames,fps_min,fps_med,f
 2026-08-18T14:13:09,g5-knob-noftb,g5-desktop,gl,800x600,fullscreen,c0a0,300,179.966,180.086,180.331,180.331|180.086|179.966
 2026-08-18T14:13:27,g5-knob-alloff,g5-desktop,gl,800x600,fullscreen,c0a0,300,180.248,180.451,180.487,180.248|180.451|180.487
 2026-08-18T14:13:14,g3-knob-noarrays,yosemite,gl,800x600,fullscreen,c0a0,300,44.365,44.659,44.695,44.365|44.695|44.659
+2026-08-18T14:14:08,g3-knob-noftb,yosemite,gl,800x600,fullscreen,c0a0,300,44.089,44.270,44.639,44.089|44.270|44.639
+2026-08-18T14:15:03,g3-knob-nolsupload,yosemite,gl,800x600,fullscreen,c0a0,300,44.143,44.537,44.922,44.143|44.537|44.922
+2026-08-18T14:21:43,g4-knob-none,mini-g4,gl,800x600,fullscreen,c0a0,300,92.368,92.715,93.037,93.037|92.715|92.368
