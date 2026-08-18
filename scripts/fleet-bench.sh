@@ -39,8 +39,11 @@ SCREENMODE=fullscreen
 # Console commands applied after map settle, before the warmup. Lets an A/B of a
 # render cvar run through the supported harness instead of a hand-rolled cfg.
 EXTRA=""
+# Extra LAUNCH arguments handed through to bench.sh -A, for launch-time knobs a
+# console cvar cannot reach (-nobpp, -nogldepth16, -noglnostencil, -nobilinear).
+LAUNCHARGS=""
 
-while getopts "l:r:W:H:f:n:w:t:m:s:x:" opt; do
+while getopts "l:r:W:H:f:n:w:t:m:s:x:A:" opt; do
 	case "$opt" in
 		l) LABEL=$OPTARG ;;
 		r) REND=$OPTARG ;;
@@ -53,7 +56,8 @@ while getopts "l:r:W:H:f:n:w:t:m:s:x:" opt; do
 		m) MAP=$OPTARG ;;
 		s) SCREENMODE=$OPTARG ;;
 		x) EXTRA=$OPTARG ;;
-		*) echo "usage: fleet-bench.sh [-l label] [-r gl|soft] [-W w] [-H h] [-f frames] [-n runs] [-w warmups] [-t timeout] [-m map] [-s fullscreen|borderless|windowed] [-x \"cvar val; cvar val\"] [host ...]" >&2; exit 2 ;;
+		A) LAUNCHARGS=$OPTARG ;;
+		*) echo "usage: fleet-bench.sh [-l label] [-r gl|soft] [-W w] [-H h] [-f frames] [-n runs] [-w warmups] [-t timeout] [-m map] [-s fullscreen|borderless|windowed] [-x \"cvar val; cvar val\"] [-A \"launch args\"] [host ...]" >&2; exit 2 ;;
 	esac
 done
 shift $((OPTIND - 1))
@@ -97,7 +101,7 @@ for h in $HOSTS; do
 	# multi-boot several OSes from one IP and every partition answers `hostname`
 	# identically. Without this the G3 records as "macs-computer" whichever OS it
 	# is running, and two rows that look like the same machine are not.
-	line=$($SSH "$h" "/tmp/bench.sh -N $h -r $REND -W $W -H $H -f $FRAMES -n $RUNS -w $WARMUPS -t $TIMEOUT -m $MAP -s $SCREENMODE -x '$EXTRA'" 2>/tmp/fleet_${h}.err)
+	line=$($SSH "$h" "/tmp/bench.sh -N $h -r $REND -W $W -H $H -f $FRAMES -n $RUNS -w $WARMUPS -t $TIMEOUT -m $MAP -s $SCREENMODE -x '$EXTRA' -A '$LAUNCHARGS'" 2>/tmp/fleet_${h}.err)
 	# bench.sh emits an ERR row rather than a number when its own assertions fail.
 	# Surface the reason here: an ERR row that scrolls past unexplained is how a
 	# broken harness gets mistaken for a broken build.

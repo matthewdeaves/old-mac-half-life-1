@@ -53,6 +53,11 @@ SCREENMODE=fullscreen   # fullscreen | borderless | windowed
 # A/B of a render cvar is a first-class benchmark rather than a hand-rolled cfg
 # in /tmp. Semicolon-separated, e.g. -x "gl_singlepass 0; gl_overbright 1".
 EXTRA=""
+# Extra LAUNCH arguments, passed to the launcher verbatim. Console cvars (-x)
+# cannot exercise launch-time knobs: pixel-format parms (-nobpp, -nogldepth16,
+# -noglnostencil) act at context creation, and -bilinear deliberately beats the
+# cvar, so its A/B is -nobilinear here. perf-ppc review finding.
+LAUNCHARGS=""
 # -r gl landing on Apple's software GL is a FAILURE by default, see assertion 5.
 # -S says you meant it, for the rare case of deliberately measuring software GL.
 ALLOW_SOFTGL=0
@@ -60,7 +65,7 @@ ALLOW_SOFTGL=0
 # good enough on this fleet, see the note where HOSTN is set.
 NAME=""
 
-while getopts "r:W:H:f:n:w:m:a:t:s:x:N:S" opt 2>/dev/null; do
+while getopts "r:W:H:f:n:w:m:a:t:s:x:N:SA:" opt 2>/dev/null; do
 	case "$opt" in
 		r) REND=$OPTARG ;;
 		N) NAME=$OPTARG ;;
@@ -75,6 +80,7 @@ while getopts "r:W:H:f:n:w:m:a:t:s:x:N:S" opt 2>/dev/null; do
 		t) TIMEOUT=$OPTARG ;;
 		s) SCREENMODE=$OPTARG ;;
 		x) EXTRA=$OPTARG ;;
+		A) LAUNCHARGS=$OPTARG ;;
 		*) echo "bench.sh: bad option" >&2; exit 2 ;;
 	esac
 done
@@ -229,7 +235,7 @@ cd "$BASE" || exit 1
 # priority over config.cfg (unlike the width/height/fullscreen cvars). They also
 # override the launcher's built-in per-machine profile, which is what the
 # launcher's caller-wins argument handling exists for.
-"$LAUNCHER" -nomsgbox -nosound -ref "$REND" -width "$W" -height "$H" $MODEPARM \
+"$LAUNCHER" -nomsgbox -nosound -ref "$REND" -width "$W" -height "$H" $MODEPARM $LAUNCHARGS \
 	+map "$MAP" +exec bench_tr.cfg >/dev/null 2>&1 &
 PID=$!
 
