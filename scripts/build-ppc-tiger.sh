@@ -156,7 +156,12 @@ check_pin sdl   "$SDLSRC" "$PIN_SDL_COMMIT"
 #                parses; std::vector in mainui still parses. (Panther dodges this with
 #                --disable-altivec; the G5 uses the 10.5 SDK.)
 #  min-10.3 lets a Panther G4 load it; it runs forward on 10.4/10.5.
-ARCHFLAGS="-arch ppc -mcpu=7400 -faltivec -isysroot $SDK -mmacosx-version-min=10.3"
+# perf-ppc: -mtune=7450 schedules for the 7450/7455 pipeline the G4 fleet
+# actually runs (same ISA, still executes on a 7400; the G5 has headroom to
+# spare either way). -fno-math-errno drops the errno bookkeeping around libm
+# calls (sqrt in the studio dlight loop and friends) without any of the
+# value-changing parts of -ffast-math.
+ARCHFLAGS="-arch ppc -mcpu=7400 -mtune=7450 -faltivec -fno-math-errno -isysroot $SDK -mmacosx-version-min=10.3"
 
 # --- 0) compat-include shims ------------------------------------------------
 # cinttypes and cstdint are TRACKED files, shipped by sync-build-host.sh and

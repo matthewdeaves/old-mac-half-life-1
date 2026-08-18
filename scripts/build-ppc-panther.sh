@@ -67,7 +67,10 @@ WAFOUT=build-panther
 # refuses to exec it (proven on the G3-Tiger: the thinned ppc slice runs; the ALL-in-fat does
 # not; a ppc750-stamped fat does). Only the exec needs the exact subtype - the engine dylibs
 # stay ALL and dlopen grades them fine on a 750 host (also proven).
-ARCHFLAGS="-arch ppc -isysroot $SDK -mmacosx-version-min=10.3"
+# perf-ppc: -mtune=750 schedules for the G3 this slice actually runs on;
+# -fno-math-errno drops errno bookkeeping around libm calls, none of the
+# value-changing parts of -ffast-math.
+ARCHFLAGS="-arch ppc -mtune=750 -fno-math-errno -isysroot $SDK -mmacosx-version-min=10.3"
 
 # DBG=1 -> build with DWARF debug symbols (-g) so the engine's libbacktrace crash
 # handler can symbolize frames (otherwise it prints "no debug info in Mach-O").

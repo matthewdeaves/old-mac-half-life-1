@@ -223,7 +223,14 @@ fi
 # Gate on uname -p = powerpc so no Intel subtype number can ever match the G3 branch.
 OS="\$(sw_vers -productVersion)"
 if [ "\$(uname -p)" = "powerpc" ] && { [ "\$(sysctl -n hw.cpusubtype 2>/dev/null)" = "9" ] || [ "\$(machine 2>/dev/null)" = "ppc750" ]; }; then
-	PROFILE="-ref gl -fullscreen -width 800 -height 600"           # G3 (ppc750): low-res exclusive fullscreen, ANY OS
+	# G3 (ppc750): low-res exclusive fullscreen, ANY OS. The perf-ppc engine adds
+	# four Rage 128 knobs, all no-ops on every other machine because only this
+	# profile passes them: -bpp 16 switches the display to a 16-bit mode (halves
+	# framebuffer bandwidth AND flips texture uploads to 16-bit formats against
+	# the card's 16 MB VRAM), -gldepth16 requests the card's native 16-bit Z,
+	# -glnostencil drops the stencil buffer nothing shipped reads, and -bilinear
+	# selects single-mip filtering where the Rage 128 pays double for trilinear.
+	PROFILE="-ref gl -fullscreen -width 800 -height 600 -bpp 16 -gldepth16 -glnostencil -bilinear"
 else
 	# -borderless means SDL fullscreen-desktop, and on 10.7 that leaves the menu
 	# bar in place: the window is the full 1920x1080 at 0,0 but the GL drawable is

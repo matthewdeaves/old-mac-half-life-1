@@ -31,9 +31,11 @@ XASH_VERSION="0.21"
 
 # --- engine: all three slices build from this one branch ---------------------
 # Fork of FWGS/xash3d-fwgs, branched at f0ea3a19.
+# perf-ppc: the PPC performance branch, eight commits on top of oldmac
+# 2584d6f8. Merges back to oldmac once the fleet A/Bs confirm it.
 PIN_ENGINE_URL="https://github.com/matthewdeaves/xash3d-fwgs.git"
-PIN_ENGINE_BRANCH="oldmac"
-PIN_ENGINE_COMMIT="2584d6f89e27b80026c61dd0f81d67cc75bbec30"
+PIN_ENGINE_BRANCH="perf-ppc"
+PIN_ENGINE_COMMIT="9ff2ed710d693562dd94d629336a46749007964a"
 PIN_ENGINE_UPSTREAM="FWGS/xash3d-fwgs@f0ea3a19"
 
 # --- menu: submodule of the engine, re-pointed by our engine branch ----------
