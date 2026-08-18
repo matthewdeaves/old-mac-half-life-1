@@ -37,7 +37,7 @@ XASH_VERSION="0.21"
 # and would omit these commits until the merge.
 PIN_ENGINE_URL="https://github.com/matthewdeaves/xash3d-fwgs.git"
 PIN_ENGINE_BRANCH="perf-ppc"
-PIN_ENGINE_COMMIT="46382cc91374e698608ef352a33d6f109770bd91"
+PIN_ENGINE_COMMIT="2c15d01cc48ea62b163067e642315fcd8b22e323"
 PIN_ENGINE_UPSTREAM="FWGS/xash3d-fwgs@f0ea3a19"
 
 # --- menu: submodule of the engine, re-pointed by our engine branch ----------

@@ -130,3 +130,4 @@ timestamp,label,host,renderer,resolution,screenmode,map,frames,fps_min,fps_med,f
 2026-08-18T16:27:49,g3tigab1-v172,yosemite-tiger,gl,800x600,fullscreen,c0a0,300,29.824,29.982,30.116,29.824|29.982|30.116
 2026-08-18T16:29:04,g3tigab2-branch,yosemite-tiger,gl,800x600,fullscreen,c0a0,300,44.334,44.623,45.054,44.334|44.623|45.054
 2026-08-18T16:30:08,g3tigab2-v172,yosemite-tiger,gl,800x600,fullscreen,c0a0,300,29.839,30.003,30.087,29.839|30.003|30.087
+2026-08-18T18:01:26,g3-menu-toggle-default,yosemite,gl,800x600,fullscreen,c0a0,300,40.250,40.465,40.910,40.250|40.465|40.910
