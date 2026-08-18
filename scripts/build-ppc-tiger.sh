@@ -156,20 +156,19 @@ check_pin sdl   "$SDLSRC" "$PIN_SDL_COMMIT"
 #                parses; std::vector in mainui still parses. (Panther dodges this with
 #                --disable-altivec; the G5 uses the 10.5 SDK.)
 #  min-10.3 lets a Panther G4 load it; it runs forward on 10.4/10.5.
-# perf-ppc: -mtune=7450 schedules for the 7450/7455 pipeline the G4 fleet
-# actually runs (same ISA, still executes on a 7400; the G5 has headroom to
-# spare either way). NOTE the bench fleet holds no 7400-class machine, so the
-# cost of 7450 scheduling on a real 7400/7410 (Sawtooth, Cube, TiBook) is
-# untested; the flag trades an unmeasurable population for the measurable one.
-# -fno-math-errno drops the errno bookkeeping around libm calls (sqrt in the
-# studio dlight loop and friends) without any of the value-changing parts of
-# -ffast-math; the SAME literal flag is in build-ppc-panther.sh's ARCHFLAGS and
-# build-mod.sh's build_ppc archflags, and the three cannot share a variable
-# because build-pins.sh is sourced after this line, so a change here must be
-# made in all three places. (This build's hlsdk output is discarded;
-# make-universal.sh ships panther's untuned pair, so -mtune stays in ARCHFLAGS
-# here.)
-ARCHFLAGS="-arch ppc -mcpu=7400 -mtune=7450 -faltivec -fno-math-errno -isysroot $SDK -mmacosx-version-min=10.3"
+# perf-ppc: NO -mtune=7450. It was tried and MEASURED OUT on 2026-08-18: this
+# slice also serves the G5, and on the 970 (g5-desktop, Leopard, c0a0 bench)
+# the 7450-tuned build ran 183 fps against 209 for the untuned one, a 13% loss
+# that survived turning every new render knob off, while the G4 mini (7447)
+# measured no gain from it at all. Scheduling for the 7450's short pipe breaks
+# the 970's dispatch grouping, and one slice cannot be tuned for both.
+# -fno-math-errno stays: it drops the errno bookkeeping around libm calls
+# (sqrt in the studio dlight loop and friends) without any of the
+# value-changing parts of -ffast-math. The SAME literal flag is in
+# build-ppc-panther.sh's ARCHFLAGS and build-mod.sh's build_ppc archflags, and
+# the three cannot share a variable because build-pins.sh is sourced after
+# this line, so a change here must be made in all three places.
+ARCHFLAGS="-arch ppc -mcpu=7400 -faltivec -fno-math-errno -isysroot $SDK -mmacosx-version-min=10.3"
 
 # --- 0) compat-include shims ------------------------------------------------
 # cinttypes and cstdint are TRACKED files, shipped by sync-build-host.sh and
