@@ -102,6 +102,29 @@ seeded punch.
 hair or shoulders, no black fringe. Then render the `.icns` back with `sips` and
 check 128 and 64.
 
+### The new-artwork game icon (icon-source-halflife-new.png)
+
+The 2026-08 regeneration from the new HEV bust shipped with the shoulders eaten
+through again, reported from the G3 Finder and obvious over magenta: 2503
+partial-alpha pixels inside the lower half of the 256 chunk against 789 for a
+clean cut (789 is just the silhouette's anti-aliased edge). The mask tool was
+not at fault; a fresh `make-icon-mask.py` cut of the same source is solid at any
+threshold, so the damage rode in through a stale or reprocessed intermediate.
+The recipe that produced the current shipped icns, verified over magenta at
+256 and 128 and chunk-checked Panther-safe:
+
+    .venv/bin/python scripts/make-icon-mask.py MacOSX/icon-source-halflife-new.png \
+        --thresh 2 -o /tmp/hl-cut.png --preview /tmp/hl-prev.png
+    # square crop BEFORE assembly (the resize is non-uniform, see above):
+    .venv/bin/python -c "from PIL import Image; \
+        Image.open('/tmp/hl-cut.png').crop((0,120,1169,1289)).save('/tmp/hl-cut-sq.png')"
+    .venv/bin/python scripts/make-icon.py /tmp/hl-cut-sq.png --keep-bg --modern \
+        -o MacOSX/Half-Life.icns
+
+LOOK at the preview before assembling, and LOOK at the icns composited over
+magenta after: the holes are invisible against the black backdrop they were cut
+from, which is how they survived review twice before.
+
 Known imperfection: a faint grainy edge above the crowbar shoulder and along the
 prongs, from a mottled 1-4 halo a 3-level ramp can't feather. Invisible at 128px
 and below; a fix needs a spatially-varying ramp (`--ramp-soft`), which does not

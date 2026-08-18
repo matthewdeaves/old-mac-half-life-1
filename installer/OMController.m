@@ -933,6 +933,16 @@ NSString *OMSkipReason( NSString *gamedir )
 	 * game folder after a clean run. */
 	[OMFetch sweepLeftoversIn:destRoot sink:nil];
 
+	/* Issue #1: mark the app idle BEFORE the completion dialog goes up, and
+	 * synchronously. The dialog's Quit routes through
+	 * applicationShouldTerminate, and the old order queued the idle flip with
+	 * waitUntilDone:NO behind a modal panel already blocking the main thread,
+	 * so pressing Quit on "Mods installed" warned that the app was still
+	 * working. Every piece of the run is finished by this line; the flag was
+	 * simply the last thing to hear about it. */
+	[self performSelectorOnMainThread:@selector(mainSetRunning:)
+	                       withObject:[NSNumber numberWithBool:NO] waitUntilDone:YES];
+
 	[self finishedAlert:okCount failed:failCount skipped:(unsigned)[noSource count]
 	            adopted:adoptCount cancelled:cancelled destination:destRoot];
 
