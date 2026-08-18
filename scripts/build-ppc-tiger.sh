@@ -156,12 +156,14 @@ check_pin sdl   "$SDLSRC" "$PIN_SDL_COMMIT"
 #                parses; std::vector in mainui still parses. (Panther dodges this with
 #                --disable-altivec; the G5 uses the 10.5 SDK.)
 #  min-10.3 lets a Panther G4 load it; it runs forward on 10.4/10.5.
-# perf-ppc: NO -mtune=7450. It was tried and MEASURED OUT on 2026-08-18: this
-# slice also serves the G5, and on the 970 (g5-desktop, Leopard, c0a0 bench)
-# the 7450-tuned build ran 183 fps against 209 for the untuned one, a 13% loss
-# that survived turning every new render knob off, while the G4 mini (7447)
-# measured no gain from it at all. Scheduling for the 7450's short pipe breaks
-# the 970's dispatch grouping, and one slice cannot be tuned for both.
+# perf-ppc: NO -mtune=7450. Tried 2026-08-18 and dropped for a different
+# reason than first written here: tuned and untuned builds of the same branch
+# state measured IDENTICAL on the G5 (183 fps both) and the G4 mini (93 both),
+# so the flag has no measured effect either way. (A G5 regression was briefly
+# blamed on it; the tuned/untuned pair refuted that, and the real cause was
+# profiled to the client-arrays submission path.) It stays off because it buys
+# nothing measurable and 7450 scheduling is untested on the real 7400/7410
+# population this slice also serves.
 # -fno-math-errno stays: it drops the errno bookkeeping around libm calls
 # (sqrt in the studio dlight loop and friends) without any of the
 # value-changing parts of -ffast-math. The SAME literal flag is in
