@@ -225,15 +225,17 @@ OS="\$(sw_vers -productVersion)"
 if [ "\$(uname -p)" = "powerpc" ] && { [ "\$(sysctl -n hw.cpusubtype 2>/dev/null)" = "9" ] || [ "\$(machine 2>/dev/null)" = "ppc750" ]; }; then
 	# G3 (ppc750): low-res exclusive fullscreen, ANY OS. The perf-ppc engine adds
 	# Rage 128 knobs, no-ops on every other machine because only this profile
-	# passes them: -gldepth16 requests the card's native 16-bit Z, -glnostencil
-	# drops the stencil buffer nothing shipped reads (together +5%, no visible
-	# cost at Half-Life's scale), and -bilinear selects single-mip filtering
+	# passes them: -bpp 16 switches the display to a 16-bit mode (+23%: halves
+	# framebuffer bandwidth and flips texture uploads to RGB5/RGBA4 against the
+	# card's 16 MB), -gldepth16 requests the card's native 16-bit Z and
+	# -glnostencil drops the stencil buffer nothing shipped reads (together +5%,
+	# invisible at Half-Life's scale), -bilinear selects single-mip filtering
 	# where the Rage 128 pays double for trilinear (+14%, a subtle mip seam).
-	# Measured 2026-08-18 on yosemite/10.3.9, c0a0: 36.1 fps vs 30.0 for
-	# v1.7.2. NOT passed: -bpp 16. It measured another +23% (44.6 fps) but at
-	# 15-bit color plus RGB5/RGBA4 textures, and the banding was judged too
-	# high a price for the default; it remains one launch argument away.
-	PROFILE="-ref gl -fullscreen -width 800 -height 600 -gldepth16 -glnostencil -bilinear"
+	# Measured 2026-08-18 on yosemite/10.3.9, c0a0: 44.6 fps vs 30.0 for v1.7.2.
+	# The 16-bit look was judged BY EYE on a same-frame screenshot pair before
+	# shipping ("very little difference"); the Rage 128 dithers it and each knob
+	# has a -no form for A/Bs.
+	PROFILE="-ref gl -fullscreen -width 800 -height 600 -bpp 16 -gldepth16 -glnostencil -bilinear"
 else
 	# -borderless means SDL fullscreen-desktop, and on 10.7 that leaves the menu
 	# bar in place: the window is the full 1920x1080 at 0,0 but the GL drawable is
