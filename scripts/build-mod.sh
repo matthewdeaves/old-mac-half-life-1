@@ -304,7 +304,11 @@ build_ppc() {
 		export DEVELOPER_DIR="$XC_DEVELOPER_DIR"   # for git only
 		export CC="gcc-4.0" CXX="g++-4.0"
 		export MACOSX_DEPLOYMENT_TARGET=10.3
-		local archflags="-arch ppc -isysroot $SDK_PPC -mmacosx-version-min=10.3"
+		# perf-ppc: -fno-math-errno matches build-ppc-panther.sh's hlsdk step
+		# (this pair also runs on every PowerPC machine, so no -mtune here
+		# either). Same literal flag in both PPC slice drivers; the scripts do
+		# not share a variable, so a change must be made in all three places.
+		local archflags="-arch ppc -fno-math-errno -isysroot $SDK_PPC -mmacosx-version-min=10.3"
 		export CFLAGS="$archflags"
 		export CXXFLAGS="$archflags -isystem $SHIM -isystem $GCCINC $CXXINC_PPC"
 		export LINKFLAGS="$archflags"

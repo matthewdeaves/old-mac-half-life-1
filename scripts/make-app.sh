@@ -354,6 +354,14 @@ for a in "\$@"; do
 		-ref)         PROFILE=\$( echo " \$PROFILE " | sed 's/ -ref [a-z]*//g' ) ;;
 		-fullscreen|-borderless|-windowed|-width|-height)
 			PROFILE=\$( echo " \$PROFILE " | sed -e 's/ -fullscreen//g' -e 's/ -borderless//g' -e 's/ -windowed//g' -e 's/ -width [0-9]*//g' -e 's/ -height [0-9]*//g' ) ;;
+		# The G3 profile's Rage 128 knobs are flags with no value to override,
+		# so a caller (bench.sh A/Bs above all) turns each off with a -no form.
+		# The -no token itself passes through to the engine, which ignores
+		# unknown parameters; only the profile flag is stripped.
+		-nobpp)         PROFILE=\$( echo " \$PROFILE " | sed 's/ -bpp [0-9]*//g' ) ;;
+		-nogldepth16)   PROFILE=\$( echo " \$PROFILE " | sed 's/ -gldepth16//g' ) ;;
+		-noglnostencil) PROFILE=\$( echo " \$PROFILE " | sed 's/ -glnostencil//g' ) ;;
+		-nobilinear)    PROFILE=\$( echo " \$PROFILE " | sed 's/ -bilinear//g' ) ;;
 	esac
 done
 

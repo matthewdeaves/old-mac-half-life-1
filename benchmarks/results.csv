@@ -68,3 +68,4 @@ timestamp,label,host,renderer,resolution,screenmode,map,frames,fps_min,fps_med,f
 2026-08-09T20:54:13,g3-tiger-check,yosemite-tiger,gl,800x600,fullscreen,c0a0,300,30.309,30.434,30.567,30.309|30.434|30.567
 2026-08-09T21:10:59,v1.7.0-four-slice-mods,mini-g4,gl,800x600,fullscreen,c0a0,300,90.863,91.209,91.223,91.209|90.863|91.223
 2026-08-09T21:16:39,v1.7.0-g3-panther,yosemite,gl,800x600,fullscreen,c0a0,300,29.961,30.070,30.113,29.961|30.070|30.113
+2026-08-18T09:50:56,perfppc-v172-baseline,mini-intel,gl,800x600,fullscreen,c0a0,300,123.604,124.605,126.238,123.604|126.238|124.605

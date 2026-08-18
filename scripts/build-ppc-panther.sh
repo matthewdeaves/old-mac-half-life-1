@@ -67,10 +67,20 @@ WAFOUT=build-panther
 # refuses to exec it (proven on the G3-Tiger: the thinned ppc slice runs; the ALL-in-fat does
 # not; a ppc750-stamped fat does). Only the exec needs the exact subtype - the engine dylibs
 # stay ALL and dlopen grades them fine on a 750 host (also proven).
-# perf-ppc: -mtune=750 schedules for the G3 this slice actually runs on;
-# -fno-math-errno drops errno bookkeeping around libm calls, none of the
-# value-changing parts of -ffast-math.
-ARCHFLAGS="-arch ppc -mtune=750 -fno-math-errno -isysroot $SDK -mmacosx-version-min=10.3"
+# perf-ppc: -fno-math-errno drops errno bookkeeping around libm calls, none of
+# the value-changing parts of -ffast-math. The SAME literal flag is in
+# build-ppc-tiger.sh's ARCHFLAGS and build-mod.sh's build_ppc archflags; the
+# three cannot share a variable because this line runs before build-pins.sh is
+# sourced, so a change here must be made in all three places.
+#
+# TUNE750 (-mtune=750) is applied to the ENGINE and SDL steps only, NOT hlsdk:
+# the ppc750-stamped executable and this build's generic-ppc engine dylib
+# slices are only ever selected on a G3 (a G4/G5 grades the ppc7400 slice
+# higher), but make-universal.sh ships THIS build's hlsdk game dylib pair as
+# the single generic-ppc pair for G3, G4 and G5 alike, so the game code must
+# stay untuned.
+ARCHFLAGS="-arch ppc -fno-math-errno -isysroot $SDK -mmacosx-version-min=10.3"
+TUNE750="-mtune=750"
 
 # DBG=1 -> build with DWARF debug symbols (-g) so the engine's libbacktrace crash
 # handler can symbolize frames (otherwise it prints "no debug info in Mach-O").
@@ -195,27 +205,32 @@ EOF
 # sdl2-config existence gate cannot tell a bumped pin from a built one: the
 # SOURCE tree is pin-checked above, but nothing tied the installed prefix to
 # it, so a pin bump would ship the previous pin's SDL silently.
+# The marker includes the flags as well as the pin: a flag change must rebuild
+# the cached static lib exactly like a pin bump, or two minis with identical
+# pins can ship different SDL codegen depending on when each last wiped its
+# prefix (found in review of the perf-ppc flag change).
+SDL_BUILT_FROM="$PIN_SDL_COMMIT $ARCHFLAGS $TUNE750"
 if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
-   [ "$(cat "$SDLPREFIX/.built-from" 2>/dev/null)" != "$PIN_SDL_COMMIT" ]; then
+   [ "$(cat "$SDLPREFIX/.built-from" 2>/dev/null)" != "$SDL_BUILT_FROM" ]; then
 	echo "==> [1] cross-building panther-sdl2 (ppc, static, 10.3)"
 	rm -rf "$SDLPREFIX"
 	( cd "$SDLSRC" && make distclean >/dev/null 2>&1 || true
 	  # --disable-altivec: SDL 2.0.3 otherwise compiles AltiVec blitters (calc_swizzle32 etc.).
 	  # They're runtime-guarded by SDL_HasAltiVec(), but the G3 ppc750 has NO AltiVec, so build
 	  # them out entirely -> the whole static lib (and thus libxash) is guaranteed SIGILL-free.
-	  CC="gcc-4.0 $ARCHFLAGS" CFLAGS="$ARCHFLAGS" LDFLAGS="$ARCHFLAGS" \
+	  CC="gcc-4.0 $ARCHFLAGS $TUNE750" CFLAGS="$ARCHFLAGS $TUNE750" LDFLAGS="$ARCHFLAGS $TUNE750" \
 	  ./configure --prefix="$SDLPREFIX" --host=powerpc-apple-darwin8 --build=i686-apple-darwin11 \
 	              --disable-joystick --disable-haptic --without-x --disable-shared --enable-static \
 	              --disable-altivec
 	  make -j"$(sysctl -n hw.ncpu)" && make install )
-	printf '%s\n' "$PIN_SDL_COMMIT" > "$SDLPREFIX/.built-from"
+	printf '%s\n' "$SDL_BUILT_FROM" > "$SDLPREFIX/.built-from"
 fi
 export PATH="$SDLPREFIX/bin:$PATH"
 
 # --- shared flags ------------------------------------------------------------
-export CFLAGS="$ARCHFLAGS -std=gnu99 -isystem $GCCINC"
-export LINKFLAGS="$ARCHFLAGS"
-export LDFLAGS="$ARCHFLAGS"
+export CFLAGS="$ARCHFLAGS $TUNE750 -std=gnu99 -isystem $GCCINC"
+export LINKFLAGS="$ARCHFLAGS $TUNE750"
+export LDFLAGS="$ARCHFLAGS $TUNE750"
 
 # The engine, menu, miniutl and libbacktrace fixes are commits on our own branch
 # of each of those upstreams, so the trees scripts/fetch-sources.sh checked out
@@ -223,7 +238,7 @@ export LDFLAGS="$ARCHFLAGS"
 
 # --- 2) engine + renderers + menu (AltiVec OFF for the G3 ppc750) ------------
 echo "==> [2] engine (generic ppc / Panther, no AltiVec)"
-export CXXFLAGS="$ARCHFLAGS -isystem $SHIM -isystem $GCCINC $CXXINC -DMY_COMPILER_SUCKS=1 -include $SHIM/oldmac_cxx11.h"
+export CXXFLAGS="$ARCHFLAGS $TUNE750 -isystem $SHIM -isystem $GCCINC $CXXINC -DMY_COMPILER_SUCKS=1 -include $SHIM/oldmac_cxx11.h"
 ( cd "$ENGINE"
   # --disable-rpath: the min-10.3 linker rejects -rpath ("requires 10.5 or later"), and our .app
   # doesn't need it anyway -- the launcher uses dlopen + DYLD_LIBRARY_PATH (make-app.sh), not rpath.
@@ -269,6 +284,12 @@ done
 echo "==> [3] hlsdk game dylibs (generic ppc / Panther)"
 # The waf cross-compile fix and the big-endian shared-client fixes are commits on
 # our own hlsdk-portable branch, checked out by scripts/fetch-sources.sh.
+# No TUNE750 here, and CFLAGS/LDFLAGS drop it again: this hlsdk pair ships as
+# the one generic-ppc game dylib pair for every PowerPC machine (see the
+# ARCHFLAGS note). -fno-math-errno stays; it changes no values.
+export CFLAGS="$ARCHFLAGS -std=gnu99 -isystem $GCCINC"
+export LINKFLAGS="$ARCHFLAGS"
+export LDFLAGS="$ARCHFLAGS"
 export CXXFLAGS="$ARCHFLAGS -isystem $SHIM -isystem $GCCINC $CXXINC"
 ( cd "$HLSDK"
   # Always from scratch. waf decides for itself whether a task needs redoing,

@@ -158,9 +158,17 @@ check_pin sdl   "$SDLSRC" "$PIN_SDL_COMMIT"
 #  min-10.3 lets a Panther G4 load it; it runs forward on 10.4/10.5.
 # perf-ppc: -mtune=7450 schedules for the 7450/7455 pipeline the G4 fleet
 # actually runs (same ISA, still executes on a 7400; the G5 has headroom to
-# spare either way). -fno-math-errno drops the errno bookkeeping around libm
-# calls (sqrt in the studio dlight loop and friends) without any of the
-# value-changing parts of -ffast-math.
+# spare either way). NOTE the bench fleet holds no 7400-class machine, so the
+# cost of 7450 scheduling on a real 7400/7410 (Sawtooth, Cube, TiBook) is
+# untested; the flag trades an unmeasurable population for the measurable one.
+# -fno-math-errno drops the errno bookkeeping around libm calls (sqrt in the
+# studio dlight loop and friends) without any of the value-changing parts of
+# -ffast-math; the SAME literal flag is in build-ppc-panther.sh's ARCHFLAGS and
+# build-mod.sh's build_ppc archflags, and the three cannot share a variable
+# because build-pins.sh is sourced after this line, so a change here must be
+# made in all three places. (This build's hlsdk output is discarded;
+# make-universal.sh ships panther's untuned pair, so -mtune stays in ARCHFLAGS
+# here.)
 ARCHFLAGS="-arch ppc -mcpu=7400 -mtune=7450 -faltivec -fno-math-errno -isysroot $SDK -mmacosx-version-min=10.3"
 
 # --- 0) compat-include shims ------------------------------------------------
@@ -208,8 +216,13 @@ EOF
 # sdl2-config existence gate cannot tell a bumped pin from a built one: the
 # SOURCE tree is pin-checked above, but nothing tied the installed prefix to
 # it, so a pin bump would ship the previous pin's SDL silently.
+# The marker includes the flags as well as the pin: a flag change must rebuild
+# the cached static lib exactly like a pin bump, or two minis with identical
+# pins can ship different SDL codegen depending on when each last wiped its
+# prefix (found in review of the perf-ppc flag change).
+SDL_BUILT_FROM="$PIN_SDL_COMMIT $ARCHFLAGS"
 if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
-   [ "$(cat "$SDLPREFIX/.built-from" 2>/dev/null)" != "$PIN_SDL_COMMIT" ]; then
+   [ "$(cat "$SDLPREFIX/.built-from" 2>/dev/null)" != "$SDL_BUILT_FROM" ]; then
 	echo "==> [1] cross-building panther-sdl2 (ppc, static, 10.3, AltiVec ON)"
 	rm -rf "$SDLPREFIX"
 	( cd "$SDLSRC" && make distclean >/dev/null 2>&1 || true
@@ -219,7 +232,7 @@ if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
 	  ./configure --prefix="$SDLPREFIX" --host=powerpc-apple-darwin8 --build=i686-apple-darwin11 \
 	              --disable-joystick --disable-haptic --without-x --disable-shared --enable-static
 	  make -j"$(sysctl -n hw.ncpu)" && make install )
-	printf '%s\n' "$PIN_SDL_COMMIT" > "$SDLPREFIX/.built-from"
+	printf '%s\n' "$SDL_BUILT_FROM" > "$SDLPREFIX/.built-from"
 fi
 export PATH="$SDLPREFIX/bin:$PATH"
 
