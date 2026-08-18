@@ -5,7 +5,7 @@ a8713b0a4a29194b30c8deea048df1f0  build-lion.sh
 8ec7f6607a2780f6ccf333188243783e  build-ppc-tiger.sh
 a37331a5c26fa096d3ea4773548b6650  build-ppc-panther.sh
 ec9afdd04387ce49e448dc6750453ce4  make-universal.sh
-c9f9fe94c9c77307bc0f68497794c7ae  make-app.sh
+9758456ed22a4e075081868f045e721f  make-app.sh
 19d46f379da6fd920cb781af1b8fc102  build-installer.sh
 9ef79ab8d8a0182bfe72cb54064353c3  build-sysreport.sh
 00d832265ea3ffec1c7e63c74c0d93aa  build-mod.sh
