@@ -10,7 +10,7 @@ Three layers, split by what they need to run.
 
 ```sh
 python3 tests/test-repo.py -v
-tests/test-artifact.sh dist/Half-Life-OldMac-v1.4.1.dmg
+tests/test-artifact.sh dist/Half-Life-OldMac-v<version>.dmg
 tests/test-mod-dylibs.sh dist/mods
 tests/test-mod-dylibs.sh "/path/to/Half-Life Mods.app/Contents/Resources/mods"
 ```

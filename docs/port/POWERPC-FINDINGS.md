@@ -4,7 +4,9 @@ What running Half-Life on a 1999 Power Mac actually costs, one entry per finding
 
 Every change this port makes is a commit on our own branch of an upstream tree,
 so `git log <upstream>..oldmac` is the complete record and this file is the
-readable version of it. Fifty-six commits sit on the engine branch alone.
+readable version of it. Most of them sit on the engine branch. The count is
+deliberately not written down here: git already knows it, and a number kept by
+hand is a second source of truth that goes stale the next time the branch moves.
 
 Most of these are not really about PowerPC. They are about a codebase meeting an
 older OS, an older compiler and a smaller GPU than anyone had tried it against,

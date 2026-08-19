@@ -42,8 +42,14 @@ pins a video mode, runs warmup plus measured passes, prints CSV.
 ```
 bench.sh [-r gl|soft] [-W width] [-H height] [-s fullscreen|borderless|windowed]
          [-f frames] [-n runs] [-w warmups] [-m map] [-a /path/Half-Life.app]
-         [-t timeout_s]
+         [-t timeout_s] [-A "launch args"]
 ```
+
+`-A` passes its argument through to the launcher. It exists because the pixel
+format is fixed when the GL context is created, so the G3 knobs cannot be
+reached by a `-x` console cvar the way a renderer setting can. The G3 profile's
+flags each have a `-no` form for exactly this: `-A "-nobpp"`, `-A "-nogldepth16"`,
+`-A "-noglnostencil"`, `-A "-nobilinear"`.
 
 Defaults: `gl`, `800x600`, `fullscreen`, 300 frames, 3 runs, 1 warmup, map `c0a0`.
 CSV columns:
@@ -72,7 +78,7 @@ truncated). Unreachable machines are skipped.
 scripts/fleet-bench.sh [-l label] [-r gl|soft] [-W w] [-H h]
                        [-s fullscreen|borderless|windowed]
                        [-f frames] [-n runs] [-w warmups] [-t timeout]
-                       [-m map] [host ...]
+                       [-m map] [-A "launch args"] [host ...]
 ```
 
 Default fleet: `yosemite quicksilver mini-g4 imac-g5 mini-intel`. Name hosts

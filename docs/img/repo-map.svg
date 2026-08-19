@@ -108,5 +108,5 @@
     <text x="32" y="527">vendor/MANIFEST.md   scripts/fetch-sources.sh   scripts/build-pins.sh   scripts/patch-*.py</text>
     <text x="32" y="546">scripts/build-*.sh   scripts/make-universal.sh   scripts/make-app.sh   configs/   docs/</text>
   </g>
-  <text x="32" y="570" font-size="12" fill="#57606a">Everything above reconstructs from a clean checkout: bootstrap clones the pinned commits, the scripts patch and build, lipo fuses the slices.</text>
+  <text x="32" y="570" font-size="12" fill="#57606a">Everything above reconstructs from a clean checkout: bootstrap clones the pinned commits, the scripts build each slice, lipo fuses them.</text>
 </svg>
