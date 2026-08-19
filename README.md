@@ -68,12 +68,16 @@ runs natively on every CPU above.
 The game. Every machine renders with **hardware OpenGL**, from the G3's ATI
 Rage 128 up, with the software renderer as automatic fallback; the world is
 drawn in a single multitexture pass, worth about **30% more frames** on the
-fillrate-bound G3. The launcher picks a display mode per machine: the G3 gets
-exclusive fullscreen at 800x600, a fillrate decision about its Rage 128; every
-other PowerPC Mac gets borderless at its desktop resolution; Intel and Apple
-Silicon get exclusive fullscreen at the desktop resolution. A config shipped
-inside the app re-applies renderer-safe defaults on every launch, and the
-console is available everywhere without developer mode.
+fillrate-bound G3. On top of that the G3 runs a leaner pixel format, 16-bit
+color with single-mip filtering and no stencil, which takes it from 30.0 to
+**44.6 fps** at the c0a0 bench viewpoint. The 16-bit mode is a video menu
+toggle, on by default on the G3 only, and the choice sticks. The launcher picks
+a display mode per machine: the G3 gets exclusive fullscreen at 800x600, a
+fillrate decision about its Rage 128; every other PowerPC Mac gets borderless at
+its desktop resolution; Intel and Apple Silicon get exclusive fullscreen at the
+desktop resolution. A config shipped inside the app re-applies renderer-safe
+defaults on every launch, and the console is available everywhere without
+developer mode.
 
 LAN multiplayer works across the endian boundary: PowerPC and Intel machines
 host and join each other.
