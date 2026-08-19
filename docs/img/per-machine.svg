@@ -1,25 +1,31 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 486" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
-  <rect x="0" y="0" width="980" height="486" rx="10" fill="#f6f8fa"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1140 548" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <rect x="0" y="0" width="1140" height="548" rx="10" fill="#f6f8fa"/>
   <text x="24" y="36" font-size="21" font-weight="700" fill="#1f2328">How each machine runs the same app</text>
 
   <!-- row backgrounds -->
   <g>
-    <rect x="16" y="112" width="948" height="46" fill="#ffffff"/>
-    <rect x="16" y="158" width="948" height="46" fill="#eef2f6"/>
-    <rect x="16" y="204" width="948" height="46" fill="#ffffff"/>
-    <rect x="16" y="250" width="948" height="46" fill="#eef2f6"/>
-    <rect x="16" y="296" width="948" height="46" fill="#ffffff"/>
-    <rect x="16" y="342" width="948" height="46" fill="#eef2f6"/>
-    <rect x="16" y="388" width="948" height="46" fill="#ffffff"/>
+    <rect x="16" y="112" width="1108" height="46" fill="#ffffff"/>
+    <rect x="16" y="158" width="1108" height="46" fill="#eef2f6"/>
+    <rect x="16" y="204" width="1108" height="46" fill="#ffffff"/>
+    <rect x="16" y="250" width="1108" height="46" fill="#eef2f6"/>
+    <rect x="16" y="296" width="1108" height="46" fill="#ffffff"/>
+    <rect x="16" y="342" width="1108" height="46" fill="#eef2f6"/>
+    <rect x="16" y="388" width="1108" height="46" fill="#ffffff"/>
+    <rect x="16" y="434" width="1108" height="46" fill="#eef2f6"/>
   </g>
+
+  <!-- the untested column, called out behind its cells -->
+  <rect x="632" y="60" width="166" height="420" rx="6" fill="#fff8c5" opacity="0.55"/>
 
   <!-- column headers -->
   <g>
     <rect x="150" y="60" width="158" height="50" rx="6" fill="#8250df"/>
     <rect x="312" y="60" width="158" height="50" rx="6" fill="#8250df"/>
     <rect x="474" y="60" width="158" height="50" rx="6" fill="#8250df"/>
-    <rect x="636" y="60" width="158" height="50" rx="6" fill="#0a7ea4"/>
-    <rect x="798" y="60" width="162" height="50" rx="6" fill="#1a7f37"/>
+    <rect x="636" y="60" width="158" height="50" rx="6" fill="#0a7ea4" opacity="0.5"/>
+    <rect x="636" y="60" width="158" height="50" rx="6" fill="none" stroke="#9a6700" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <rect x="798" y="60" width="158" height="50" rx="6" fill="#0a7ea4"/>
+    <rect x="960" y="60" width="158" height="50" rx="6" fill="#1a7f37"/>
     <g fill="#ffffff" text-anchor="middle">
       <text x="229" y="82" font-size="13.5" font-weight="700">G3</text>
       <text x="229" y="100" font-size="10.5" fill="#e9d8fd">Power Mac (Yosemite)</text>
@@ -27,10 +33,12 @@
       <text x="391" y="100" font-size="10.5" fill="#e9d8fd">Power Mac + mini</text>
       <text x="553" y="82" font-size="13.5" font-weight="700">G5</text>
       <text x="553" y="100" font-size="10.5" fill="#e9d8fd">iMac + Power Mac</text>
-      <text x="715" y="82" font-size="13.5" font-weight="700">Intel</text>
-      <text x="715" y="100" font-size="10.5" fill="#c7ecf5">Mac mini, Core 2 Duo</text>
-      <text x="879" y="82" font-size="13.5" font-weight="700">Apple Silicon</text>
-      <text x="879" y="100" font-size="10.5" fill="#c9ebd4">MacBook Air M5</text>
+      <text x="715" y="82" font-size="13.5" font-weight="700" fill="#1f2328">Intel, 32-bit</text>
+      <text x="715" y="100" font-size="10.5" fill="#57606a">Core Solo / Core Duo</text>
+      <text x="877" y="82" font-size="13.5" font-weight="700">Intel, 64-bit</text>
+      <text x="877" y="100" font-size="10.5" fill="#c7ecf5">Mac mini, Core 2 Duo</text>
+      <text x="1039" y="82" font-size="13.5" font-weight="700">Apple Silicon</text>
+      <text x="1039" y="100" font-size="10.5" fill="#c9ebd4">MacBook Air M5</text>
     </g>
   </g>
 
@@ -43,6 +51,7 @@
     <text x="28" y="324">SDL2</text>
     <text x="28" y="370">Renderer</text>
     <text x="28" y="416">Window</text>
+    <text x="28" y="462">Run on hardware</text>
   </g>
 
   <!-- values -->
@@ -51,63 +60,79 @@
     <text x="229" y="140">PowerPC 750</text>
     <text x="391" y="140">PowerPC 7450</text>
     <text x="553" y="140">PowerPC 970</text>
-    <text x="715" y="140">Intel Core 2 Duo</text>
-    <text x="879" y="140">Apple M-series</text>
+    <text x="715" y="140">Core Solo / Duo</text>
+    <text x="877" y="140">Intel Core 2 Duo</text>
+    <text x="1039" y="140">Apple M-series</text>
     <!-- macOS -->
     <text x="229" y="186">10.3.9, 10.4</text>
     <text x="391" y="186">10.4</text>
     <text x="553" y="186">10.3.9-10.5</text>
-    <text x="715" y="186">10.6.8 and up</text>
-    <text x="879" y="186">11 and up</text>
+    <text x="715" y="186">10.6</text>
+    <text x="877" y="186">10.6.8 and up</text>
+    <text x="1039" y="186">11 and up</text>
     <!-- Slice -->
     <text x="229" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">ppc750</text>
     <text x="391" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">ppc7400</text>
     <text x="553" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">ppc7400</text>
-    <text x="715" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">x86_64</text>
-    <text x="879" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">arm64</text>
+    <text x="715" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">i386</text>
+    <text x="877" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">x86_64</text>
+    <text x="1039" y="232" font-family="ui-monospace, Menlo, monospace" font-weight="700">arm64</text>
     <!-- Byte order -->
     <text x="229" y="278">big-endian</text>
     <text x="391" y="278">big-endian</text>
     <text x="553" y="278">big-endian</text>
     <text x="715" y="278">little-endian</text>
-    <text x="879" y="278">little-endian</text>
+    <text x="877" y="278">little-endian</text>
+    <text x="1039" y="278">little-endian</text>
     <!-- SDL2 -->
     <text x="229" y="324">2.0.3 static</text>
     <text x="391" y="324">2.0.3 static</text>
     <text x="553" y="324">2.0.3 static</text>
     <text x="715" y="324">2.0.22 dylib</text>
-    <text x="879" y="324">2.32.x dylib</text>
+    <text x="877" y="324">2.0.22 dylib</text>
+    <text x="1039" y="324">2.32.x dylib</text>
     <!-- Renderer -->
     <text x="229" y="370">OpenGL · Rage 128, 16-bit</text>
     <text x="391" y="370">OpenGL</text>
     <text x="553" y="370">OpenGL</text>
     <text x="715" y="370">OpenGL</text>
-    <text x="879" y="370">OpenGL</text>
+    <text x="877" y="370">OpenGL</text>
+    <text x="1039" y="370">OpenGL</text>
     <!-- Window -->
     <text x="229" y="416">fullscreen 800×600</text>
     <text x="391" y="416">borderless, desktop res</text>
     <text x="553" y="416">borderless, desktop res</text>
     <text x="715" y="416">fullscreen, desktop res</text>
-    <text x="879" y="416">fullscreen, desktop res</text>
+    <text x="877" y="416">fullscreen, desktop res</text>
+    <text x="1039" y="416">fullscreen, desktop res</text>
+    <!-- Run on hardware -->
+    <text x="229" y="462">yes</text>
+    <text x="391" y="462">yes</text>
+    <text x="553" y="462">yes</text>
+    <text x="715" y="462" font-weight="700" fill="#9a6700">never</text>
+    <text x="877" y="462">yes</text>
+    <text x="1039" y="462">yes</text>
   </g>
 
   <!-- column separators -->
   <g stroke="#d0d7de" stroke-width="1">
-    <line x1="146" y1="112" x2="146" y2="434"/>
-    <line x1="308" y1="112" x2="308" y2="434"/>
-    <line x1="470" y1="112" x2="470" y2="434"/>
-    <line x1="632" y1="112" x2="632" y2="434"/>
-    <line x1="794" y1="112" x2="794" y2="434"/>
+    <line x1="146" y1="112" x2="146" y2="480"/>
+    <line x1="308" y1="112" x2="308" y2="480"/>
+    <line x1="470" y1="112" x2="470" y2="480"/>
+    <line x1="632" y1="112" x2="632" y2="480"/>
+    <line x1="794" y1="112" x2="794" y2="480"/>
+    <line x1="956" y1="112" x2="956" y2="480"/>
   </g>
 
   <!-- legend -->
   <g>
-    <rect x="16" y="452" width="14" height="14" rx="3" fill="#8250df"/>
-    <text x="36" y="464" font-size="12" fill="#57606a">PowerPC, static panther-sdl2</text>
-    <rect x="240" y="452" width="14" height="14" rx="3" fill="#0a7ea4"/>
-    <text x="260" y="464" font-size="12" fill="#57606a">Intel</text>
-    <rect x="320" y="452" width="14" height="14" rx="3" fill="#1a7f37"/>
-    <text x="340" y="464" font-size="12" fill="#57606a">Apple Silicon</text>
-    <text x="960" y="464" font-size="12" fill="#57606a" text-anchor="end">One app; every slice builds from the same branch of every source tree.</text>
+    <rect x="16" y="494" width="14" height="14" rx="3" fill="#8250df"/>
+    <text x="36" y="506" font-size="12" fill="#57606a">PowerPC, static panther-sdl2</text>
+    <rect x="240" y="494" width="14" height="14" rx="3" fill="#0a7ea4"/>
+    <text x="260" y="506" font-size="12" fill="#57606a">Intel</text>
+    <rect x="320" y="494" width="14" height="14" rx="3" fill="#1a7f37"/>
+    <text x="340" y="506" font-size="12" fill="#57606a">Apple Silicon</text>
+    <text x="1124" y="506" font-size="12" fill="#57606a" text-anchor="end">One app; every slice builds from the same branch of every source tree.</text>
+    <text x="16" y="530" font-size="12" fill="#9a6700">The i386 column is built and shipped every release but has never been run: there is no 32-bit Intel Mac here to run it on. A report either way is welcome.</text>
   </g>
 </svg>

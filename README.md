@@ -51,10 +51,12 @@ only where the instruction set differs: the G3 has no AltiVec unit, the G4 and
 G5 do. Why these five, and why each PowerPC slice carries its exact CPU subtype:
 [docs/adr/0001](docs/adr/0001-slices-are-chosen-by-cpu-capability.md).
 
-Untested, only for lack of a machine set up that way: a G4 on 10.3.9, a G3 on
-10.5, and the PowerPC builds of 10.6. Each should take its existing slice; a
-report either way is
-[useful](https://github.com/matthewdeaves/old-mac-half-life-1/issues).
+Untested, only for lack of a machine set up that way: the whole `i386` slice,
+because there is no 32-bit Intel Mac here to run it on, plus a G4 on 10.3.9, a
+G3 on 10.5, and the PowerPC builds of 10.6. `i386` is built, arch-checked and
+shipped in every release like the rest; it has simply never been launched on a
+Core Solo or Core Duo. Each should take its existing slice; a report either way
+is [useful](https://github.com/matthewdeaves/old-mac-half-life-1/issues).
 
 ![Anatomy of the fat binary: three source trees build into five CPU slices that lipo fuses into one Half-Life.app](docs/img/fat-binary.svg)
 
