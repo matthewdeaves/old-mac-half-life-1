@@ -31,19 +31,17 @@ XASH_VERSION="0.21"
 
 # --- engine: all three slices build from this one branch ---------------------
 # Fork of FWGS/xash3d-fwgs, branched at f0ea3a19.
-# perf-ppc: the PPC performance branch on top of oldmac 2584d6f8. Merges back
-# to oldmac once the fleet A/Bs confirm it. NOT for release DMGs: the
-# provenance table below and BUILD-INFO.txt describe `git log upstream..oldmac`
-# and would omit these commits until the merge.
+# The PPC performance work merged to oldmac on 2026-08-19, fast-forward, so the
+# commit here is the one the fleet A/Bs and the G3 hands-on pass ran against.
 PIN_ENGINE_URL="https://github.com/matthewdeaves/xash3d-fwgs.git"
-PIN_ENGINE_BRANCH="perf-ppc"
+PIN_ENGINE_BRANCH="oldmac"
 PIN_ENGINE_COMMIT="f8420ba76d2962e5f3f1c0d3dac65485f1adb80e"
 PIN_ENGINE_UPSTREAM="FWGS/xash3d-fwgs@f0ea3a19"
 
 # --- menu: submodule of the engine, re-pointed by our engine branch ----------
 # Fork of FWGS/mainui_cpp, branched at 510c30c5.
 PIN_MENU_URL="https://github.com/matthewdeaves/mainui_cpp.git"
-PIN_MENU_BRANCH="perf-ppc"
+PIN_MENU_BRANCH="oldmac"
 PIN_MENU_COMMIT="56cb6e6f1b68e73db2a545384bb1eff60a578b55"
 PIN_MENU_UPSTREAM="FWGS/mainui_cpp@510c30c5"
 
