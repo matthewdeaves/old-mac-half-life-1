@@ -59,9 +59,12 @@ build being 32-bit and Intel 64-bit.
 ## Findings
 
 All are implemented as two guarded patch scripts wired into `build-mod.sh` and
-applied to **both** trees, not only the PowerPC one: apart from the DMC byteswap
-these are arch-neutral, so patching `-ppc` alone would ship an Intel slice still
-carrying them.
+applied to **every** slice's build, not only the PowerPC one: apart from the DMC
+byteswap these are arch-neutral, so patching the PowerPC build alone would ship
+Intel and `arm64` slices still carrying them. (Written when PowerPC and Intel
+built from separate trees; since `docs/adr/0003` there is one tree per component
+and one patch application, so the hazard is structural rather than live. The
+requirement is unchanged.)
 
 - `scripts/patch-hlsdk-shared-clientbugs.py` for #34, shared hlsdk code. The same
   two faults sit in the base game's own client dylib, fixed there by a commit on our

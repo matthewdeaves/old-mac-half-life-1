@@ -107,8 +107,9 @@ scripts/fleet-bench.sh -l fix-invalidenum -r gl -W 800 -H 600 yosemite
 | `mini-intel2`    | Mac mini (Macmini2,1)      | Intel GMA 950        | 10.7.5  | yes   |
 | `mini-sl`        | Mac mini (Macmini3,1)      | NVIDIA GeForce 9400  | 10.6.8  | **no**|
 
-PowerPC aliases are bench and test targets only; all three slices cross-compile on
-the Intel Lion minis.
+PowerPC aliases are bench and test targets only. Four of the five slices
+cross-compile on the Intel Lion minis; `arm64` is built on the orchestration box.
+`docs/adr/0005`
 
 **`mini-sl` cannot produce a valid GL benchmark as currently wired.** It has no
 display attached and its NVIDIA 9400 will not hand out an accelerated context
@@ -239,8 +240,10 @@ unchanged on Tiger and Leopard.
 ### Current state of the dual G5
 
 All three partitions are onboarded per the runbook above and carry the game:
-`~/Desktop` holds `Half-Life-OldMac-v1.4.3.dmg` plus a `Half-Life/` folder with
-the three app bundles and a full retail `valve/`, md5 verified against the dev box.
+`~/Desktop` holds a release `.dmg` plus a `Half-Life/` folder with the three app
+bundles and a full retail `valve/`, md5 verified against the dev box. (The
+deployed version moves every release and is not tracked here; `scripts/deploy-dmg.sh`
+is what puts it there.)
 
 | partition | slice | OS | alias | state |
 |---|---|---|---|---|

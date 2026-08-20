@@ -28,11 +28,17 @@ slice it could not run and did not start at all. GitHub issue #14.
 ## Decision
 
 **Ship five slices: `ppc750`, `ppc7400`, `i386`, `x86_64`, `arm64`.**
-(Three until 2026-08-08; see the amendment at the end.) The G5 uses `ppc7400`.
+The G5 uses `ppc7400`.
 
-- `ppc` for the G3, which has no AltiVec unit
+The decision of 2026-07-27 was the first three of those, replacing a four-slice
+set that carried `ppc970`:
+
+- `ppc750` for the G3, which has no AltiVec unit
 - `ppc7400` for the G4 and the G5, which both do
 - `x86_64` for Intel
+
+`i386` and `arm64` were added on 2026-08-08 under the same rule; see the
+amendment at the end.
 
 Anything that depends on the OS rather than the CPU is decided in the launcher, a
 shell script that can read `sw_vers`. The display profile already worked that way

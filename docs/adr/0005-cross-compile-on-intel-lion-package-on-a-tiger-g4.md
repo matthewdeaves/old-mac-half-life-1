@@ -16,7 +16,8 @@ formats, new tools cannot write old ones, and that decides where each step runs:
   Tiger-built UDZO image mounts on Panther and on everything newer (`:28-30`).
 - Lion's `/usr/bin/lipo`, `install_name_tool` and `strings` are stale stubs that
   choke on modern x86_64 load commands, so the Xcode toolchain's copies have to
-  win on `PATH` (`scripts/make-universal.sh:41-45`, `docs/MODS.md:149-155`).
+  win on `PATH` (`scripts/make-universal.sh`; `docs/MODS.md`, "Things that bite
+  on these machines").
 
 Two Intel minis exist, `mini-intel` and `mini-intel2`, the same Macmini2,1 on
 10.7.5 with the same toolchain, and several repositories and agents may want one
@@ -24,8 +25,22 @@ at once.
 
 ## Decision
 
-**All three slices cross-compile on an Intel Lion mini. The release disk image is
-packaged on a Tiger G4. The PowerPC machines are bench and test targets only.**
+**Every slice a Lion mini can build cross-compiles there. The release disk image
+is packaged on a Tiger G4. The PowerPC machines are bench and test targets
+only.**
+
+That is four of the five Mach-O slices: `x86_64` and `i386` from
+`build-lion.sh`, `ppc750` from `build-ppc-panther.sh`, `ppc7400` from
+`build-ppc-tiger.sh`. Two products are not mini jobs and are named here so the
+exception is not rediscovered:
+
+- **`arm64`**, built on the orchestration box because Xcode 4.6 predates the
+  architecture by seven years (ADR 0001's amendment). Lion's `lipo` can still
+  FUSE it, so the fuse stays on the mini.
+- **The Linux dedicated server**, built on the orchestration box in a container,
+  because no mini has a Linux toolchain and none needs one (ADR 0013).
+
+How each step is wired:
 
 - `scripts/build-lion.sh`, `scripts/build-ppc-panther.sh` and
   `scripts/build-ppc-tiger.sh` run locally on that box with no ssh of their own;
@@ -50,8 +65,8 @@ machines under test, so a build there consumes the thing being measured, and the
 are where a failure has to be observed rather than caused.
 
 **Build on the modern Apple Silicon dev box.** Current Xcode carries none of the
-SDKs or compilers these targets need; this box orchestrates and never compiles a
-slice.
+SDKs or compilers these targets need. It compiles only what Lion cannot reach at
+all: the `arm64` slice and the Linux server.
 
 **Package the disk image on the G3.** Rejected on evidence: on an earlier old-Mac
 release a single byte flipped during that G3's `hdiutil` read-zlib-write chain and
@@ -90,7 +105,8 @@ prevents.
   x86_64 Mach-O and reports zero matches, which looks exactly like a missing
   patch, so shipped strings are checked elsewhere. The git inside the build
   scripts is Xcode 4.6.3's 1.7.12.4, so `git -C` does not exist and
-  `( cd ... && git ... )` is required (`docs/MODS.md:149-155`).
+  `( cd ... && git ... )` is required (`docs/MODS.md`, "Things that bite on
+  these machines").
 - A release needs three machines reachable: an Intel mini, the orchestration box,
   and a Tiger G4. Someone with only one cannot reproduce a release, whatever ADR
   0002 makes possible on paper.
@@ -103,8 +119,8 @@ prevents.
   (`:391-397`, `:465-480`). That check exists because the failure it catches has
   happened.
 - A lock is reclaimed when it is older than `BUILD_LOCK_STALE_SECS`, three hours
-  by default, and nothing is compiling (`pick-build-host.sh:40-45`), so a build
-  running longer with an idle compiler could be interrupted.
+  by default, and nothing is compiling (`scripts/pick-build-host.sh:40-45`), so
+  a build running longer with an idle compiler could be interrupted.
 - `pick-build-host.sh` is a distributed copy; the canonical one lives in a
   separate private repository that owns the minis (`:5-14`), so this copy can
   drift.

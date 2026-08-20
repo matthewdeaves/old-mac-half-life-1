@@ -18,7 +18,8 @@ alex-free publishes legacy native-Cocoa SDL2 builds for old Mac OS X, from the
 ## Decision
 
 **Both PowerPC slices link `panther-sdl2` 2.0.3, built from source and linked
-statically. The Intel slice builds SDL 2.0.22 from source as a dylib.**
+statically. The Intel slices build SDL 2.0.22 from source as a dylib. `arm64`
+builds a current SDL2 (2.32.x).**
 
 - `scripts/build-ppc-panther.sh` and `scripts/build-ppc-tiger.sh` cross-build
   `panther-sdl2` for `ppc` with `--disable-shared --enable-static`, at min-OS 10.3
@@ -32,15 +33,26 @@ statically. The Intel slice builds SDL 2.0.22 from source as a dylib.**
 - With SDL static, `libxash.dylib` has no SDL load command on those slices, so the
   `libSDL2-2.0.0.dylib` in the bundle is x86_64 only and the PowerPC slices never
   open it (`scripts/make-universal.sh`).
-- `scripts/build-lion.sh` builds SDL 2.0.22 for x86_64 at min-OS 10.7 with the
-  Metal render driver disabled: FWGS needs SDL 2.0.16 or newer for the gyro and
-  sensor GameController API in `joy_sdl2.c`, and newer SDL uses `@available`,
-  which Xcode 4's clang does not have, only in the iOS and Metal paths.
+- `scripts/build-lion.sh` builds SDL 2.0.22 with the Metal render driver
+  disabled: FWGS needs SDL 2.0.16 or newer for the gyro and sensor
+  GameController API in `joy_sdl2.c`, and newer SDL uses `@available`, which
+  Xcode 4's clang does not have, only in the iOS and Metal paths. SDL is built
+  **per floor and per architecture**, each in its own prefix
+  (`sdl2-snow-<arch>` at 10.6, `sdl2-<arch>` at 10.7): a 10.7 `libSDL2` dropped
+  into a 10.6 build links and installs without complaint and then refuses to
+  load on 10.6, while an x86_64 one in an i386 build at least fails to link.
+- `scripts/build-arm64.sh` builds a current SDL2 (`OLDMAC_ARM64_SDL`, 2.32.4 by
+  default), deliberately unlike the Intel slices. 2.0.22 is pinned everywhere
+  else because it is the newest SDL Apple clang 4.2 will compile, which is a
+  fact about the Lion build box and not about Apple Silicon; 2.0.22 does not
+  build under clang 21 at all. The engine's SDL guards are `SDL_VERSION_ATLEAST`
+  tests written so one branch builds against both.
 
 ## Alternatives rejected
 
-**One SDL version for all three slices.** None works: 2.0.22 cannot be built for
-PowerPC on these SDKs, and 2.0.3 is below the 2.0.16 floor the Intel engine needs.
+**One SDL version for every slice.** None works: 2.0.22 cannot be built for
+PowerPC on these SDKs, 2.0.3 is below the 2.0.16 floor the Intel engine needs,
+and 2.0.22 does not build under the modern clang the `arm64` slice uses.
 
 **`leopard-sdl2` 2.0.6 for the G4 and G5.** The `ppc7400` slice runs on the G4
 under 10.4 and the G5 under 10.5, and 2.0.6 links 10.5-only AudioQueue, Text Input
@@ -73,11 +85,12 @@ platform layer is `engine/platform/sdl2/`.
   there is no path to a newer one on these systems.
 - The PowerPC SDL builds set `--disable-joystick --disable-haptic`, so those
   slices have no gamepad support.
-- Two SDL versions means two sets of behaviour to reason about when a display or
-  input fault appears on one architecture and not the other.
+- Three SDL versions means three sets of behaviour to reason about when a
+  display or input fault appears on one architecture and not the others.
 
 **Risks accepted**
 
-- The Intel SDL 2.0.22 source is a tarball `scripts/build-lion.sh` downloads from
-  libsdl.org, so unlike every other input it carries no commit pin. This is the
-  weakest link in the reproduction chain ADR 0002 sets up.
+- The Intel SDL 2.0.22 and the `arm64` SDL 2.32.x sources are tarballs
+  `scripts/build-lion.sh` and `scripts/build-arm64.sh` download from libsdl.org,
+  so unlike every other input they carry a version string rather than a commit
+  pin. This is the weakest link in the reproduction chain ADR 0002 sets up.

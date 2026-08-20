@@ -11,8 +11,9 @@ single-player archive, and [archive.org](https://archive.org) for the rest.
 `installer/mod-sources.txt` records the URL, format, size, md5 and subtree for
 every one, and the reason for each of the seven that have no usable source.
 
-We add the game code only, rebuilt for **PowerPC** and 64-bit Intel from each
-mod's own source branch; the only other Mac builds are i386 and need 10.5.8+.
+We add the game code only, rebuilt from each mod's own source branch for every
+CPU this project supports: `ppc`, `i386`, `x86_64` and `arm64` in one fat file
+per role.
 
 ## The shape of the problem
 
@@ -46,12 +47,12 @@ a straight overwrite. One generic `ppc` slice covers all three PPC machines:
 **Four slices**: `ppc`, `i386`, `x86_64`, `arm64`. The game's fifth is only the
 `ppc750`/`ppc7400` split, which these do not need.
 
-`arm64` cannot be built on a mini: Xcode 4.6 on Lion predates the architecture.
-`scripts/build-mod-arm64.sh` runs on the Apple Silicon box,
-`push-mod-arm64.sh` carries the thin slices over, and `fuse-mod-arm64.sh` adds
-them on the build host. Lion's `lipo` fuses arm64 and only fails to NAME the
-slice, printing `cputype (16777228)`; `otool` and `install_name_tool` refuse
-the whole file, which is why nothing in that path uses them.
+`arm64` cannot be built on a mini (`CLAUDE.md`, `docs/adr/0001` amendment):
+`scripts/build-mod-arm64.sh` runs on the Apple Silicon box, `push-mod-arm64.sh`
+carries the thin slices over, and `fuse-mod-arm64.sh` adds them on the build
+host. The mod-specific consequence of Lion's toolchain: `otool` and
+`install_name_tool` refuse a file containing arm64 outright, which is why
+nothing in that fuse path uses them.
 
 `tests/test-mod-dylibs.sh` verifies a fat dylib by `dlopen`. Run it on each
 machine in turn: `dlopen` only ever returns the slice for the CPU it is running
@@ -167,23 +168,17 @@ not mistaken for a bug and "fixed" back.
 ## The installer app
 
 `installer/` builds **Half-Life Mods.app**: native Cocoa, fat `ppc` + `i386` +
-`x86_64` + `arm64`, `LSMinimumSystemVersion 10.3.0`.
+`x86_64` + `arm64`, `LSMinimumSystemVersion 10.3.0`. What kind of program it is
+and why is `docs/adr/0009`; where it fetches from is `docs/adr/0011`; the
+networking and the 10.3-era Cocoa rules are `installer/README.md`. Only what
+bears on the mod dylibs is repeated here:
 
-The `i386` slice matches the game and the mod dylibs: without it, a 2006 Core
-Solo or Core Duo owner could run Half-Life and every mod but not the app that
-installs them. `arm64` is built by `scripts/build-installer-arm64.sh` on the
-Apple Silicon box and is optional at the far end, since the `x86_64` slice
-already runs under Rosetta 2.
-
-One generic `ppc` slice, unlike the game: Tiger and Leopard mis-grade a fat
-holding SEVERAL ppc slices on a 750 host, while one generic ppc slice beside the
-Intel ones grades correctly everywhere.
-
-Downloading is hand-written HTTP/1.1 with `Range:` resume over raw sockets, with
-mbed TLS 3.6 built into every slice. NSURLConnection is not used: its byte
-counters are 32-bit, the same flaw that makes the engine's own HTTP client
-unusable here (`httpfile_t.size` is an `int`). `installer/README.md` covers the
-networking and the 10.3-era Cocoa rules in full.
+- The installer's slice set matches the mod dylibs exactly, `ppc i386 x86_64
+  arm64`, so there is no machine that can run a mod but not install one.
+- Downloading is hand-written HTTP/1.1 with `Range:` resume over raw sockets,
+  with mbed TLS 3.6 in every slice. `NSURLConnection` is not used: its byte
+  counters are 32-bit, the same flaw that makes the engine's own HTTP client
+  unusable here (`httpfile_t.size` is an `int`).
 
 ### What it refuses to copy
 

@@ -218,3 +218,11 @@ entities including the hazard-striped blast door render with proper lightmaps.
 > *masking* a bad primary colour that the two-pass `GL_MODULATE` path multiplies
 > in. It matters because single-pass auto-disables when fog is enabled. Tracked
 > separately; it is not caused by this change, which is inert when the cvar is 0.
+>
+> **Status of that lead, since it was never closed out here.** A separate blue
+> cast WAS later root-caused and fixed, but in the screenshot capture path rather
+> than the renderer: `ref_soft` wrote pixels as a native-order word instead of as
+> bytes (`docs/port/POWERPC-FINDINGS.md` entry 14). Whether that is the same
+> defect as the one above is **INFERRED and unverified**: entry 14 is `ref_soft`
+> and this observation is a GL A/B, so they may well be two different faults.
+> Treat the paragraph above as an open lead, not as something already fixed.

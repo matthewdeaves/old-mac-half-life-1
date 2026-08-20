@@ -25,6 +25,11 @@ scripts/build-sysreport-arm64.sh               # the System Report app's
 scripts/push-arm64-slice.sh $HOST              # carries the engine over, verifies by md5
 scripts/push-mod-arm64.sh $HOST                # carries the other three over
 
+# The Linux dedicated server is the OTHER non-mini product. Runs HERE, in a
+# container, from the same pins. `docs/adr/0013`, operator docs `server/README.md`
+scripts/build-server-linux.sh                  # x86_64
+scripts/build-server-linux.sh --arch aarch64   # ARM VPS
+
 scripts/make-dmg.sh [version-label]      # Tiger G4 ONLY, see the hard rules
 scripts/deploy-dmg.sh HOST [version]     # install on a bench box as a user would
 scripts/smoke-dmg.sh HOST                # does the installed app actually launch
@@ -68,34 +73,36 @@ on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
   **`x86_64`**, **`arm64`**. PowerPC targets 10.3.9 and runs to 10.5.
   `docs/adr/0001`
 - **Intel is 10.6 Snow Leopard+**, not 10.7. The only thing that ever held it at
-  10.7 was `libc++.1.dylib`; the whole C++ runtime need is 13 ABI symbols and
-  there is no STL use anywhere, so `-stdlib=libstdc++` covers it. That is the
-  WIDER choice, not a compromise: `libstdc++.6.dylib` has no file on disk on
-  macOS 26 but still `dlopen`s from the dyld shared cache, so the range is
+  10.7 was `libc++.1.dylib`, and `-stdlib=libstdc++` covers the whole C++
+  runtime need. That is the WIDER choice, not a compromise: the range is
   **10.6.8 through macOS 26** against libc++'s 10.7+. The one gap is
   `<cinttypes>`, supplied by `compat-include/`. Set `OLDMAC_INTEL_MIN=10.7` for
-  an A/B; measured cost of the change is +0.45%, i.e. none. `docs/adr/0010`
+  an A/B; measured cost is +0.45%, i.e. none. Full reasoning and the symbol
+  count: `scripts/build-lion.sh:29-52`.
 - **`i386` is for the 2006 Core Solo and Core Duo only** (Mac mini 1,1, iMac 4,1,
   MacBook 1,1, MacBook Pro 1,1), the sole Intel Macs with no 64-bit mode. Built
-  by `OLDMAC_INTEL_ARCH=i386 build-lion.sh`.
+  by `OLDMAC_INTEL_ARCH=i386 build-lion.sh`. Never run on hardware: there is no
+  such machine here.
 - **`arm64` is built on THIS box, not a mini**: Xcode 4.6 predates it by seven
   years. FOUR drivers, one per shipped Mach-O product: `build-arm64.sh`
   (engine), `build-mod-arm64.sh` (the 25 mod dylib pairs),
   `build-installer-arm64.sh` (Mods app), `build-sysreport-arm64.sh` (System
   Report). Lion's lipo can still FUSE arm64, so every fuse stays on the mini; it
   only fails to NAME the slice, printing `cputype (16777228)`, while `otool` and
-  `install_name_tool` refuse the whole file. The engine slice links libc++ and a
-  current SDL2, both deliberately unlike the Intel slices, and 11.0 is simply
-  the floor because Apple Silicon shipped with Big Sur. Never write "not for
-  Apple Silicon". `docs/adr/0010`
+  `install_name_tool` refuse the whole file. **Never write "not for Apple
+  Silicon".** `docs/adr/0001` amendment.
 - **Every shipped app runs natively on every CPU the project supports.** Game:
-  `ppc750 ppc7400 i386 x86_64 arm64`. Mod dylibs: `ppc i386 x86_64 arm64`, no
-  ppc split because `dlopen` grades generic `ppc` correctly on a 750. Mods app
-  and System Report: the same four. The System Report app's Intel floors are
-  deliberately LOWER than the game's, 10.4 for i386 and 10.5 for x86_64, so a
-  machine the game refuses can still say why; it also detects Rosetta 2 through
-  `sysctl.proc_translated` rather than believing the cputype, so it reports an
-  Apple Silicon Mac correctly whether translated or native. `docs/adr/0010`
+  `ppc750 ppc7400 i386 x86_64 arm64`. Mod dylibs, Mods app and System Report:
+  `ppc i386 x86_64 arm64`, no ppc split because `dlopen` grades generic `ppc`
+  correctly on a 750. In all three, `arm64` is OPTIONAL at fuse time and its
+  absence is a Rosetta 2 downgrade, not a fault. The System Report app's Intel
+  floors are deliberately LOWER than the game's, 10.4 for i386 and 10.5 for
+  x86_64. `docs/adr/0010`
+- **A Linux dedicated server ships too**, built here in a Debian 11 container
+  from the same pins, so it is protocol-identical to the Mac clients by
+  construction. It is an unauthenticated UDP amplifier (101x on `A2S_RULES`), so
+  the firewall rules are per source address and are not optional.
+  `docs/adr/0013`, `docs/adr/0014`, `server/README.md`
 - **Never put `compat-include/` on a MODERN compiler's include path.** It supplies
   `<cstdint>` and `<cinttypes>` to header sets predating C++11, and `-isystem`
   puts it AHEAD of libc++, so on current clang the shim SHADOWS the real header
@@ -103,20 +110,20 @@ on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
   namespace only, libc++ wants `std::intmax_t`, and `is_trivially_copyable.h`
   fails to compile. It belongs on the PowerPC and libstdc++ paths, nowhere else.
 - **Game dylib names are NOT "arch with an underscore".**
-  `COM_GenerateLibraryName` special-cases 32-bit x86 on Apple, Windows and Linux
-  and gives it none, because that was Half-Life's original platform. So it is
-  `hl.dylib` / `client.dylib` for i386, and `hl_ppc`, `hl_amd64`, `hl_arm64` for
-  the rest. The engine `dlopen`s these BY NAME.
+  `COM_GenerateLibraryName` special-cases 32-bit x86 and gives it no suffix at
+  all, that having been Half-Life's original platform. So it is `hl.dylib` /
+  `client.dylib` for i386, and `hl_ppc`, `hl_amd64`, `hl_arm64` for the rest.
+  The engine `dlopen`s these BY NAME, so a `_i386` suffix produces files it will
+  never look for. `docs/adr/0001` amendment.
 - **Mac OS X only, not Mac OS 9** (issue #23). Classic is out of scope.
 - **Three trees:** engine (`xash3d-fwgs`), menu (`mainui_cpp`), game dylibs
-  (`hlsdk-portable`). **All three slices now build from the same branch of each**,
-  our own, from mainline. There is no separate PowerPC tree any more, so a fix
-  cannot be live on one architecture and missing on another. `docs/adr/0012`
+  (`hlsdk-portable`). **Every slice, and the Linux server, builds from the same
+  branch of each**, our own, from mainline. There is no separate PowerPC tree any
+  more, so a fix cannot be live on one architecture and missing on another.
+  `docs/adr/0003`, `docs/adr/0012`
 - **PowerPC links `panther-sdl2` 2.0.3 statically, Intel builds SDL 2.0.22 as a
-  dylib, arm64 builds a current SDL2 (2.32.x).** 2.0.22 is the newest SDL Apple
-  clang 4.2 will compile, which is a fact about the Lion build box and not about
-  arm64; 2.0.22 does not build under clang 21 at all. `leopard-sdl2` is in no
-  shipped slice. `docs/adr/0004`
+  dylib, arm64 builds a current SDL2 (2.32.x).** `leopard-sdl2` is in no shipped
+  slice and needs 10.5, so it can never be one. `docs/adr/0004`
 - **Never use GitHub ZIPs.** Each tree is cloned `--recursive` at the pinned
   commit into a git-ignored `vendor/`. **Nothing patches it on the way to the
   compiler.** `docs/adr/0002`, `docs/adr/0012`
@@ -154,9 +161,11 @@ on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
   `url."git@github.com:".insteadOf` rewrite, so `build-pins.sh` can keep naming
   plain https URLs. Without that a fetch fails with "could not read Username".
 - **No `pkill` on 10.7, 10.4 or 10.3 at all.** Kill by PID out of `ps`.
-- `--disable-altivec` is an ENGINE option. It breaks hlsdk's configure.
-- hlsdk assumes darwin means clang, so it hands gcc a `-Wl,--no-undefined`
-  flag that Apple's ld rejects.
+- The hlsdk-specific traps (`--disable-altivec` is an ENGINE option and breaks
+  hlsdk's configure; hlsdk assumes darwin means clang and hands gcc a
+  `-Wl,--no-undefined` Apple's ld rejects; gcc-4.0 is stricter than the x86_64
+  clang) are in `docs/MODS.md`, "Things that bite on these machines", with the
+  script that handles each.
 - Lion's `strings` cannot read a modern x86_64 Mach-O and reports zero matches,
   which looks exactly like a missing fix. Verify strings on the dev box.
 - Panther's `lipo` cannot name the x86_64 slice and prints
@@ -206,16 +215,21 @@ inferred. A partial result from a killed agent is a lead, never a finding.
 
 - `README.md` public overview: fleet matrix, per-machine config, upstream credits
 - `docs/MODS.md` mods and rebuilds, `docs/MOD-AUDIT.md` the source audit,
-  `docs/ICONS.md` icons and the Panther size ceiling, `tests/README.md` coverage
+  `docs/ICONS.md` icons and the Panther size ceiling, `docs/LICENSING.md` the
+  per-component terms and the one grey area, `tests/README.md` coverage
 - `docs/BENCHMARKING.md` the timerefresh harness, the ssh aliases, and the
   runbook for onboarding a new machine or partition; `docs/GL-OPTIMIZATION-CASE-STUDY.md`
   how the single-pass world draw was measured
-- `docs/adr/`: 0001 CPU-capability slices, 0002 pinned vendoring, 0003 split
-  trees, 0004 SDL2, 0005 Lion builds and Tiger packaging, 0006 code not content,
-  0007 launcher, 0008 mod dylibs, 0009 mod installer, 0010 report-app floors,
-  0011 per-mod sources + installer TLS, **0012 the port is commits on our own
-  forks** (supersedes the patching half of 0002)
+- `server/README.md` running and securing the Linux dedicated server
+- `docs/adr/`: 0001 CPU-capability slices, 0002 pinned vendoring, 0003 one tree
+  per component, 0004 SDL2, 0005 Lion builds and Tiger packaging, 0006 code not
+  content, 0007 launcher, 0008 mod dylibs, 0009 mod installer, 0010 report-app
+  floors, 0011 per-mod sources + installer TLS, **0012 the port is commits on
+  our own forks** (supersedes the patching half of 0002), 0013 the Linux
+  dedicated server, 0014 the server is a UDP amplifier
 - `docs/port/POWERPC-FINDINGS.md`: the publishable write-up, one entry per
   finding with symptom, cause, change and the machines it was measured on,
-  including the ones that were got wrong; `docs/port/PPC-PORT-NOTES.md`: the
-  move onto mainline, including two diagnoses made, measured and retracted
+  **including the ones that were got wrong**; `docs/port/PPC-PORT-NOTES.md`: the
+  move onto mainline, including two diagnoses made, measured and retracted.
+  Read both before re-diagnosing anything on this fleet: several plausible
+  mechanisms in them are recorded as REFUTED and must not be republished.

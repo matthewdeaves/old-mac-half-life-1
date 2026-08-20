@@ -1,7 +1,7 @@
 # 0012. The port is commits on our own forks, not scripts run over somebody else's tree
 
 Date: 2026-07-31
-Status: accepted. Replaces the patching half of `0002-pinned-vendoring.md`.
+Status: accepted. Replaces the patching half of ADR 0002.
 
 ## Context
 
@@ -85,7 +85,9 @@ commit with an empty diff cannot be created by accident.
 
 ## Related
 
-- `0002-pinned-vendoring.md`: pinning survives, the patching does not.
-- `0003-split-trees.md`: the three trees are unchanged as a structure.
+- ADR 0002, `0002-upstream-is-vendored-at-pinned-commits-and-patched-by-script.md`:
+  pinning survives, the patching does not. The file keeps its original name.
+- ADR 0003, `0003-every-slice-builds-from-one-tree-per-component.md`: the three
+  trees are unchanged as a structure.
 - `.claude/rules/build-verification.md`: still applies in full. A readable port
   is not a built port, and waf still exits 0 on a failed task.

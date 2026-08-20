@@ -20,28 +20,46 @@ menu on both architectures (`scripts/make-app.sh:58-62`).
 ## Decision
 
 **`Contents/MacOS/xash3d` is a `bash` script; the Mach-O is `xash3d.bin` beside
-it** (`scripts/make-app.sh:53`, `:90-157`). In order:
+it** (`scripts/make-app.sh:97` opens the heredoc that writes it). In order:
 
 1. `XASH3D_BASEDIR` is set to the folder containing the `.app`,
-   `DYLD_LIBRARY_PATH` to the bundle's `MacOS` (`:92-94`).
+   `DYLD_LIBRARY_PATH` to the bundle's `MacOS` (`:100-101`).
 2. Refuses to run from a mounted disk image, detected with `df` plus a write
-   probe, in an `osascript` dialog saying what to do (`:97-111`). `df` not
+   probe, in an `osascript` dialog saying what to do (`:104-135`). `df` not
    `statfs`, to work from 10.3 to modern macOS.
 3. Refuses to run with no `valve/` beside the app, same kind of dialog
-   (`:119-124`).
-4. Picks a display profile by CPU capability first, then OS (`:126-153`): the G3
-   (`hw.cpusubtype` 9 or `machine` reporting `ppc750`, gated on
-   `uname -p = powerpc`) gets exclusive 800x600 on any OS; anything on 10.3 gets
-   the same, Panther's `fullscreen` cvar being broken; PowerPC on 10.4 and later
-   gets `-borderless` at native resolution; Intel gets exclusive `-fullscreen`,
-   because `-borderless` on 10.7 leaves the menu bar's top 22 pixels unpainted as
-   a white strip.
+   (`:208-217`).
+4. Picks a display profile **by CPU capability first, then OS** (`:219-302`):
+   - The **G3** (`hw.cpusubtype` 9 or `machine` reporting `ppc750`, gated on
+     `uname -p = powerpc`) gets exclusive 800x600 on any OS, plus the Rage 128
+     knobs `-gldepth16 -glnostencil -bilinear`. That is a fillrate decision
+     about the CPU, so it is keyed on CPU and applies on every OS.
+   - **Every other PowerPC machine, 10.3 through 10.5**, gets `-borderless` at
+     its desktop resolution.
+   - **Intel and Apple Silicon** get exclusive `-fullscreen` at the desktop
+     resolution, because `-borderless` on 10.7 leaves the menu bar's top 22
+     pixels unpainted as a white strip.
 5. Execs `xash3d.bin` with `-console` and the profile, stdout and stderr to
-   `last-run.log` beside the app (`:155`).
+   `last-run.log` beside the app (`:375`).
+
+**10.3 is no longer a special case, and that reversal is the point of writing it
+down.** Panther's `fullscreen` cvar IS broken, and 10.3 was once forced to
+exclusive 800x600 for that reason. `-borderless` is SDL fullscreen-desktop and
+never touches that cvar, so the premise did not reach the conclusion. Measured on
+the dual G5's Panther partition (10.3.9 build 7W98, Radeon 9600):
+`Window size: 1680x1050 (real 1680x1050)`, menu drawn through hardware GL. A G4
+or G5 on Panther now gets its own desktop resolution like every other PowerPC
+machine. Issue #41.
+
+The 16-bit display mode is **not** a launch flag. `vid_16bit` defaults on for a
+detected G3 and the player can turn it off in the video menu, where the archived
+choice then sticks, which a profile flag re-applied every launch could never
+allow. `-bpp 16` and `-bpp 32` remain as bench overrides
+(`docs/port/POWERPC-FINDINGS.md` entry 16).
 
 Flags, not a config file: `SetFullscreenModeFromCommandLine()` runs at video
 init, after `config.cfg` is executed, so the flags win and a config reset cannot
-undo them (`:64-66`).
+undo them (`:72-74`).
 
 ## Alternatives rejected
 
@@ -53,9 +71,8 @@ undo them (`:64-66`).
   bundle, which both variables need.
 - **Profile by OS alone.** The earlier behaviour: a G3 booted into Tiger or
   Leopard, a real configuration here, took the native-resolution branch and
-  rendered a slideshow on a Rage 128 (`:67-69`, issue #4).
-- **Retrying a failed launch.** A failed launch should be visible, not masked
-  (`:80-81`).
+  rendered a slideshow on a Rage 128 (`:74-77`, issue #4).
+- **Retrying a failed launch.** A failed launch should be visible, not masked.
 
 ## Consequences
 
@@ -65,8 +82,8 @@ undo them (`:64-66`).
   image and having no game data, name the real problem instead of quitting
   silently.
 - The bundle executable is not a Mach-O, so tools need `xash3d.bin`:
-  `make-app.sh:228-229` runs `lipo -info` on the `.bin`, `scripts/bench.sh:80-81`
-  looks for `xash3d.bin` first and falls back.
+  `scripts/make-app.sh:457` runs `lipo -info` on the `.bin`, and `scripts/bench.sh` looks
+  for `xash3d.bin` first and falls back.
 - Output goes to `last-run.log`, so a signal that kills the process without
   flushing loses it: no backtrace was ever obtained for the intermittent G5
   SIGBUS in ADR 0001, which was never root-caused.
@@ -75,7 +92,7 @@ undo them (`:64-66`).
   conditions unless the flags are repeated by hand.
 - Risk: the G3 branch keys on one CPU subtype number; never enumerate all
   subtypes, the G3 being the only CPU exception
-  (`.claude/rules/build-verification.md:52-65`). Another machine needing its own
+  (`.claude/rules/build-verification.md`). Another machine needing its own
   profile makes this a list.
 - Risk: `osascript` is assumed present from 10.3 up; both dialogs fall back to
   `echo` on stderr.

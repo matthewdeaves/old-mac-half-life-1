@@ -21,7 +21,8 @@ wrong, and how it failed is why this ADR is kept.
 
 **One tree per component, and every slice builds from it.** The engine, the menu
 and the game code each have exactly one branch, ours, pinned in
-`scripts/build-pins.sh`. `ppc750`, `ppc7400` and `x86_64` all compile from it.
+`scripts/build-pins.sh`. All five slices compile from it, `ppc750`, `ppc7400`,
+`i386`, `x86_64` and `arm64`, and so does the Linux dedicated server (ADR 0013).
 
 Mainline needs far less byte-order work than the split assumed: it swaps studio
 model data in `Mod_LoadCacheFile` and `R_StudioLoadHeader`, composes the built-in

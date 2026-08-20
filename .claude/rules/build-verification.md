@@ -26,10 +26,17 @@ After EVERY build you MUST:
    the rebuilt output.
 
 Run `lipo` on the dev box, for the same reason `strings` has to be run there.
-Panther's `lipo` predates x86_64 and cannot name that slice: on a correct fat it
-prints `ppc750 ppc7400 (cputype (16777223) cpusubtype (-2147483645))`, which
-reads like a missing or malformed slice and is not. The dev box prints the
-expected `ppc750 ppc7400 x86_64`.
+An old `lipo` cannot NAME a slice newer than itself and prints its raw cputype
+instead, which reads like a missing or malformed slice and is not:
+
+- Panther's `lipo` on a correct fat prints
+  `ppc750 ppc7400 (cputype (16777223) cpusubtype (-2147483645))`, naming neither
+  `x86_64` nor `arm64`.
+- Lion's `lipo` FUSES `arm64` correctly and prints it as
+  `cputype (16777228) cpusubtype (0)`.
+
+The dev box prints the expected `ppc750 ppc7400 i386 x86_64 arm64` for the game.
+Mod dylibs, the Mods app and System Report carry `ppc i386 x86_64 arm64`.
 
 When in doubt, force-clean the waf out dirs (`rm -rf` the `build-<target>` dirs,
 e.g. `build-panther` / `build-tiger`) before rebuilding so no stale objects
@@ -56,19 +63,14 @@ a machine other than the one you built for.
 
 ## Display profile is chosen in the launcher, not by slice
 
-`make-app.sh` writes a shell launcher that picks by CPU and OS, because `dyld`
-cannot act on an OS difference at all:
+`make-app.sh` writes a shell launcher that picks by CPU first and OS second,
+because `dyld` cannot act on an OS difference at all. The profiles, the
+measurements behind each, and the 10.3 special case that was measured away are
+in `docs/adr/0007`. Two rules apply when editing that launcher:
 
-- G3 (subtype 9 / `machine` = `ppc750`, gated on `uname -p = powerpc`): exclusive
-  800x600 fullscreen on any OS, which suits its Rage 128. This is a fillrate
-  decision about the CPU, not about the OS.
-- Every other PowerPC machine, 10.3 through 10.5: `-borderless` at the display's
-  native resolution. Panther's `fullscreen` cvar IS broken, which is why 10.3 was
-  once pinned to 800x600 here, but `-borderless` is SDL fullscreen-desktop and
-  never touches that cvar. Measured on the dual G5's Panther partition (10.3.9
-  build 7W98, Radeon 9600): `Window size: 1680x1050 (real 1680x1050)`, hardware
-  GL. Issue #41.
-- Intel: exclusive `-fullscreen`. `-borderless` on 10.7 leaves the menu bar's top
-  22 pixels unpainted as a white strip.
-
-Never enumerate all cpusubtypes. The G3 is the only CPU exception.
+- **Never enumerate all cpusubtypes.** The G3 is the only CPU exception, and it
+  is keyed on subtype 9 / `machine` = `ppc750`, gated on `uname -p = powerpc`.
+  A second machine needing its own profile turns this into a list.
+- **The G3's 800x600 is keyed on CPU, not OS.** It is a fillrate decision about
+  its Rage 128 and applies on Panther, Tiger and Leopard alike. Keying it on OS
+  is the bug that shipped once already (issue #4).

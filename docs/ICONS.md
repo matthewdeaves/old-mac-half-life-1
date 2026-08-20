@@ -4,19 +4,39 @@ Read this if you touch `scripts/make-icon.py` or regenerate `Half-Life.icns`.
 
 ## Current icons
 
-Three pieces of artwork, three uses, no repeats: two apps ship side by side and
+Four pieces of artwork, four uses, no repeats: three apps ship side by side and
 must be tellable apart in the Dock, and the installer's About picture should not
 restate that app's own icon.
 
+Since 2026-08 all three app icons come from the **new half-machine busts**
+(`*-new.png`), cut out with `make-icon-mask.py` and verified over magenta. The
+older sources below are kept as artwork of record and are no longer what ships.
+
 | File | Used for | Source |
 |---|---|---|
-| `MacOSX/Half-Life.icns` | `Half-Life.app` | `icon-source-lrz.png` (the bust) |
-| `MacOSX/Half-Life-Mods.icns` | `Half-Life Mods.app` | `icon-source-gordon-gravity-gun.png` |
-| `installer/About-Gordon.png` | the mod installer's About box | `icon-source-gordon-crowbar.png` |
+| `MacOSX/Half-Life.icns` | `Half-Life.app` | `icon-source-halflife-new.png`, HEV suit and orange lambda |
+| `MacOSX/Half-Life-Mods.icns` | `Half-Life Mods.app` | `icon-source-mods-new.png`, hard hat and hi-vis |
+| `MacOSX/Half-Life-SysReport.icns` | `Half-Life System Report.app` | `icon-source-sysreport-new.png`, lab coat |
+| `installer/About-Gordon.png` | the mod installer's About box | `icon-source-gordon-crowbar-new.png` |
 
-The bust reads better at 32×32 and 16×16 than a full figure, which is most of what
-the Dock and Finder draw. The full-figure sources
-are 1086×1448 on solid black; `icon-source-lrz.png` is 1169×1346, also on black.
+The System Report app used to share the game's icon, on the argument that it was
+one less piece of artwork to keep in step. That was reversed: the app someone
+runs when the game will not start is the worst one to leave looking like the
+game. `docs/adr/0010`.
+
+The bust reads better at 32×32 and 16×16 than a full figure, which is most of
+what the Dock and Finder draw. The older full-figure sources are 1086×1448 on
+solid black; `icon-source-lrz.png` is 1169×1346, also on black.
+
+**The Mods artwork is the useful test of the seeding rule**: its hi-vis jacket
+reaches the bottom corners of the frame, which are therefore NOT background.
+Seeding the flood fill from the bottom edge would have eaten it. Top-and-upper-
+sides seeding handles it with no special case.
+
+**The About box aspect is not free to change.** It went from 0.518 to 0.611 with
+the new crowbar art, so the button frame goes from 124x240 to 135x220 points.
+Without that the image is forced into the old frame and stretched, the same
+defect that was fixed once before at 147x240.
 
 ### Sizes shipped, and the Panther ceiling
 
@@ -132,12 +152,20 @@ exist yet.
 
 ## Provenance
 
-The **game** icon `MacOSX/icon-source-lrz.png` is an AI-edited derivative of Little
-Red Zombies' "HλLF-LIFE: Gordon (UE4)" MetaHuman render, not that render as
-published. The **mod installer** icon and its About picture are **AI-generated**
-images of Gordon Freeman made for this project in 2026-07:
-`MacOSX/icon-source-gordon-gravity-gun.png` and
-`MacOSX/icon-source-gordon-crowbar.png`.
+`MacOSX/icon-source-lrz.png`, the game icon through 2026-07, is an AI-edited
+derivative of Little Red Zombies' "HλLF-LIFE: Gordon (UE4)" MetaHuman render, not
+that render as published. `MacOSX/icon-source-gordon-gravity-gun.png` and
+`MacOSX/icon-source-gordon-crowbar.png`, the mod installer's icon and About
+picture over the same period, are **AI-generated** images of Gordon Freeman made
+for this project in 2026-07.
+
+**The four `*-new.png` sources that ship today have no provenance recorded
+anywhere in this repository.** They are AI-generated or AI-edited like the ones
+above (INFERRED from the same workflow and from the commit that introduced them,
+`3db1b81`), but which of the two, and from what if anything they derive, is not
+written down. That needs establishing and recording here, because the README
+makes a public attribution claim about the game icon and it currently describes
+the superseded artwork.
 
 Gordon Freeman is Valve's character; this is a non-commercial fan project, and any
 of this artwork comes out or gets replaced on request. A rights-clean stand-in
@@ -150,9 +178,14 @@ is recoverable from git history (`MacOSX/icon-wiki.icns`,
 |---|---|
 | `MacOSX/Half-Life.icns` | shipped game icon |
 | `MacOSX/Half-Life-Mods.icns` | shipped installer icon |
-| `MacOSX/icon-source-lrz.png` | game artwork of record, 1169×1346 (black bg) |
-| `MacOSX/icon-source-gordon-gravity-gun.png` | installer icon artwork of record, 1086×1448 (black bg) |
-| `MacOSX/icon-source-gordon-crowbar.png` | installer About-box artwork, same |
+| `MacOSX/Half-Life-SysReport.icns` | shipped System Report icon |
+| `MacOSX/icon-source-halflife-new.png` | game artwork of record, what ships |
+| `MacOSX/icon-source-mods-new.png` | installer icon artwork of record, what ships |
+| `MacOSX/icon-source-sysreport-new.png` | System Report artwork of record, what ships |
+| `MacOSX/icon-source-gordon-crowbar-new.png` | installer About-box artwork, what ships |
+| `MacOSX/icon-source-lrz.png` | superseded game artwork, 1169×1346 (black bg) |
+| `MacOSX/icon-source-gordon-gravity-gun.png` | superseded installer artwork, 1086×1448 (black bg) |
+| `MacOSX/icon-source-gordon-crowbar.png` | superseded About-box artwork, same |
 
 ### Where each is consumed
 
@@ -161,6 +194,8 @@ is recoverable from git history (`MacOSX/icon-wiki.icns`,
   `make-app.sh` also takes one as its optional third argument.
 - `Half-Life-Mods.icns`: `build-installer.sh` copies it in and sets
   `CFBundleIconFile`. Missing file = generic app icon, never a failed build.
+- `Half-Life-SysReport.icns`: `scripts/build-sysreport.sh:128-133`, same
+  arrangement and the same silent fallback.
 
 ## Generating
 

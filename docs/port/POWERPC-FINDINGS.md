@@ -258,6 +258,12 @@ Publishing only the diagnoses that survived would misrepresent the work. Three
 mechanisms were stated as fact and retracted in one session, which is what the
 project's refutation-pass rule exists for.
 
+**Every retraction on this page, in one list**, because a refuted mechanism that
+is hard to find gets republished: entries 10 to 15 below; entry 17's
+`-mtune=7450` blame, refuted by a tuned/untuned build pair measuring identical;
+entry 19's `vid_mode` sync; and the two in `PPC-PORT-NOTES.md`, the studio
+double-swap and the "corrupted glyphs" that were the background art.
+
 ### 10. The G3 guard-door freeze was blamed on a gcc miscompile
 
 It is entry 1 above: `dladdr` and the leading underscore. The compiler was never
@@ -351,7 +357,11 @@ dates the config, not the code.
 
 ---
 
-## The perf-ppc branch (2026-08-18)
+## The perf-ppc work (2026-08-18), shipped as v1.8.0
+
+The branch is gone: it was merged to `oldmac` by fast-forward and deleted, so
+the pinned commits never moved and the shipped binary is exactly what the G3
+hands-on pass tested.
 
 ### 16. The Rage 128's remaining fps lived in the pixel format, not the code
 
@@ -368,13 +378,19 @@ trilinear, which the Rage 128 samples in two cycles; and the default pixel
 format carried a 24-bit Z plus an 8-bit stencil nothing shipped reads, when the
 card's native Z is 16-bit.
 
-**Change.** Four launch knobs the G3 profile passes and every other machine
-never sees: `-bpp 16` switches the display mode itself (which also flips
-texture uploads to RGB5/RGBA4 via `desktopBitsPixel`), `-bilinear` selects
-single-mip filtering and is read at the filter site so an archived
-`opengl.cfg` cannot defeat it, `-gldepth16` and `-glnostencil` trim the
-context. Each has a `-no` form and the bench harness passes launch args
-through (`fleet-bench -A`).
+**Change.** Four knobs, none of which any other machine ever sees. Three are
+launch flags the G3 profile passes: `-bilinear` selects single-mip filtering
+and is read at the filter site so an archived `opengl.cfg` cannot defeat it,
+`-gldepth16` and `-glnostencil` trim the context. Each has a `-no` form and the
+bench harness passes launch args through (`fleet-bench -A`).
+
+The fourth, the 16-bit display mode, **is not a launch flag**. It switches the
+display mode itself, which also flips texture uploads to RGB5/RGBA4 via
+`desktopBitsPixel`. It shipped first as `-bpp 16` in the G3 profile and was then
+moved into the engine as the `vid_16bit` cvar, defaulting on for a detected G3
+and exposed as a video-menu toggle: the player's choice is archived and sticks,
+which a profile flag re-applied on every launch could never allow. `-bpp 16` and
+`-bpp 32` remain as bench overrides.
 
 **Verified.** Knob isolation on the G3, c0a0, 800x600, interleaved: 16-bit
 mode +23%, bilinear +14%, lean Z and no stencil +5%. Together 30.0 to 44.6
@@ -436,6 +452,33 @@ at 22 kHz, the assets' native rate, on the integer fast path. All of it is
 neutral at the c0a0 bench viewpoint and scene-dependent by design; the
 flicker-lit and dlight-heavy scenes it targets have not been measured in
 isolation, and a hands-on look at a flickering light remains on the list.
+
+---
+
+### 19. REFUTED: "the index is synced on every mode set" is not what fixes the stale video menu
+
+**Do not republish this mechanism.** It is written here because it reached a
+commit message on the engine fork (`def536d3`) and was caught on the way into
+the v1.8.0 release notes, not on the way into the code.
+
+**The symptom was real.** The video menu highlighted a higher resolution than
+the one on screen. The launcher's `-width`/`-height` path never updated the
+`vid_mode` storage cvar, so the menu trusted a stale index, and the 16-bit
+toggle's apply re-issued that stale mode, which is why the toggle read as
+restart-only on the G3.
+
+**The claim, and why it is wrong.** The fix was described as syncing the index
+to the real mode "on every mode set". A refutation pass showed that at launch
+`R_SaveVideoMode` runs **before the mode list is populated**, so the loop
+iterates zero times and does nothing. What actually carries the stale-highlight
+fix is the later `SDL_WINDOWEVENT_RESIZED` re-running it. `SIZE_CHANGED` is
+unhandled, which is a latent gap in that path.
+
+**What stands.** The menu-side fix, applying depth changes by explicit width and
+height, stands on its own and is unaffected. The behaviour on hardware is
+correct; only the stated mechanism was wrong. A follow-up candidate is to sync
+once after `R_InitVideoModes`, which is where the sync the commit message
+described would actually have to live.
 
 ---
 

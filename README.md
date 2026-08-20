@@ -118,6 +118,22 @@ It reads only and sends nothing. Its floors are deliberately lower than the
 game's, PowerPC 10.3, `i386` 10.4, `x86_64` 10.5, native `arm64`, so a machine
 the game refuses can still say why. [docs/adr/0010](docs/adr/0010-the-system-report-app-targets-lower-floors-than-the-game.md)
 
+## The Linux dedicated server
+
+There is also a headless server, so a game does not have to be hosted on one of
+the vintage machines. It is built from the same pins as the Mac slices, so both
+ends speak the same stock `PROTOCOL_VERSION 49` by construction: a little-endian
+Linux server talking to big-endian PowerPC clients is the arrangement that
+already works. It needs glibc 2.31 or newer, so Ubuntu 20.04 and Debian 11
+upward, and it ships no content either.
+
+Read [`server/README.md`](server/README.md) before exposing it. **The firewall
+rules there are not optional**: this engine answers unauthenticated status
+queries with up to 101 times what it was asked for, which makes an open server
+usable as a DDoS reflector. The reasoning is in
+[docs/adr/0013](docs/adr/0013-the-dedicated-server-is-linux-built-in-a-container.md)
+and [docs/adr/0014](docs/adr/0014-the-server-is-an-amplifier-so-it-is-allowlisted-and-sandboxed.md).
+
 ## Upstream
 
 Half-Life splits into three separately built parts, and all three are other
@@ -160,9 +176,12 @@ pinned commits into a git-ignored `vendor/` and built; what this repo tracks:
   packaging, fleet deploy and benchmarking
 - `installer/` the Mods app ([its own README](installer/README.md))
 - `sysreport/` the System Report app
+- `server/` the Linux dedicated server's config, systemd unit and
+  [operator README](server/README.md)
 - `configs/` sticky per-machine settings
 - `docs/` decision records (`docs/adr/`), [mods](docs/MODS.md),
-  [benchmarking](docs/BENCHMARKING.md), [icons](docs/ICONS.md), a
+  [benchmarking](docs/BENCHMARKING.md), [icons](docs/ICONS.md),
+  [licensing](docs/LICENSING.md), a
   [renderer case study](docs/GL-OPTIMIZATION-CASE-STUDY.md)
 
 ### Tested on
