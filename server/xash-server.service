@@ -9,8 +9,15 @@ User=halflife
 Group=halflife
 WorkingDirectory=/opt/half-life-server
 
-# maxplayers is here rather than in server.cfg because the engine fixes the
-# limit before any config is read.
+# maxplayers is `+maxplayers`, with a plus, not a minus. It is a cvar
+# (sv_maxclients, registered under the name "maxplayers"), so `-maxplayers 8`
+# is not an engine option and is quietly ignored: the server comes up with the
+# dedicated default of 4 and nothing says why.
+#
+# It has to be on the command line rather than in server.cfg because the cvar
+# is FCVAR_LATCH, so a value set after the map has loaded does not apply until
+# the next restart. Command-line +commands run before +map, which is early
+# enough.
 #
 # The console FIFO: a plain redirect would be no good, because the server sees
 # EOF and stops reading the moment a writer closes, so exactly one command
@@ -24,7 +31,7 @@ ExecStartPre=/usr/bin/mkfifo -m 0600 /run/half-life-server/console
 ExecStart=/bin/sh -c 'exec 3<>/run/half-life-server/console; \
     exec /opt/half-life-server/xash \
         -dedicated \
-        -maxplayers 8 \
+        +maxplayers 8 \
         +map crossfire <&3'
 
 Restart=on-failure
