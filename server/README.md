@@ -131,6 +131,47 @@ Between `sv_password` and the firewall this is genuinely private, but the
 protocol underneath is from 1998 and has no encryption. Treat the box as
 disposable and do not co-host anything you care about.
 
+### The firewall is not optional, and here is the measured reason
+
+This server answers unauthenticated status queries, and it answers them with a
+great deal more than it was asked. Measured against this exact build:
+
+| Query | Sent | Received | Amplification |
+|---|---|---|---|
+| `A2S_RULES` | 9 bytes | 912 bytes | **101x** |
+| `xash-info` | 11 bytes | 103 bytes | 9x |
+| `A2S_INFO` | 25 bytes | 56 bytes | 2x |
+
+The handlers are ungated: `SV_SourceQuery_HandleConnnectionlessPacket` checks
+no password, no `public`, no `sv_lan`, and there is no rate limit anywhere in
+the engine. So anyone who can reach the port can spoof your address as the
+source, send 9-byte queries, and have your server fire 912-byte replies at
+someone else. That is a DDoS reflector, and the traffic leaves your box under
+your IP.
+
+An address allowlist fixes it completely, because a spoofed packet claims to
+come from the victim rather than from you, and the allowlist drops it. That is
+why the `ufw` rules above are written per source address rather than opening
+the port to the world.
+
+If both ends have dynamic addresses and an allowlist is impractical, rate limit
+instead. This caps how much the box can emit no matter who asks:
+
+```sh
+sudo iptables -A INPUT -p udp --dport 27015 \
+  -m hashlimit --hashlimit-name hl-query --hashlimit-above 10/sec \
+  --hashlimit-burst 20 --hashlimit-mode srcip -j DROP
+```
+
+Upstream Xash3D has since added a challenge to `A2S_RULES` and `A2S_PLAYERS`,
+which fixes this properly by making a querier prove it can receive at the
+address it claims. Our pin predates that commit. Moving the pin means
+rebuilding and retesting the Mac release too, so it is a deliberate decision
+rather than something to do quietly.
+
+For comparison, the other three servers in this family measure 32x (Quake III,
+but rate limited by the engine), 23x (Quake II) and 3x (Quake 1).
+
 ## Connecting
 
 From the Mac client, by address or by name:
@@ -148,6 +189,34 @@ was fixed on our engine branch, so the Add Server box and `connect` both
 behave normally on the vintage machines now.
 
 If `sv_password` is set, `password "..."` on the client first.
+
+## Tuned for the machines that will actually connect
+
+The clients here are the fat binary: `ppc750`, `ppc7400`, `i386`, `x86_64` and
+`arm64` out of one app. That spread changes two things and, usefully, does not
+change a third.
+
+**Update rate is the one that matters.** `sv_maxupdaterate` is set to 60
+rather than the usual 100. A G3 cannot draw a hundred frames a second, so
+every update above what it can draw is bandwidth spent on a frame that never
+appears. The limit worth tuning against is the oldest machine, and on these
+the constraint is fill rate, never the link: the G3 is fill-rate bound, which
+is the whole reason it ships a 16-bit display profile. `sv_minupdaterate 20`
+keeps the floor sane for a slow link.
+
+**Timeouts are generous.** `sv_timeout 120`, because a vintage Mac stalling
+briefly should not be dropped. The same reasoning put `sv_minPing`-style
+rejection out of the Quake III config.
+
+**Endianness needs nothing.** A little-endian Linux server talking to
+big-endian PowerPC clients is exactly the arrangement that already works: a
+G5, a G4 and an Intel Mac have played in one game together. The protocol
+converts, and this server is built from the same pins as those clients, so
+both ends agree on the wire format by construction.
+
+Map choice is worth the same thought as the update rate. Pick a rotation you
+have actually watched run on the oldest machine that will join, not on the
+Apple Silicon one where everything is fast.
 
 ## Building it yourself
 
