@@ -55,10 +55,32 @@ PowerPC on these SDKs, 2.0.3 is below the 2.0.16 floor the Intel engine needs,
 and 2.0.22 does not build under the modern clang the `arm64` slice uses.
 
 **`leopard-sdl2` 2.0.6 for the G4 and G5.** The `ppc7400` slice runs on the G4
-under 10.4 and the G5 under 10.5, and 2.0.6 links 10.5-only AudioQueue, Text Input
-Services and Objective-C fast-enumeration symbols, so the engine link fails
-against the 10.4u SDK (`scripts/build-ppc-tiger.sh:26-30`). It was carried only by
-the `ppc970` slice, dropped in v1.4.0 (ADR 0001), and is in no shipped slice since.
+under 10.4 and the G5 under 10.5, and the engine link fails against the 10.4u SDK
+(`scripts/build-ppc-tiger.sh:26-30`). It was carried only by the `ppc970` slice,
+dropped in v1.4.0 (ADR 0001), and is in no shipped slice since.
+
+The link failure is measured. **The mechanism previously written here was
+wrong and is retracted** (corrected 2026-08-20): this ADR said 2.0.6 links
+"10.5-only AudioQueue, Text Input Services and Objective-C fast-enumeration
+symbols". Only **AudioQueue** is new, and it arrives in **2.0.5**, not 2.0.6:
+upstream commit `0265d3af9b`, "coreaudio: Move from AudioUnits to AudioQueues".
+`AudioQueue.h` is absent from `MacOSX10.4u.sdk` and present in `MacOSX10.5.sdk`,
+annotated `__OSX_AVAILABLE_STARTING(__MAC_10_5, ...)`. Text Input Services and
+Objective-C fast enumeration are already used by stock **2.0.3**, which we ship;
+`panther-sdl2` gates them behind `#if defined(MAC_OS_X_VERSION_10_5)` and
+`leopard-sdl2` simply does not. So the difference is the gating, not the symbols.
+
+**The version ceilings, restated correctly.** SDL **2.0.3** is the ceiling for
+10.3.9 and 10.4; SDL **2.0.6** is the ceiling for 10.5. Two separate walls:
+2.0.4 converts `NSAutoreleasePool` to `@autoreleasepool`, which needs a
+clang-era Objective-C compiler and the only PowerPC compilers here are Apple
+gcc-4.0/4.2; 2.0.5 is the AudioQueue move above. Only two legacy forks exist,
+`alex-free/panther-sdl2` (2.0.3, 10.3.9+) and `alex-free/leopard-sdl2` (2.0.6,
+10.5+), and neither goes higher.
+
+An earlier version of this ADR also said 2.0.6 "refuses to compile below 10.6".
+No such check exists: SDL2's `configure.ac` has no macOS floor. The failures are
+compile and link failures against the old SDK, not a configure-time refusal.
 
 **Dynamic SDL on PowerPC.** Static linking removes a dylib that has to be found,
 graded and loaded on machines where the loader is most likely to go wrong, and it

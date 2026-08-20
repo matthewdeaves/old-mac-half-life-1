@@ -24,7 +24,12 @@
 #     C99/C++98 shims carry over unchanged.
 #   SDL       min-10.5       -> min-10.4     (our panther-sdl2 branch, SDL 2.0.3, targets 10.3/10.4).
 #     NOTE: leopard-sdl2 (2.0.6) is IMPOSSIBLE here - this ppc7400 slice runs on BOTH the G4
-#     (10.4) and the G5 (10.5), and 2.0.6 links 10.5-only AudioQueue/TIS/objc-fast-enumeration
+#     (10.4) and the G5 (10.5), and 2.0.6 links 10.5-only AudioQueue. The link
+#     failure is measured; the mechanism is NOT what this comment used to say.
+#     AudioQueue arrives in 2.0.5 (upstream 0265d3af9b) and AudioQueue.h is absent
+#     from MacOSX10.4u.sdk. TIS and objc fast-enumeration are already in 2.0.3,
+#     which we ship: panther-sdl2 gates them on MAC_OS_X_VERSION_10_5 and
+#     leopard-sdl2 does not. See docs/adr/0004.
 #     that don't exist on 10.4 (proven: the engine link fails "Undefined symbols" on the 10.4u
 #     SDK). panther-sdl2's older AudioUnit/KeyboardLayout paths are the only SDL that runs on
 #     10.4. Since v1.4.0 the G5 loads THIS slice too: the ppc970/leopard-sdl2 slice was
