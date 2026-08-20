@@ -1,0 +1,54 @@
+[Unit]
+Description=Half-Life dedicated server (Xash3D FWGS)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=halflife
+Group=halflife
+WorkingDirectory=/opt/half-life-server
+
+# maxplayers is here rather than in server.cfg because the engine fixes the
+# limit before any config is read.
+#
+# The console FIFO: a plain redirect would be no good, because the server sees
+# EOF and stops reading the moment a writer closes, so exactly one command
+# would ever work. Opening the FIFO read-write on fd 3 keeps a writer attached
+# from the server's own side, so it never reaches EOF. After that:
+#
+#     echo "changelevel crossfire" > /run/half-life-server/console
+RuntimeDirectory=half-life-server
+RuntimeDirectoryMode=0750
+ExecStartPre=/usr/bin/mkfifo -m 0600 /run/half-life-server/console
+ExecStart=/bin/sh -c 'exec 3<>/run/half-life-server/console; \
+    exec /opt/half-life-server/xash \
+        -dedicated \
+        -maxplayers 8 \
+        +map crossfire <&3'
+
+Restart=on-failure
+RestartSec=5s
+
+# This is a 1998 UDP protocol with no encryption, reachable from the internet.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+
+# The engine writes configs, logs and downloads under the game directory.
+ReadWritePaths=/opt/half-life-server/valve
+
+[Install]
+WantedBy=multi-user.target
