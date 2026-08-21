@@ -106,7 +106,53 @@ platform layer is `engine/platform/sdl2/`.
 - PowerPC runs a 2014 SDL. Nothing fixed in SDL since 2.0.3 is fixed there, and
   there is no path to a newer one on these systems.
 - The PowerPC SDL builds set `--disable-joystick --disable-haptic`, so those
-  slices have no gamepad support.
+  slices have no gamepad support. **Measured 2026-08-21: that flag is forced by
+  the SDK floor, not a convenience.** Same `panther-sdl2` checkout, same
+  `gcc-4.0`, same `-arch ppc -mcpu=7400`, configured `--enable-joystick
+  --enable-haptic`, varying only the SDK: against 10.3.9 `make` exits 2, against
+  10.5 it is clean and `SDL_sysjoystick.o`, `SDL_gamecontroller.o` and
+  `SDL_syshaptic.o` all build.
+
+  SDL2's only macOS joystick backend is written against the IOHIDManager API.
+  `<IOKit/hid/IOHIDLib.h>` exists in the 10.3.9 and 10.4u SDKs, so the
+  `#include` succeeds and the failure is a wall of `syntax error before
+  'IOHIDElementRef'` rather than a missing header. On 10.5 that header pulls in
+  `IOHIDBase.h`, `IOHIDDevice.h` and `IOHIDElement.h`, which declare
+  `IOHIDDeviceRef`, `IOHIDElementRef` and `IOHIDManagerRef`; those three headers
+  are absent below 10.5. `SDL_GameController` still compiles, but with the dummy
+  joystick driver behind it it reports zero devices, so the engine's
+  `joy_sdl2.c` finds no gamepads.
+
+  **Fixed 2026-08-21, and the flag is now `--enable-joystick`.** SDL **1.2**'s
+  darwin backend uses the older IOCFPlugIn / `IOHIDDeviceInterface` API, and
+  `IOCFPlugIn.h` is present in both old SDKs, which is why the SDL 1.2 sister
+  ports always had working joysticks on Panther and Tiger. Our `panther-sdl2`
+  fork now carries `src/joystick/darwin/SDL_sysjoystick_legacy.c`, which
+  reimplements SDL2's 13-function driver interface over that older API. Device
+  discovery, HID element walking, value reading and auto-calibration are ported
+  from SDL 1.2; the instance-id, GUID and attach/detach handling are what SDL2
+  adds on top. Selection is by SDK version, so upstream's IOHIDManager file
+  compiles to nothing below 10.5 and is used unchanged at 10.5 and above.
+
+  The GUID deliberately keeps upstream's byte layout (vendor at `data[0]`,
+  product at `data[8]`, name-derived Bluetooth-style fallback) so
+  `gamecontrollerdb` entries keyed on it still match and a pad mapped on another
+  platform maps here too. Vendor and product ids fall back to the USB registry
+  dictionary two levels up, because 10.3 and 10.4 do not mirror every USB
+  property onto the HID page.
+
+  Verified: builds clean for `ppc` against the 10.3.9 SDK with
+  `--enable-joystick`, upstream's `SDL_sysjoystick.o` correctly empty at 220
+  bytes, the legacy object 19648 bytes and exporting all 13 `SDL_SYS_Joystick*`
+  entry points.
+
+  **Not verified on hardware.** No USB gamepad was available on a PowerPC Mac, so
+  this is build-correct and reasoned rather than measured, and it ships on that
+  basis. **Known limitation: no hotplug.** SDL 1.2 enumerated once at init and so
+  does this, so a pad must be plugged in before the game starts; unplugging is
+  noticed and the device then reports detached with axes and buttons zeroed.
+  `--disable-haptic` stays, because force feedback needs the 10.5-only FFB API
+  too and nothing here asks for rumble. Issue #2.
 - Three SDL versions means three sets of behaviour to reason about when a
   display or input fault appears on one architecture and not the others.
 

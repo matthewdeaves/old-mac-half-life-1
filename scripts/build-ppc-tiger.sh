@@ -234,9 +234,28 @@ if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
 	( cd "$SDLSRC" && make distclean >/dev/null 2>&1 || true
 	  # AltiVec LEFT ON (no --disable-altivec): the G4 has AltiVec; SDL's blitters are
 	  # runtime-guarded by SDL_HasAltiVec anyway. gcc-4.0 + GCCINC for the 10.3.9 SDK.
+	  #
+	  # --enable-joystick since 2026-08-21. It was --disable-joystick for the whole
+	  # life of the port, and NOT as a convenience: SDL2's only macOS joystick
+	  # backend targets the IOHIDManager API, whose headers first ship in the 10.5
+	  # SDK. <IOKit/hid/IOHIDLib.h> EXISTS in 10.3.9 and 10.4u, so the #include
+	  # succeeds and the failure looks nothing like a missing header: it is a wall
+	  # of "syntax error before 'IOHIDElementRef'". Measured, same source and
+	  # compiler, only the SDK varied: 10.3.9 -> make exits 2, 10.5 -> clean.
+	  # Consequence was NO gamepad support in any PowerPC slice, because
+	  # SDL_GameController still linked but sat on the dummy joystick driver.
+	  # Our panther-sdl2 fork now carries SDL_sysjoystick_legacy.c, which
+	  # reimplements SDL2's driver interface over the older IOCFPlugIn /
+	  # IOHIDDeviceInterface API that IS present in both old SDKs, ported from
+	  # SDL 1.2's backend. That is the same API the SDL 1.2 Quake ports use, which
+	  # is why they always had working joysticks on Panther and Tiger.
+	  # NOT verified on hardware: no USB gamepad was available on a PowerPC Mac.
+	  # It builds clean and exports all 13 driver entry points. Issue #2.
+	  # --disable-haptic stays: force feedback needs the 10.5-only FFB API too and
+	  # nothing here asks for rumble.
 	  CC="gcc-4.0 $ARCHFLAGS" CFLAGS="$ARCHFLAGS -isystem $GCCINC" LDFLAGS="$ARCHFLAGS" \
 	  ./configure --prefix="$SDLPREFIX" --host=powerpc-apple-darwin8 --build=i686-apple-darwin11 \
-	              --disable-joystick --disable-haptic --without-x --disable-shared --enable-static
+	              --enable-joystick --disable-haptic --without-x --disable-shared --enable-static
 	  make -j"$(sysctl -n hw.ncpu)" && make install )
 	printf '%s\n' "$SDL_BUILT_FROM" > "$SDLPREFIX/.built-from"
 fi

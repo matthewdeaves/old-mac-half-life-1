@@ -73,7 +73,7 @@ PIN_HLSDK_UPSTREAM="FWGS/hlsdk-portable@8c5b2846"
 # slice builds stock SDL 2.0.22 as a dylib and needs none of this. docs/adr/0004.
 PIN_SDL_URL="https://github.com/matthewdeaves/panther-sdl2.git"
 PIN_SDL_BRANCH="oldmac"
-PIN_SDL_COMMIT="1e4b81c596199c314328b6d42080d37c2e24971a"
+PIN_SDL_COMMIT="3c721fce79159ecbd888b9b07d81eaf3b1404351"
 PIN_SDL_UPSTREAM="alex-free/panther-sdl2@bd33187"
 
 # --- installer-only third-party libraries ------------------------------------

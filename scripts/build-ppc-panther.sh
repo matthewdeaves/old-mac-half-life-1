@@ -218,9 +218,15 @@ if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
 	  # --disable-altivec: SDL 2.0.3 otherwise compiles AltiVec blitters (calc_swizzle32 etc.).
 	  # They're runtime-guarded by SDL_HasAltiVec(), but the G3 ppc750 has NO AltiVec, so build
 	  # them out entirely -> the whole static lib (and thus libxash) is guaranteed SIGILL-free.
+	  # --enable-joystick since 2026-08-21, via our panther-sdl2 fork's
+	  # SDL_sysjoystick_legacy.c. SDL2's own macOS joystick backend targets
+	  # IOHIDManager, whose headers first ship in the 10.5 SDK, so it cannot build
+	  # here at all; the legacy backend uses the older IOCFPlugIn API that 10.3.9
+	  # does have. Full mechanism and the measured A/B are in the same block of
+	  # build-ppc-tiger.sh. --disable-haptic stays. Issue #2.
 	  CC="gcc-4.0 $ARCHFLAGS $TUNE750" CFLAGS="$ARCHFLAGS $TUNE750" LDFLAGS="$ARCHFLAGS $TUNE750" \
 	  ./configure --prefix="$SDLPREFIX" --host=powerpc-apple-darwin8 --build=i686-apple-darwin11 \
-	              --disable-joystick --disable-haptic --without-x --disable-shared --enable-static \
+	              --enable-joystick --disable-haptic --without-x --disable-shared --enable-static \
 	              --disable-altivec
 	  make -j"$(sysctl -n hw.ncpu)" && make install )
 	printf '%s\n' "$SDL_BUILT_FROM" > "$SDLPREFIX/.built-from"
