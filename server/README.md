@@ -193,7 +193,8 @@ rebuilding and retesting the Mac release too, so it is a deliberate decision
 rather than something to do quietly.
 
 For comparison, the other three servers in this family measure 32x (Quake III,
-but rate limited by the engine), 23x (Quake II) and 3x (Quake 1).
+rate limited by the engine), 23x (Quake II, rate limited by the engine since
+2026-08-21) and 3x (Quake 1, which is not).
 
 ## Connecting
 

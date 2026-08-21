@@ -23,7 +23,8 @@ The handlers are ungated: `SV_SourceQuery_HandleConnnectionlessPacket` checks no
 password, no `public` and no `sv_lan`. So the server is a usable DDoS reflector.
 Spoof a victim as the source, send 9 bytes, and the box fires 912 back under our
 IP. For comparison the other three servers in this family measure 32x (Quake
-III, but rate limited by the engine), 23x (Quake II) and 3x (Quake 1).
+III, rate limited by the engine), 23x (Quake II, which got the same leaky bucket
+as ours on 2026-08-21) and 3x (Quake 1, which has none).
 
 **Amended 2026-08-21:** the sentence that used to sit here, "there is no rate
 limit anywhere in the engine, unlike ioquake3 which carries a leaky bucket", is
