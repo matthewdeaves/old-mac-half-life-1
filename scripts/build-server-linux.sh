@@ -244,9 +244,10 @@ echo "[container] hardening: canaries yes, full RELRO, NX"
 # install and the release is not self-contained.
 for f in /work/out/xash /work/out/filesystem_stdio.so /work/out/valve/dlls/hl_${GAME_SUFFIX}.so; do
 	ldd "\$f" > /work/ldd.txt 2>&1 || true
-	BAD=\$(grep -oE '^[[:space:]]*[a-zA-Z0-9_.+-]+\\.so[0-9.]*' /work/ldd.txt \\
-		| tr -d '[:space:]' \\
-		| grep -vE '^(libc|libm|libdl|libpthread|librt|libgcc_s|libstdc\\+\\+|ld-linux.*)\\.so' || true)
+	BAD=\$(awk '{print \$1}' /work/ldd.txt \\
+		| sed 's|.*/||' \\
+		| grep -E '\\.so' \\
+		| grep -vE '^(linux-vdso|libc|libm|libdl|libpthread|librt|libgcc_s|libstdc\\+\\+|ld-linux.*)\\.so' || true)
 	if [ -n "\$BAD" ]; then
 		echo "[container] \$f depends on libraries outside glibc:" >&2
 		echo "\$BAD" >&2
