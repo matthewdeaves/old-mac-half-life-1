@@ -201,6 +201,26 @@ The only setups this has run on.
 
 Benchmarks and per-machine notes: [docs/BENCHMARKING.md](docs/BENCHMARKING.md).
 
+### Where to put it on Apple Silicon and modern macOS
+
+Put the game folder in **`/Applications`**, not on the Desktop.
+
+macOS asks an app for permission before it may read files in Desktop, Documents
+or Downloads, and it asks **every launch** for an app it cannot identify
+consistently. A game that lives in `/Applications` is outside those protected
+locations, so it never triggers the prompt and can read its own game data
+without being interrupted.
+
+So: drag the whole folder (the `.app` **and** the game data beside it) into
+`/Applications`, keeping them together. On first run, clear Gatekeeper with:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/<folder>
+```
+
+PowerPC and Intel Macs running 10.3 through 10.7 have none of this and can keep
+the folder wherever you like.
+
 ## Credits
 
 - **[FWGS](https://github.com/FWGS)**: the Xash3D engine, the menu and the

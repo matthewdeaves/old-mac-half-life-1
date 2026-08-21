@@ -626,6 +626,52 @@ fi
 
 # md5 helper that is portable across this box and Tiger (both BSD md5): the hash
 # is the last whitespace field of `md5 <file>` on macOS/Tiger.
+# ---- ad-hoc code-sign the staged bundles ---------------------------------
+# macOS on arm64 refuses to map a page whose code signature does not validate
+# and kills the process with CODESIGNING / Invalid Page. Signing also gives each
+# bundle a stable identity, so macOS stops re-asking for Desktop/Documents
+# access on every launch, which it does for an app it cannot identify.
+#
+# All THREE apps are signed, not just the game: the Mods app and the System
+# Report app are launched by the user too.
+#
+# Order is not optional: codesign validates a bundle's nested code when it signs
+# the bundle, so anything inside must already be signed. Plain dylibs first,
+# then each framework as a DIRECTORY, then the .app last. The 25 mod dylib pairs
+# are dlopen'd, so they need signing as well.
+#
+# Signed here rather than on DMG_HOST, which is a Tiger G4 with no codesign and
+# no notion of arm64, and before the checksums so the end-to-end byte
+# verification hashes the files exactly as they will ship.
+if command -v codesign >/dev/null 2>&1; then
+	echo "[make-dmg] ad-hoc code-signing the staged bundles"
+	find "$IMG" -type f \( -name '*.dylib' -o -name '*.so' \) -not -path '*.framework/*' -print0 2>/dev/null \
+	  | while IFS= read -r -d '' f; do codesign --force --sign - "$f" >/dev/null 2>&1 || true; done
+	find "$IMG" -type d -name '*.framework' -print0 2>/dev/null \
+	  | while IFS= read -r -d '' fw; do
+			for stray in "$fw"/*; do
+				[ -L "$stray" ] && continue
+				[ "$(basename "$stray")" = "Versions" ] && continue
+				mkdir -p "$fw/Versions/A/Resources"
+				mv "$stray" "$fw/Versions/A/Resources/" 2>/dev/null || true
+			done
+			codesign --force --sign - "$fw" >/dev/null 2>&1 || true
+		done
+	# xash3d is a shell launcher; xash3d.bin is the Mach-O it execs. Sign the
+	# real binary, then the bundle.
+	for app in "$IMG"/*.app; do
+		[ -d "$app" ] || continue
+		[ -f "$app/Contents/MacOS/xash3d.bin" ] && \
+			codesign --force --sign - "$app/Contents/MacOS/xash3d.bin" >/dev/null 2>&1 || true
+		codesign --force --sign - "$app" >/dev/null 2>&1 || true
+		codesign -v "$app" >/dev/null 2>&1 \
+		  || { echo "[make-dmg] FATAL: $(basename "$app") signature does not validate" >&2; exit 1; }
+	done
+	echo "[make-dmg] signatures verified on all three bundles"
+else
+	echo "[make-dmg] WARN: no codesign here; the bundles will NOT run on Apple Silicon" >&2
+fi
+
 src_sums() { while IFS= read -r f; do
   printf '%s  %s\n' "$(md5 "$IMG/$f" | awk '{print $NF}')" "$f"; done < "$SHIP_LIST" | sort; }
 SRC_SUMS="$(src_sums)"
