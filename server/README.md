@@ -143,19 +143,42 @@ great deal more than it was asked. Measured against this exact build:
 | `A2S_INFO` | 25 bytes | 56 bytes | 2x |
 
 The handlers are ungated: `SV_SourceQuery_HandleConnnectionlessPacket` checks
-no password, no `public`, no `sv_lan`, and there is no rate limit anywhere in
-the engine. So anyone who can reach the port can spoof your address as the
-source, send 9-byte queries, and have your server fire 912-byte replies at
-someone else. That is a DDoS reflector, and the traffic leaves your box under
-your IP.
+no password, no `public` and no `sv_lan`. So anyone who can reach the port can
+spoof your address as the source, send 9-byte queries, and have your server
+fire 912-byte replies at someone else. That is a DDoS reflector, and the
+traffic leaves your box under your IP.
 
 An address allowlist fixes it completely, because a spoofed packet claims to
 come from the victim rather than from you, and the allowlist drops it. That is
 why the `ufw` rules above are written per source address rather than opening
 the port to the world.
 
-If both ends have dynamic addresses and an allowlist is impractical, rate limit
-instead. This caps how much the box can emit no matter who asks:
+### The engine also limits itself now
+
+Since engine commit `08637ea6`, the engine keeps a leaky bucket per source
+address and drops unauthenticated queries from an address that has had its
+allowance. `BUILD-INFO.txt` in the tarball says which engine commit your copy
+was built from. It is on by default:
+
+| Cvar | Default | What it does |
+|---|---|---|
+| `sv_query_rate_burst` | `10` | queries allowed per address per period. `0` turns the limiter off |
+| `sv_query_rate_period` | `1` | seconds each slot takes to drain |
+
+Measured, 40 `A2S_RULES` queries from one address: with the limiter off, 40
+replies and 36,240 bytes. At the default, **10 replies and 9,060 bytes**.
+Joining is deliberately not throttled, so `connect` and `getchallenge` are
+unaffected. Ten queries a second per address is far above anything a server
+browser does, and LAN play is unchanged. Turn it down if you are running a
+public server; there is no reason to turn it up.
+
+**This is a second layer, not a replacement for the allowlist.** The allowlist
+stops a spoofed packet reaching the engine at all; the limiter caps what the
+engine emits once one does. Keep both.
+
+If both ends have dynamic addresses and an allowlist is impractical, add a
+kernel-level limit as well, which caps the box no matter who asks and applies
+before the packet costs the engine anything:
 
 ```sh
 sudo iptables -A INPUT -p udp --dport 27015 \

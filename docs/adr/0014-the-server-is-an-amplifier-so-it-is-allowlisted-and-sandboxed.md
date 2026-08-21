@@ -20,12 +20,18 @@ queries with far more than it was asked for:
 | `A2S_INFO` | 25 bytes | 56 bytes | 2x |
 
 The handlers are ungated: `SV_SourceQuery_HandleConnnectionlessPacket` checks no
-password, no `public` and no `sv_lan`, and there is no rate limit anywhere in
-the engine, unlike ioquake3 which carries a leaky bucket. So the server is a
-usable DDoS reflector. Spoof a victim as the source, send 9 bytes, and the box
-fires 912 back under our IP. For comparison the other three servers in this
-family measure 32x (Quake III, but rate limited by the engine), 23x (Quake II)
-and 3x (Quake 1).
+password, no `public` and no `sv_lan`. So the server is a usable DDoS reflector.
+Spoof a victim as the source, send 9 bytes, and the box fires 912 back under our
+IP. For comparison the other three servers in this family measure 32x (Quake
+III, but rate limited by the engine), 23x (Quake II) and 3x (Quake 1).
+
+**Amended 2026-08-21:** the sentence that used to sit here, "there is no rate
+limit anywhere in the engine, unlike ioquake3 which carries a leaky bucket", is
+no longer true. Our engine fork now carries one too, in `sv_filter.c`, where
+`SV_CheckIP` had held a `TODO: ip rate limit` comment for years. See
+[decision 5](#5-the-engine-rate-limits-the-queries-itself) below. It does not
+change the decision that follows, which is still that the firewall is the fix;
+it adds a second layer under it.
 
 ## Decision
 
@@ -70,6 +76,47 @@ call returns an error instead of killing the process), `PrivateUsers`,
 This engine carries XRCON, a TCP admin console on `127.0.0.1:27000`, with **no
 authentication of any kind**. It is reached over an ssh tunnel. Never bind it to
 `0.0.0.0`.
+
+### 5. The engine rate limits the queries itself
+
+Added 2026-08-21, engine commit `08637ea6`. A leaky bucket per source address
+in `sv_filter.c`, ported from ioquake3's `sv_main.c` with two changes: time is
+double seconds from `host.realtime` rather than int milliseconds, so nothing
+wraps on a server left up for a month; and addresses are matched with
+`NET_CompareBaseAdr`, so IPv4 and IPv6 are handled by the code that already
+knows how. The hash covers everything but the trailing port, because varying
+the source port costs an attacker nothing. If the table is full and nothing has
+drained, it fails closed.
+
+Gated: `A2S_GOLDSRC_INFO`, `A2S_GOLDSRC_PLAYERS`, `A2S_GOLDSRC_RULES`,
+`A2A_NETINFO`, `A2A_INFO`, `C2S_BANDWIDTHTEST` and both pings. **Not** gated:
+`C2S_CONNECT` and `C2S_GETCHALLENGE`, because throttling those throttles
+joining, which is what the server is for; `C2S_RCON`, which is authenticated;
+`A2A_ACK`, which answers nothing. It drops silently, because a limiter that
+logs per packet is itself a way to make the server do work and the log is what
+fills the disk first during a flood.
+
+`sv_query_rate_burst` 10, `sv_query_rate_period` 1, both archived. Set the
+burst to 0 to disable.
+
+Measured on the aarch64 Linux server against this build, 40 `A2S_RULES` queries
+from one address:
+
+| `sv_query_rate_burst` | Sent | Replies | Reply bytes |
+|---|---|---|---|
+| 0, limiter off | 40 | 40 | 36,240 |
+| 10, the default | 40 | **10** | **9,060** |
+
+The control run is also an independent re-measurement of the 101x in the table
+above: 36,240 bytes of reply for 360 bytes of query is 100.7x.
+
+Normal use is unaffected, and joining is untouched, both measured the same way:
+5 queries got 5 replies, and 5 more got 5 replies after the bucket had drained,
+while 40 `getchallenge` packets got 40 replies with the limiter at its default.
+
+**This does not replace the allowlist.** An address allowlist stops a spoofed
+packet from ever reaching the engine; this caps what the engine emits once one
+does. The rules in `server/README.md` are still not optional.
 
 ## Alternatives rejected
 

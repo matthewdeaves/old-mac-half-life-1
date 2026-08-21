@@ -35,7 +35,7 @@ XASH_VERSION="0.21"
 # commit here is the one the fleet A/Bs and the G3 hands-on pass ran against.
 PIN_ENGINE_URL="https://github.com/matthewdeaves/xash3d-fwgs.git"
 PIN_ENGINE_BRANCH="oldmac"
-PIN_ENGINE_COMMIT="76dc5e3682b8991da486a11ad13ea8bda5951cae"
+PIN_ENGINE_COMMIT="08637ea6d16335f5659f29c51f1dd57272dfa603"
 PIN_ENGINE_UPSTREAM="FWGS/xash3d-fwgs@f0ea3a19"
 
 # --- menu: submodule of the engine, re-pointed by our engine branch ----------
