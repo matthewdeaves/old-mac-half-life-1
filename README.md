@@ -121,11 +121,10 @@ the game refuses can still say why. [docs/adr/0010](docs/adr/0010-the-system-rep
 ## The Linux dedicated server
 
 There is also a headless server, so a game does not have to be hosted on one of
-the vintage machines. It is built from the same pins as the Mac slices, so both
-ends speak the same stock `PROTOCOL_VERSION 49` by construction: a little-endian
-Linux server talking to big-endian PowerPC clients is the arrangement that
-already works. It needs glibc 2.31 or newer, so Ubuntu 20.04 and Debian 11
-upward, and it ships no content either.
+the vintage machines. It builds from the same pins as the Mac slices, so both
+ends speak stock `PROTOCOL_VERSION 49`. A little-endian Linux server talking to
+big-endian PowerPC clients works fine. It needs glibc 2.31 or newer, so Ubuntu
+20.04 and Debian 11 upward, and it ships no content either.
 
 Read [`server/README.md`](server/README.md) before exposing it. **The firewall
 rules there are not optional**: this engine answers unauthenticated status
