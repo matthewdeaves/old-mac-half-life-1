@@ -143,11 +143,27 @@ on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
   10.7.5 / toolchain. Ask `scripts/pick-build-host.sh` (`--status`,
   `--acquire LABEL`, `--release HOST`), never hardcode: a host is busy if it
   holds `/tmp/.retro-build-lock` or is compiling, so hand-started builds count.
-- **Two machines multi-boot from one IP**: the G3 (`yosemite`, `yosemite-tiger`)
-  and the dual G5 (`g5-panther`, `g5-tiger`, `g5-desktop`, all `powermacg5` on
-  10.188.1.188). One OS at a time, so each partition needs its own alias with
-  `HostKeyAlias` and `CheckHostIP no`, and the booted one mounts its neighbours
-  under `/Volumes`. Switch with `bless` and reboot; `docs/BENCHMARKING.md`.
+- **THREE separate G5s, and they are easy to mix up.** Read the alias, not the
+  word "G5", and never assume "the quad" means whichever G5 you last touched:
+  - **`imac-g5`** (10.188.1.168) the iMac G5, 10.5.8
+  - **`g5-panther` / `g5-tiger` / `g5-desktop`** (10.188.1.188) the **dual**
+    PowerMac G5, multi-boot. `g5-desktop` is the Leopard partition, hostname
+    `g5-leopard`.
+  - **`quad-leopard` / `quad-tiger`** (10.188.1.120) the **QUAD** PowerMac G5,
+    multi-boot, user `g5quad`.
+
+  On 2026-08-21 a whole round of "deploy to the quad" and "quit the game on the
+  quad" went to 10.188.1.188 instead, because this list previously named only
+  two G5s. The quad kept running an old build and reporting the bug as unfixed,
+  and the dual G5 was killed repeatedly for no reason. `ssh_config` is the
+  authority for what exists; grep it before touching a machine by nickname.
+- **Machines that multi-boot from one IP**: the G3 (`yosemite`,
+  `yosemite-tiger`), the dual G5 and the quad G5. One OS at a time, so each
+  partition needs its own alias with `HostKeyAlias` and `CheckHostIP no`, and
+  the booted one mounts its neighbours under `/Volumes`. An alias for a
+  partition that is not booted simply fails to connect, which looks exactly
+  like the machine being off. Switch with `bless` and reboot;
+  `docs/BENCHMARKING.md`.
 
 ## Lion build-box traps
 
