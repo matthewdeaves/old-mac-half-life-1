@@ -106,7 +106,10 @@ on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
   computed by `scripts/arm64-stamp.sh`, which both sides source. Rebuild the
   arm64 slice and push it; do not work around the refusal. A vendor bump is NOT
   covered and still needs the arm64 drivers re-run by hand. The 25 mod dylib
-  pairs are not covered either, issue #4. `docs/adr/0015`
+  pairs have their own gate: both drivers already record the hlsdk commit, in
+  `mod.info` and `arm64.info`, and `fuse-mod-arm64.sh` refuses a mod whose two
+  disagree. A mod already carrying a stale arm64 slice cannot be corrected by
+  lipo and needs `build-mod.sh <branch>`. `docs/adr/0015`, `docs/adr/0016`
 - **Every shipped app runs natively on every CPU the project supports.** Game:
   `ppc750 ppc7400 i386 x86_64 arm64`. Mod dylibs, Mods app and System Report:
   `ppc i386 x86_64 arm64`, no ppc split because `dlopen` grades generic `ppc`
@@ -320,7 +323,8 @@ where it runs is not.
   content, 0007 launcher, 0008 mod dylibs, 0009 mod installer, 0010 report-app
   floors, 0011 per-mod sources + installer TLS, **0012 the port is commits on
   our own forks** (supersedes the patching half of 0002), 0013 the Linux
-  dedicated server, 0014 the server is a UDP amplifier
+  dedicated server, 0014 the server is a UDP amplifier, 0015 the app arm64
+  slices carry a source hash, 0016 the mod arm64 slices carry the hlsdk commit
 - `docs/port/POWERPC-FINDINGS.md`: the publishable write-up, one entry per
   finding with symptom, cause, change and the machines it was measured on,
   **including the ones that were got wrong**; `docs/port/PPC-PORT-NOTES.md`: the

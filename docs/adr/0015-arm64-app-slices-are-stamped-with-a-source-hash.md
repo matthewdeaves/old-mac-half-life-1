@@ -112,6 +112,9 @@ because `lipo -create` fails on a duplicate architecture, so a newer arm64 build
 never replaces an already-fused older one. That is a separate defect with a
 different fix and it stays open on issue #4.
 
+That paragraph is overtaken by ADR 0016, which closed the mod case on the same
+day by comparing the hlsdk commit both drivers already record.
+
 ## Proved in both directions
 
 A gate that refuses good work is worse than no gate, because it gets switched
