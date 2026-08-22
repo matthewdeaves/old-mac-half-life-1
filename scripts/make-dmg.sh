@@ -86,6 +86,35 @@ if [ -z "${DMG_HOST:-}" ]; then
   echo "[make-dmg] DMG_HOST not set - using reachable Tiger host: $DMG_HOST"
 fi
 
+# ---- claim the machines this drives ----------------------------------------
+#
+# Two machines, and they get different treatment because they are used
+# differently. Issue #11.
+#
+# DMG_HOST does the work: a whole app bundle rsynced onto it, then hdiutil. It is
+# claimed for the run, by re-execing under the picker exactly as deploy-dmg.sh
+# and smoke-dmg.sh do. The guard compares RETRO_BENCH_LOCK to THIS host rather
+# than testing that it is empty, because the picker's --run exports it and a bare
+# test would skip the claim whenever make-dmg is called from inside another
+# claim (issue #13).
+#
+# Both hosts are exported first so the re-exec does not repeat the probing above
+# and cannot pick a different pair the second time round.
+#
+# SRC_HOST is only READ from: rsync pulls the built bundle off it. It is checked
+# rather than claimed, because claiming a build mini for the length of a Tiger
+# packaging run would hold an idle machine for many minutes to protect a
+# read-only copy. scripts/lock-check.sh refuses only when somebody ELSE holds it.
+export SRC_HOST DMG_HOST
+_PICK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/pick-bench-host.sh"
+if [ "${RETRO_BENCH_LOCK:-}" != "$DMG_HOST" ] && [ "${BENCH_NO_LOCK:-0}" != 1 ] && [ -x "$_PICK" ]; then
+  export RETRO_BENCH_LOCK="$DMG_HOST"
+  exec "$_PICK" --run "$DMG_HOST" "make-dmg" -- "$0" "$@"
+fi
+
+"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lock-check.sh" "$SRC_HOST" \
+  "fetch the built bundle from $SRC_HOST" || exit 1
+
 # ---- stage the image contents locally (app + valve payload + README) --------
 STAGE="$(mktemp -d -t hl-dmg)"
 trap 'rm -rf "$STAGE"' EXIT

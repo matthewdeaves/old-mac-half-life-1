@@ -71,8 +71,10 @@ fi
 
 refuse () {
 	echo "!! $HOST is in use: $1" >&2
-	echo "   refusing to $WHAT. The far end's dist/ and scripts/ are what a" >&2
-	echo "   running build reads, so writing into them now can corrupt it." >&2
+	echo "   refusing to $WHAT." >&2
+	echo "   ~/oldmac on a mini is one tree shared by every session: dist/ and" >&2
+	echo "   scripts/ there are what a running build reads and writes, so a" >&2
+	echo "   transfer either way can corrupt that build or be corrupted by it." >&2
 	echo "   scripts/pick-build-host.sh --status" >&2
 	echo "   The other mini is usually free: scripts/pick-build-host.sh --acquire LABEL" >&2
 	exit 1
@@ -88,6 +90,36 @@ if [ "$age" = "-" ]; then
 	exit 0
 fi
 
+# Is this lock OURS? Three tests, strictest first.
+#
+# 1. The picker's --run exports RETRO_BENCH_LOCK naming the host it claimed, so
+#    when it names THIS host we are running inside that claim and the lock is
+#    ours by construction. This also stops a false refusal for a --run caller,
+#    whose nonce it does not pass down.
+if [ "${RETRO_BENCH_LOCK:-}" = "$HOST" ]; then
+	exit 0
+fi
+
+# 2. By nonce, when we hold one. ME names a REPO, not a session, so two sessions
+#    in this repo write the same identity and it cannot tell them apart. A claim
+#    can carry claim=<nonce> since build-host#7: matching it proves the lock is
+#    ours, and a DIFFERENT one proves it is not, even though the identity matches.
+if [ -n "${BENCH_LOCK_CLAIM:-}" ]; then
+	case "$owner" in
+		*"claim=$BENCH_LOCK_CLAIM"*) exit 0 ;;
+		*claim=*) refuse "held under another session's claim: $owner" ;;
+	esac
+fi
+
+# 3. A lock carrying a nonce we cannot present, while we are not inside a --run
+#    for this host, is somebody else's however familiar the identity looks.
+case "$owner" in
+	*claim=*) refuse "held under a claim we cannot present: $owner" ;;
+esac
+
+# 4. No nonce anywhere: the documented build flow claims with a plain --acquire,
+#    so fall back to identity. Loose between two sessions in this repo, and that
+#    is exactly what the nonce above exists to fix.
 case "$owner" in
 	*"$ME"*) exit 0 ;;
 esac
