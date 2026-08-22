@@ -35,6 +35,28 @@ fi
 DMG_BASE=$(basename "$DMG")
 DEST_DIR="${DEST_DIR:-Desktop/Half-Life}"   # relative to the target's home
 
+# Claim the machine for the whole run. See scripts/pick-bench-host.sh.
+#
+# Re-exec under the picker rather than acquire-here-and-trap, matching the other
+# three ports: bash traps REPLACE rather than compose, so a release trap set here
+# would be silently discarded by any trap installed later. `--run` makes the lock
+# a property of the INVOCATION, released however this exits.
+#
+# This matters here specifically because the script deletes and replaces three
+# .app bundles in the player's game folder. Doing that while another session is
+# mid-bench swaps the binary out from under a running engine, and the numbers
+# that come back look like a real measurement of a build that was never fully
+# installed. The picker also refuses a host booted into an OS its alias does not
+# name, so `deploy-dmg.sh quad-tiger` cannot silently install onto Leopard.
+#
+# RETRO_BENCH_LOCK guards against the re-exec recursing.
+# BENCH_NO_LOCK=1 skips the lock, for debugging the picker itself.
+_PICK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/pick-bench-host.sh"
+if [ -z "${RETRO_BENCH_LOCK:-}" ] && [ "${BENCH_NO_LOCK:-0}" != 1 ] && [ -x "$_PICK" ]; then
+  export RETRO_BENCH_LOCK="$HOST"
+  exec "$_PICK" --run "$HOST" "deploy-dmg" -- "$0" "$@"
+fi
+
 echo "[deploy-dmg $HOST] copy $DMG_BASE to ~/Desktop/"
 ssh "$HOST" 'mkdir -p ~/Desktop'
 

@@ -87,10 +87,34 @@ fi
 TS=$(date "+%Y-%m-%dT%H:%M:%S")
 echo "== fleet-bench label=$LABEL renderer=$REND ${W}x${H} $SCREENMODE map=$MAP frames=$FRAMES runs=$RUNS =="
 
+# Claim each machine before touching it, and let it go the moment we are done.
+#
+# Without this, two sessions benching different ports on the same G5 interleave
+# their engine launches and BOTH sets of numbers are wrong, with nothing in the
+# CSV to say so. The lock lives on the target, so it is visible to every repo and
+# every workstation, not just this one. `pick-bench-host.sh` also refuses a host
+# booted into an OS its alias does not name, which is the failure that would
+# otherwise write a row labelled "tiger" from a Leopard-booted quad.
+PICK="$ROOT/scripts/pick-bench-host.sh"
+HELD=""
+release_held() {
+	for r in $HELD; do "$PICK" --release "$r" >/dev/null 2>&1; done
+	HELD=""
+}
+# Release on interrupt too: a killed sweep must not wedge half the fleet.
+trap 'release_held' EXIT INT TERM
+
 for h in $HOSTS; do
 	if ! $SSH "$h" true 2>/dev/null; then
 		echo "  [$h] unreachable - skipped" >&2
 		continue
+	fi
+	if [ -x "$PICK" ]; then
+		if ! "$PICK" --acquire "$h" "bench:$LABEL" >/dev/null; then
+			echo "  [$h] busy or wrong OS - skipped (scripts/pick-bench-host.sh --status $h)" >&2
+			continue
+		fi
+		HELD="$HELD $h"
 	fi
 	# ship the latest bench.sh
 	$SCP "$BENCH_SH" "$h:/tmp/bench.sh" >/dev/null 2>&1
@@ -125,6 +149,16 @@ for h in $HOSTS; do
 		echo "  $line"
 	else
 		echo "  [$h] no result (see /tmp/fleet_${h}.err)" >&2
+	fi
+	# Hand the machine back straight away rather than at the end of the sweep, so
+	# a long fleet run does not hold every box it has already finished with.
+	if [ -x "$PICK" ]; then
+		"$PICK" --release "$h" >/dev/null 2>&1
+		# Drop $h from HELD by exact token. Not sed: BSD sed has no \b, so a
+		# word-boundary pattern silently never matches and HELD only ever grows.
+		_kept=""
+		for _r in $HELD; do [ "$_r" = "$h" ] || _kept="$_kept $_r"; done
+		HELD="$_kept"
 	fi
 done
 

@@ -31,6 +31,7 @@ scripts/build-server-linux.sh                  # x86_64
 scripts/build-server-linux.sh --arch aarch64   # ARM VPS
 
 scripts/make-dmg.sh [version-label]      # Tiger G4 ONLY, see the hard rules
+scripts/pick-bench-host.sh --status      # bench/test boxes: who is free
 scripts/deploy-dmg.sh HOST [version]     # install on a bench box as a user would
 scripts/smoke-dmg.sh HOST                # does the installed app actually launch
 scripts/fleet-bench.sh -l LABEL [host]   # timerefresh FPS, appends to benchmarks/
@@ -115,6 +116,15 @@ on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
   `client.dylib` for i386, and `hl_ppc`, `hl_amd64`, `hl_arm64` for the rest.
   The engine `dlopen`s these BY NAME, so a `_i386` suffix produces files it will
   never look for. `docs/adr/0001` amendment.
+- **Bench and test machines are claimed by name**, with
+  `scripts/pick-bench-host.sh --acquire HOST LABEL`. `deploy-dmg.sh` and
+  `fleet-bench.sh` do it for you and refuse a busy box. It shares the build
+  lock's directory on the target, so a bench and a build cannot land on the same
+  mini. It also refuses a host booted into an OS its alias does not name: the
+  multi-boot aliases all answer on one IP, and only the ssh host key tells them
+  apart, so `deploy-dmg.sh quad-tiger` against a Leopard-booted quad would
+  otherwise install onto Leopard and label the result "tiger". Canonical copy in
+  `old-mac-build-host`, distributed by its `sync-build-lock.sh`.
 - **Mac OS X only, not Mac OS 9** (issue #23). Classic is out of scope.
 - **Three trees:** engine (`xash3d-fwgs`), menu (`mainui_cpp`), game dylibs
   (`hlsdk-portable`). **Every slice, and the Linux server, builds from the same
@@ -226,6 +236,50 @@ inferred. A partial result from a killed agent is a lead, never a finding.
 - **No em dashes anywhere**, prose or shipped strings.
 - **Never rate or praise work**, ours or upstream's; attribution is a fact.
 - **No Claude co-author** on commits.
+
+## Working alongside the other repos
+
+Five repos are worked on together: the four game ports and the private
+`retro-server-infra`, which runs the servers those ports build. A session may be
+open in each at once. Three rules keep them out of each other's way.
+
+**Hardware is claimed, never assumed free.** Every script that deploys to,
+benches on, or otherwise drives a fleet machine re-execs itself under
+`scripts/pick-bench-host.sh --run`, so the machine is claimed for the run and
+released however it ends. The lock is a directory on the target, so it is shared
+with the build lock and visible to every repo, agent and workstation. Check
+`scripts/pick-bench-host.sh --status` before assuming a box is idle, and never
+work around a busy one. `BENCH_NO_LOCK=1` exists only for debugging the picker.
+
+**Cross-repo work goes through GitHub, not chat.** One board covers all five
+repos: <https://github.com/users/matthewdeaves/projects/8>. Columns are
+`Triage / Measuring / Ready / In progress / Blocked / Done`, with `Source` and
+`Evidence` fields. File cross-repo work as an issue and put it on the board:
+
+```sh
+gh issue create -R matthewdeaves/<repo> --project Retro \
+  --label from:port,needs-measurement --title "..." --body "..."
+```
+
+Labels, the same four in every repo: **`from:infra`** raised by the server side
+for a port to act on, **`from:port`** raised by a port for another repo,
+**`needs-measurement`** the claim has no number or hardware repro behind it yet,
+**`cross-port`** it affects more than one port, so expect sibling issues.
+
+**Anything one session raises at another starts in `Triage` with
+`needs-measurement`, and is not worked until a human or a measurement moves it.**
+An issue written by another agent carries no more evidence than the reasoning
+that produced it, and it arrives looking exactly like one backed by a bench run.
+That gate is the whole reason the board has a `Measuring` column. The same
+finding really does recur across ports (the PowerPC SDL2 `--disable-joystick`
+issue was filed in three repos on the same day), so `cross-port` is worth using,
+but file the sibling issues rather than assuming the fix transfers.
+
+**This repo is PUBLIC. `retro-server-infra` is PRIVATE.** It describes the
+topology, firewall rules and admin surface of a live host. Never copy addresses,
+key material, tunnel tokens or `.env` content out of it into this repo, in code,
+docs or a commit message. Referring to a server release tag is fine; describing
+where it runs is not.
 
 ## Read on demand
 
