@@ -161,6 +161,15 @@ refresh_manifest () {
 
 check_manifest || exit 1
 
+# Do not write drivers into a mini another session has claimed: build-all.sh
+# reads them as it goes, so replacing them mid-build swaps the drivers under a
+# running build. A check, not a claim, because the documented flow has the
+# caller holding the lock already; see scripts/lock-check.sh. --check writes
+# nothing, so it is not gated.
+if [ "$MODE" != "--check" ]; then
+	"$ROOT/scripts/lock-check.sh" "$HOST" "sync this repo's drivers to $HOST" || exit 1
+fi
+
 
 # --- full tracked-tree mode ------------------------------------------------
 #

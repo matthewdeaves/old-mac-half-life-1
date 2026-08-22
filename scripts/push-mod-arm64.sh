@@ -45,6 +45,16 @@ fp_remote () {
 			echo "$f $(md5 -q "$f")"; done | md5 -q' 2>/dev/null
 }
 
+# dist/ on the mini is what a running build reads and writes, so do not write
+# into a host another session has claimed. Checked lazily, on the first real
+# copy: a tree that already matches needs no write and no refusal.
+lock_checked=0
+ensure_lock () {
+	[ "$lock_checked" = 1 ] && return 0
+	"$ROOT/scripts/lock-check.sh" "$HOST" "push the arm64 mod and app slices to $HOST" || exit 1
+	lock_checked=1
+}
+
 rc=0
 any=0
 
@@ -69,6 +79,8 @@ for rel in dist/mods-arm64 dist/installer-arm64 dist/sysreport-arm64; do
 		rc=1
 		continue
 	fi
+
+	ensure_lock
 
 	echo "== $rel: copying $n files to $HOST"
 	# rsync, not tar: this is ~60 MB over a wifi path measured at 0.55 MB/s to the

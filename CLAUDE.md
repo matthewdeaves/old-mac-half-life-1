@@ -39,6 +39,11 @@ python3 tests/test-repo.py               # repo invariants, runs on this box
 tests/test-artifact.sh                   # checks a built artifact
 ```
 
+`sync-build-host.sh` and the two push scripts refuse a mini that another session
+has claimed. They CHECK the lock through `pick-build-host.sh --status`, they do
+not take it, because the flow above already holds it and the lock is not
+reentrant. `scripts/lock-check.sh`, issue #5.
+
 `build-all.sh` runs `fetch-sources.sh`, the FOUR slice drivers it can run
 (`build-lion.sh` twice, for x86_64 and for i386, then both PowerPC ones),
 `make-universal.sh`, `make-app.sh`, then `build-installer.sh` and

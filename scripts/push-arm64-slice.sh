@@ -67,6 +67,12 @@ if [ "$MODE" = "--check" ]; then
 	exit 1
 fi
 
+# dist/ on the mini is what a running build reads and writes, so do not write
+# into a host another session has claimed. Checked here rather than at the top:
+# a slice that is already current needs no write and no refusal.
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+"$ROOT/scripts/lock-check.sh" "$HOST" "push the arm64 engine slice to $HOST" || exit 1
+
 echo "==> copying the arm64 slice ($n files) to $HOST"
 # tar, not scp: one connection, it creates the directory, and it preserves the
 # executable bits that a Mach-O needs. Nothing is deleted at the far end.
