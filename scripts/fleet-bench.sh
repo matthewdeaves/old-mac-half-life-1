@@ -96,6 +96,23 @@ echo "== fleet-bench label=$LABEL renderer=$REND ${W}x${H} $SCREENMODE map=$MAP 
 # booted into an OS its alias does not name, which is the failure that would
 # otherwise write a row labelled "tiger" from a Leopard-booted quad.
 PICK="$ROOT/scripts/pick-bench-host.sh"
+
+# Claim with a NONCE, not just an identity.
+#
+# The picker's owner string is user@host:repo, which is byte-identical for two
+# sessions working in this repo at once, so a --release from either dropped the
+# other's lock with no error. Since build-host#7 a claim can carry a nonce that
+# release has to present back; a caller opts in by exporting BENCH_LOCK_CLAIM
+# around the acquire/release pair. --run generates its own, which is why the
+# other three fleet scripts here needed no change and this one did.
+#
+# Set once for the whole sweep: this process may hold several machines at a time
+# and the trap below releases all of them, so they share one claim.
+#
+# Honour an inherited value rather than overwriting it, so a caller that already
+# claimed these machines and set the variable can still release them.
+export BENCH_LOCK_CLAIM="${BENCH_LOCK_CLAIM:-fleet-bench.$$.$(date +%s).${RANDOM:-0}}"
+
 HELD=""
 release_held() {
 	for r in $HELD; do "$PICK" --release "$r" >/dev/null 2>&1; done

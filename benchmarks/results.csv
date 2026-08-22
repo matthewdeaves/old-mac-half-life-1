@@ -155,3 +155,5 @@ timestamp,label,host,renderer,resolution,screenmode,map,frames,fps_min,fps_med,f
 2026-08-22T21:45:09,msaashot-0,mini-g4,gl,1024x768,fullscreen,crossfire,60,113.290,113.290,113.290,113.290
 2026-08-22T21:46:36,msaashot-0,quicksilver,gl,1024x768,fullscreen,crossfire,60,66.818,66.818,66.818,66.818
 2026-08-22T21:47:06,msaashot-4,quicksilver,gl,1024x768,fullscreen,crossfire,60,32.172,32.172,32.172,32.172
+2026-08-22T22:10:30,rippleshot-1,quicksilver,gl,1024x768,fullscreen,rapidcore,60,79.205,79.205,79.205,79.205
+2026-08-22T22:12:24,nonce-test,quicksilver,gl,800x600,fullscreen,crossfire,300,61.656,63.561,65.467,65.467|61.656
