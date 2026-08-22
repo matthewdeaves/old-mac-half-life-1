@@ -236,6 +236,7 @@ if [ "\$(uname -p)" = "powerpc" ] && { [ "\$(sysctl -n hw.cpusubtype 2>/dev/null
 	# as bench overrides. Measured 2026-08-18 on yosemite, c0a0: 44.6 fps in
 	# 16-bit, 36.1 in 32-bit, 30.0 for v1.7.2.
 	PROFILE="-ref gl -fullscreen -width 800 -height 600 -gldepth16 -glnostencil -bilinear"
+	MSAA_DEFAULT=""   # Rage 128: measured no cost and no visible change, issue #8
 else
 	# -borderless means SDL fullscreen-desktop, and on 10.7 that leaves the menu
 	# bar in place: the window is the full 1920x1080 at 0,0 but the GL drawable is
@@ -255,6 +256,7 @@ else
 	# decision about its Rage 128 rather than anything to do with Panther.
 	if [ "\$(uname -p)" = "powerpc" ]; then
 		PROFILE="-ref gl -borderless"    # G4/G5, 10.3 through 10.5: native-res borderless
+		MSAA_DEFAULT=2   # measured, issue #8
 		# A video.cfg carried over from a release older than issue #41 archives
 		# exclusive fullscreen, and on the iMac G5 under Leopard that launch
 		# dies in SDL_ShowWindow with "minimize failed (-4959)" (issue #57).
@@ -301,6 +303,38 @@ else
 		else
 			PROFILE="-ref gl -fullscreen"
 		fi
+	fi
+fi
+
+# Multisampling, on a FRESH install only.
+#
+# gl_msaa_samples defaults to 0 in the engine and mainui has no control for it,
+# so nothing has ever asked for MSAA on any machine here. Measured on hardware,
+# fullscreen, map crossfire, 300 frames, median of 3 (issue #8):
+#
+#   mini G4    1024x768   121.2 fps off,  62.9 at 2x,  20.5 at 4x
+#   Quicksilver 1024x768   75.4 fps off,  57.8 at 2x,  32.9 at 4x
+#   dual G5    1680x1050   98.4 fps off,  71.4 at 2x,  44.2 at 4x
+#   G3 800x600             58.7 off, 58.8 at 2x, 59.1 at 4x, and two screenshots
+#                          at 0 and 4 are visually identical: the Rage 128 has no
+#                          multisampling, so the request does nothing either way.
+#
+# So 2 on the G4 and G5 and nothing on the G3. 4x is a 55 to 83% cut for a
+# difference you have to look for, which is the wrong end of the trade even by
+# the rule that effects beat frames above a machine's floor.
+#
+# WRITTEN ONLY IF THE KEY IS ABSENT. gl_msaa_samples is FCVAR_GLCONFIG, so the
+# engine archives it into opengl.cfg on every exit; once a player has run the
+# game once, the key exists and this never touches it again. That makes this a
+# default for new installs and not a setting re-applied behind the player's back,
+# which is the mistake the -bilinear note at gl_opengl.c warns about.
+#
+# opengl.cfg is exec'd by R_Init_Video_ (engine/client/dll_int/ref_common.c:305)
+# BEFORE the GL context is created, so a value seeded here is live on this launch.
+if [ -n "\${MSAA_DEFAULT:-}" ] && [ -d "\$XASH3D_BASEDIR/valve" ]; then
+	OGLCFG="\$XASH3D_BASEDIR/valve/opengl.cfg"
+	if ! grep -q '^gl_msaa_samples' "\$OGLCFG" 2>/dev/null; then
+		printf 'gl_msaa_samples "%s"\n' "\$MSAA_DEFAULT" >> "\$OGLCFG" 2>/dev/null
 	fi
 fi
 
