@@ -265,6 +265,22 @@ STAMPED="$( cd "$ENGINE" && git rev-parse HEAD )"
 }
 printf '%s\n' "$STAMPED" > "$OUT/BUILD-STAMP"
 
+# The game dylibs in this slice come from hlsdk, not from the engine tree, so the
+# engine stamp says nothing about them. That mattered only here: every other
+# slice is built on the mini in the same run as the fuse, while this one is
+# carried and can sit in dist/arm64 for weeks. If PIN_HLSDK_COMMIT moves while
+# PIN_ENGINE_COMMIT stands still, hl_arm64.dylib and client_arm64.dylib are from
+# the old hlsdk and the engine stamp still matches. Issue #4.
+#
+# A second file rather than a second line: make-universal.sh's stamp_of cats
+# BUILD-STAMP whole and compares it to the pin.
+HLSDK_STAMPED="$( cd "$HLSDK" && git rev-parse HEAD )"
+[ "$HLSDK_STAMPED" = "$PIN_HLSDK_COMMIT" ] || {
+	echo "!! build-arm64: hlsdk tree is at $HLSDK_STAMPED but the pin says $PIN_HLSDK_COMMIT" >&2
+	exit 1
+}
+printf '%s\n' "$HLSDK_STAMPED" > "$OUT/HLSDK-STAMP"
+
 echo
 echo "== arm64 slice ready: $OUT =="
 echo "   Next: scripts/push-arm64-slice.sh HOST   then build-all.sh on that host"

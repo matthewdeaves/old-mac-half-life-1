@@ -152,6 +152,32 @@ for d in "$PANTHER" "$TIGER" "${DYN_DIRS[@]}"; do
 	fi
 done
 echo "    ok  every slice at $( short "$PIN_ENGINE_COMMIT" )"
+
+# The game dylibs are hlsdk's, and hlsdk has its own pin. BUILD-STAMP is the
+# ENGINE commit, so it cannot speak for them. That only leaves a hole for arm64:
+# every other slice is built on this machine in the same run as this fuse, from
+# a tree fetch-sources.sh has just checked against the pins, while dist/arm64 is
+# carried from the Apple Silicon box and nothing cleans it up. A PIN_HLSDK_COMMIT
+# bump with PIN_ENGINE_COMMIT standing still would ship hl_arm64.dylib and
+# client_arm64.dylib from the old hlsdk with every stamp still matching.
+# Issue #4, docs/adr/0016.
+if [ -d "$ARM64" ]; then
+	if [ ! -f "$ARM64/HLSDK-STAMP" ]; then
+		echo "!! $ARM64 has no HLSDK-STAMP, so its game dylibs cannot be identified" >&2
+		echo "   On the Apple Silicon box: scripts/build-arm64.sh" >&2
+		echo "   then scripts/push-arm64-slice.sh HOST" >&2
+		exit 1
+	fi
+	got="$( cat "$ARM64/HLSDK-STAMP" )"
+	if [ "$got" != "$PIN_HLSDK_COMMIT" ]; then
+		echo "!! $ARM64 game dylibs were built from hlsdk $got" >&2
+		echo "   build-pins.sh says $PIN_HLSDK_COMMIT" >&2
+		echo "   On the Apple Silicon box: scripts/build-arm64.sh" >&2
+		echo "   then scripts/push-arm64-slice.sh HOST" >&2
+		exit 1
+	fi
+	echo "    ok  arm64 game dylibs at $( short "$PIN_HLSDK_COMMIT" )"
+fi
 # Carry the agreed stamp forward. Up to now it lived only in the per-slice
 # staging dirs, so once the fat bundle was assembled there was nothing left in
 # the artifact itself saying what it came from, and make-dmg.sh had to take the
