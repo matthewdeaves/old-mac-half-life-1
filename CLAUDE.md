@@ -271,6 +271,15 @@ gh issue create -R matthewdeaves/<repo> --project Retro \
   --label from:port,needs-measurement --title "..." --body "..."
 ```
 
+**Read the column back after filing. It is not reliably `Triage`.** On 2026-08-22
+an issue filed from here with `--project` was found in `Measuring` fifteen minutes
+later, having been put there by nothing this session did, while two filed from
+old-mac-quake3 in the same hour arrived with no status at all. Measuring is the
+human approval gate, so an issue that lands there reads as approved work that
+nobody approved. The mechanism is not established, which is the point: check,
+and set `Triage` yourself if it is anything else. Moving INTO `Triage` is a
+correction, not a gate crossing.
+
 Labels, the same four in every repo: **`from:infra`** raised by the server side
 for a port to act on, **`from:port`** raised by a port for another repo,
 **`needs-measurement`** the claim has no number or hardware repro behind it yet,
