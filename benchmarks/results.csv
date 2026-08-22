@@ -157,3 +157,9 @@ timestamp,label,host,renderer,resolution,screenmode,map,frames,fps_min,fps_med,f
 2026-08-22T21:47:06,msaashot-4,quicksilver,gl,1024x768,fullscreen,crossfire,60,32.172,32.172,32.172,32.172
 2026-08-22T22:10:30,rippleshot-1,quicksilver,gl,1024x768,fullscreen,rapidcore,60,79.205,79.205,79.205,79.205
 2026-08-22T22:12:24,nonce-test,quicksilver,gl,800x600,fullscreen,crossfire,300,61.656,63.561,65.467,65.467|61.656
+2026-08-23T00:14:19,ripple-0,quicksilver,gl,800x600,fullscreen,rapidcore,300,108.712,109.078,109.769,108.712|109.078|109.769
+2026-08-23T00:14:53,ripple-1,quicksilver,gl,800x600,fullscreen,rapidcore,300,104.360,105.215,109.538,105.215|104.360|109.538
+2026-08-23T00:15:28,ripple-2,quicksilver,gl,800x600,fullscreen,rapidcore,300,108.257,109.015,109.158,109.158|108.257|109.015
+2026-08-23T00:16:05,ripple-0,yosemite,gl,800x600,fullscreen,rapidcore,300,68.165,68.171,68.187,68.187|68.171|68.165
+2026-08-23T00:16:57,ripple-1,yosemite,gl,800x600,fullscreen,rapidcore,300,68.070,68.100,68.143,68.143|68.100|68.070
+2026-08-23T00:17:48,ripple-2,yosemite,gl,800x600,fullscreen,rapidcore,300,68.117,68.178,68.192,68.192|68.117|68.178
