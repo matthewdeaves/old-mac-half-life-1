@@ -257,9 +257,12 @@ inferred. A partial result from a killed agent is a lead, never a finding.
 
 ## Working alongside the other repos
 
-Five repos are worked on together: the four game ports and the private
-`retro-server-infra`, which runs the servers those ports build. A session may be
-open in each at once. Three rules keep them out of each other's way.
+Seven repos share one board, project 8: the four game ports,
+`retro-server-infra`, `old-mac-build-host` and `retro-agents`. The process behind
+it, the columns, the labels, the approval gate and the GraphQL budget, lives in
+`retro-agents/CLAUDE.md` and in the brief every session is launched with. It is
+not restated here, because two copies of a rule drift. What follows is only what
+is specific to this repo.
 
 **Hardware is claimed, never assumed free.** Every script that deploys to,
 benches on, or otherwise drives a fleet machine re-execs itself under
@@ -269,44 +272,20 @@ with the build lock and visible to every repo, agent and workstation. Check
 `scripts/pick-bench-host.sh --status` before assuming a box is idle, and never
 work around a busy one. `BENCH_NO_LOCK=1` exists only for debugging the picker.
 
-**Cross-repo work goes through GitHub, not chat.** One board covers all five
-repos: <https://github.com/users/matthewdeaves/projects/8>. Columns are
-`Triage / Measuring / Ready / In progress / Blocked / Done`, with `Source` and
-`Evidence` fields. File cross-repo work as an issue and put it on the board:
+**Filing puts nothing in a column.** A new board item lands with `Status: null`,
+in no column at all, which reads as work nobody raised. Measured 2026-08-22,
+issue #6: nothing on the board sets a status on add. So file the issue, then run
 
 ```sh
-gh issue create -R matthewdeaves/<repo> --project Retro \
-  --label from:port,needs-measurement --title "..." --body "..."
+../retro-agents/bin/board-add.sh old-mac-half-life-1#<n>
 ```
 
-**A new item lands with NO status. Set `Triage` yourself, every time.** Measured
-2026-08-22: an issue filed with `gh issue create --project Retro` was on the board
-nine seconds later with `Status: null`, and still null five minutes later. Nothing
-sets it, because the board's `Item added to project` workflow is disabled; the only
-enabled one is `Auto-add sub-issues to project`. A statusless item sits in the
-board's `No Status` group, which is not `Triage` and is not the gate, so it reads
-as nothing anybody raised.
+which adds it and sets `Triage` in one step, over REST.
 
-Reading the column back is still worth it, because a status that is already set
-came from a person or from the manager's tooling gate, and either way it is not
-yours to overturn. What was once written up here as unexplained automation putting
-an issue in `Measuring` was an actor nobody recorded: the gate requires a comment
-naming the ticket and saying what made it tooling, and that comment was missing.
-Issue #6. Moving INTO `Triage` is a correction, not a gate crossing.
-
-Labels, the same four in every repo: **`from:infra`** raised by the server side
-for a port to act on, **`from:port`** raised by a port for another repo,
-**`needs-measurement`** the claim has no number or hardware repro behind it yet,
-**`cross-port`** it affects more than one port, so expect sibling issues.
-
-**Anything one session raises at another starts in `Triage` with
-`needs-measurement`, and is not worked until a human or a measurement moves it.**
-An issue written by another agent carries no more evidence than the reasoning
-that produced it, and it arrives looking exactly like one backed by a bench run.
-That gate is the whole reason the board has a `Measuring` column. The same
-finding really does recur across ports (the PowerPC SDL2 `--disable-joystick`
-issue was filed in three repos on the same day), so `cross-port` is worth using,
-but file the sibling issues rather than assuming the fix transfers.
+**Your work stops at `Review`.** That column sits between `Blocked` and `Done`.
+Moving anything to `Done`, and closing the issue, is the user's. So never write
+`Closes #12` or `Fixes #12` in a commit message: GitHub acts on those and the
+issue reads as finished while the column says otherwise. Write `Refs #12`.
 
 **This repo is PUBLIC. `retro-server-infra` is PRIVATE.** It describes the
 topology, firewall rules and admin surface of a live host. Never copy addresses,
