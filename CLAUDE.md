@@ -92,6 +92,16 @@ on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
   only fails to NAME the slice, printing `cputype (16777228)`, while `otool` and
   `install_name_tool` refuse the whole file. **Never write "not for Apple
   Silicon".** `docs/adr/0001` amendment.
+- **A stale arm64 slice is refused, not fused.** Nothing cleans `dist/*-arm64`
+  up, so the copy on a mini can be weeks old, and the trigger is an ordinary
+  commit to `installer/` or `sysreport/`, not a pin bump. The engine compares
+  each slice's `BUILD-STAMP` against `PIN_ENGINE_COMMIT`. The Mods app and
+  System Report cannot: they build from directories in this repo, and `~/oldmac`
+  on a mini has no git in it, so their stamp is a content hash of the source
+  computed by `scripts/arm64-stamp.sh`, which both sides source. Rebuild the
+  arm64 slice and push it; do not work around the refusal. A vendor bump is NOT
+  covered and still needs the arm64 drivers re-run by hand. The 25 mod dylib
+  pairs are not covered either, issue #4. `docs/adr/0015`
 - **Every shipped app runs natively on every CPU the project supports.** Game:
   `ppc750 ppc7400 i386 x86_64 arm64`. Mod dylibs, Mods app and System Report:
   `ppc i386 x86_64 arm64`, no ppc split because `dlopen` grades generic `ppc`
