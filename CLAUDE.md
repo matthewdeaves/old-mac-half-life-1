@@ -279,14 +279,20 @@ gh issue create -R matthewdeaves/<repo> --project Retro \
   --label from:port,needs-measurement --title "..." --body "..."
 ```
 
-**Read the column back after filing. It is not reliably `Triage`.** On 2026-08-22
-an issue filed from here with `--project` was found in `Measuring` fifteen minutes
-later, having been put there by nothing this session did, while two filed from
-old-mac-quake3 in the same hour arrived with no status at all. Measuring is the
-human approval gate, so an issue that lands there reads as approved work that
-nobody approved. The mechanism is not established, which is the point: check,
-and set `Triage` yourself if it is anything else. Moving INTO `Triage` is a
-correction, not a gate crossing.
+**A new item lands with NO status. Set `Triage` yourself, every time.** Measured
+2026-08-22: an issue filed with `gh issue create --project Retro` was on the board
+nine seconds later with `Status: null`, and still null five minutes later. Nothing
+sets it, because the board's `Item added to project` workflow is disabled; the only
+enabled one is `Auto-add sub-issues to project`. A statusless item sits in the
+board's `No Status` group, which is not `Triage` and is not the gate, so it reads
+as nothing anybody raised.
+
+Reading the column back is still worth it, because a status that is already set
+came from a person or from the manager's tooling gate, and either way it is not
+yours to overturn. What was once written up here as unexplained automation putting
+an issue in `Measuring` was an actor nobody recorded: the gate requires a comment
+naming the ticket and saying what made it tooling, and that comment was missing.
+Issue #6. Moving INTO `Triage` is a correction, not a gate crossing.
 
 Labels, the same four in every repo: **`from:infra`** raised by the server side
 for a port to act on, **`from:port`** raised by a port for another repo,
