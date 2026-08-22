@@ -102,7 +102,10 @@ if [ -f "$ARM64_SLICE" ]; then
 		echo "   this build's source hashes to $WANT_STAMP" >&2
 		echo "   the arm64 slice says            ${GOT_STAMP:-nothing (no BUILD-STAMP)}" >&2
 		echo "   On the Apple Silicon box: scripts/build-sysreport-arm64.sh" >&2
-		echo "   then                      scripts/push-mod-arm64.sh $(hostname -s)" >&2
+		# NOT $(hostname -s): this box calls itself intelmacmini, but it is
+		# reached as mini-intel or lion-build1. Naming its own hostname sends the
+		# operator to an alias that does not resolve. ssh_config is the authority.
+		echo "   then                      scripts/push-mod-arm64.sh HOST   (its ssh alias)" >&2
 		exit 1
 	fi
 	SLICES="$SLICES $ARM64_SLICE"
