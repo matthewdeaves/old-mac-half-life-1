@@ -1,18 +1,21 @@
 # Tests
 
-Three layers, split by what they need to run.
+Four layers, split by what they need to run.
 
 | | Needs | Runs |
 |---|---|---|
 | `test-repo.py` | a checkout and Python 3 | anywhere; CI also runs it on every push, free on a public repo |
 | `test-artifact.sh` | a Mac and a built `.dmg` | by hand before cutting a release |
 | `test-mod-dylibs.sh` | a Mac and a folder of mod dylibs | on each machine in the fleet |
+| `test-frame.sh` | a deployed game on a fleet machine | after a renderer change, on one machine per class |
 
 ```sh
 python3 tests/test-repo.py -v
 tests/test-artifact.sh dist/Half-Life-OldMac-v<version>.dmg
 tests/test-mod-dylibs.sh dist/mods
 tests/test-mod-dylibs.sh "/path/to/Half-Life Mods.app/Contents/Resources/mods"
+tests/test-frame.sh quicksilver
+tests/frame-check.py some-screenshot.png
 ```
 
 The first two exit with the number of failed checks.
