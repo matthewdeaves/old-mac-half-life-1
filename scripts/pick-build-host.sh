@@ -63,10 +63,13 @@ ME="${USER:-unknown}@$(hostname -s 2>/dev/null || echo host):${REPO_NAME}"
 #
 # A claim carries a nonce, written as claim=... and required back at release.
 # Unlike the bench picker there is no --run here, so every caller acquires in one
-# process and releases from a trap in another (quake2 build-fat.sh:11,16;
-# quake3 build.sh:10,17; quakespasm build-fat.sh:14,19). A pid would not survive
-# that, so the nonce is opt-in: export BENCH_LOCK_CLAIM around the pair to get a
-# strict release. Without it this falls back to the ME match, exactly as before.
+# process and releases from a trap in another; see build-fat.sh and build.sh in
+# quake2, quake3 and quakespasm, and quake3 build-gamedylibs.sh. A pid would not
+# survive that, so the nonce is opt-in: export BENCH_LOCK_CLAIM around the pair
+# to get a strict release. Without it this falls back to the ME match, as before.
+#
+# No line numbers on purpose: this file ships byte-identical into four ports and
+# their line numbers move without it changing.
 CLAIM="${BENCH_LOCK_CLAIM:-}"
 
 # Probe one host. Prints: "<age> <nprocs> <owner...>"  (age -1 = unlocked)
@@ -200,6 +203,16 @@ cmd_release() {
 	local h="$1"
 	local strict=""
 	[ -n "$CLAIM" ] && strict="claim=$CLAIM"
+	# Say so when falling back to identity. Every split acquire/release caller in
+	# the fleet lands here, and without this the release looks clean while being
+	# the exact case issue #7 is about: ME is user@host:repo, two sessions in one
+	# repo share it, and either can drop the other's lock. The bench picker has
+	# said this since #7; this one did not, which is why the gap read as absent.
+	if [ -z "$strict" ] && [ "${FORCE:-0}" != 1 ]; then
+		echo "pick-build-host: releasing $h on identity alone; this cannot tell two" >&2
+		echo "  sessions in $REPO_NAME apart. Export BENCH_LOCK_CLAIM around the" >&2
+		echo "  acquire and the release to get a strict one." >&2
+	fi
 	ssh "${SSH_OPTS[@]}" "$h" "
 		O=\"$LOCK/owner\"
 		if [ -d \"$LOCK\" ]; then
