@@ -189,7 +189,7 @@ for shim in cinttypes cstdint; do
 	[ -f "$SHIM/$shim" ] || {
 		echo "!! missing $SHIM/$shim" >&2
 		echo "   compat-include/ is tracked in the repo. Run" >&2
-		echo "     scripts/sync-build-host.sh $(hostname -s)" >&2
+		echo "     scripts/sync-build-host.sh HOST   (this box's ssh alias)" >&2
 		echo "   from the workstation, or this build has no <$shim> at all." >&2
 		exit 1
 	}

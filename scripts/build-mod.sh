@@ -163,7 +163,7 @@ for shim in cinttypes cstdint; do
 	[ -f "$SHIM/$shim" ] || {
 		echo "!! missing $SHIM/$shim" >&2
 		echo "   compat-include/ is tracked in the repo now. Run" >&2
-		echo "     scripts/sync-build-host.sh $(hostname -s)" >&2
+		echo "     scripts/sync-build-host.sh HOST   (this box's ssh alias)" >&2
 		echo "   from the workstation, or this build has no <$shim> at all." >&2
 		exit 1
 	}
@@ -502,7 +502,7 @@ else
 	echo "NOTE: no dist/mods-arm64 on this host, so these dylibs have NO arm64 slice."
 	echo "      They will run under Rosetta 2 on Apple Silicon. To include one, from"
 	echo "      the Apple Silicon box: scripts/build-mod-arm64.sh --all then"
-	echo "      scripts/push-mod-arm64.sh $(hostname -s)"
+	echo "      scripts/push-mod-arm64.sh HOST   (this box's ssh alias)"
 fi
 
 [ -z "$failed" ]

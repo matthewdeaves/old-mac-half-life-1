@@ -99,7 +99,7 @@ if [ -d "$ARM64" ]; then
 	echo "==> arm64 slice present, it will be fused in"
 else
 	echo "==> no arm64 slice at $ARM64, building without it"
-	echo "    (build it on the Apple Silicon box, then scripts/push-arm64-slice.sh $(hostname -s))"
+	echo "    (build it on the Apple Silicon box, then scripts/push-arm64-slice.sh HOST)"
 fi
 
 # --- refuse to fuse slices that were not all built from the same source -------

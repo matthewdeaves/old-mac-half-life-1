@@ -41,7 +41,7 @@ if [ ! -d "$ARM" ]; then
 	echo "   The arm64 mod slices are built on the Apple Silicon box, because no"
 	echo "   mini can target arm64 at all. From the workstation:"
 	echo "     scripts/build-mod-arm64.sh --all"
-	echo "     scripts/push-mod-arm64.sh $(hostname -s)"
+	echo "     scripts/push-mod-arm64.sh HOST   (this box's ssh alias)"
 	exit 1
 fi
 
