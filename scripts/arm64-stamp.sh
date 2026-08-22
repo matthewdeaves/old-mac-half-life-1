@@ -1,6 +1,16 @@
+# shellcheck shell=sh
 # arm64-stamp.sh - what an arm64 slice was built from, so a stale one is refused.
 #
-# Sourced, never run. Used by the four drivers either side of the arm64 hand-off:
+# Sourced, never run, so it has no shebang. Line 1 is the directive that names
+# the dialect to check it as; without one, SC2148 fails the CI job for every
+# other script too. sh rather than bash, because sh is the stricter of the two
+# and this file has to stay POSIX: four bash drivers source it today, but
+# nothing in it is bash.
+#
+# A comment line here must not begin with the checker's own name, or it is read
+# as another directive and the file stops parsing.
+#
+# Used by the four drivers either side of the arm64 hand-off:
 #
 #   build-installer-arm64.sh  writes dist/installer-arm64/BUILD-STAMP
 #   build-sysreport-arm64.sh  writes dist/sysreport-arm64/BUILD-STAMP

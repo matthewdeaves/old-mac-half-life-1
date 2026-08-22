@@ -10,7 +10,7 @@ f2ea1559aa7caa847ac3387e35b7238e  build-ppc-tiger.sh
 a812b8becff4ea604f3565ffd6bf05f6  build-sysreport.sh
 33d31c10eb0e0ca7526b551dd674ef70  build-mod.sh
 ace745d509523d40f504e539f8ce89b7  fuse-mod-arm64.sh
-3327a0e99505f3b30cf2e86322573e86  arm64-stamp.sh
+2188b09d88c6d1cdea01cd95e5e062d0  arm64-stamp.sh
 57a1c170efd62be52649fcabe7251d74  patch-hlsdk-mod-bugs.py
 3d702b6ad1a3480f4887759391ba0956  patch-hlsdk-mod-gcc4.py
 4c83ba6fd7ea6520cdc873c8cfe0263b  patch-hlsdk-ppc-darwin.py
