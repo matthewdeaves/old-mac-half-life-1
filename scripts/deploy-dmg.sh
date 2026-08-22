@@ -49,10 +49,14 @@ DEST_DIR="${DEST_DIR:-Desktop/Half-Life}"   # relative to the target's home
 # installed. The picker also refuses a host booted into an OS its alias does not
 # name, so `deploy-dmg.sh quad-tiger` cannot silently install onto Leopard.
 #
-# RETRO_BENCH_LOCK guards against the re-exec recursing.
+# RETRO_BENCH_LOCK names the host that is ALREADY claimed, and the test compares
+# it to the host we want. A bare -z test used to mean "am I inside my own
+# re-exec"; since the picker's --run started exporting the variable it would mean
+# "am I inside ANY claim", so this script called from inside a claim on another
+# machine would skip claiming THIS one and drive it unclaimed. Issue #13.
 # BENCH_NO_LOCK=1 skips the lock, for debugging the picker itself.
 _PICK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/pick-bench-host.sh"
-if [ -z "${RETRO_BENCH_LOCK:-}" ] && [ "${BENCH_NO_LOCK:-0}" != 1 ] && [ -x "$_PICK" ]; then
+if [ "${RETRO_BENCH_LOCK:-}" != "$HOST" ] && [ "${BENCH_NO_LOCK:-0}" != 1 ] && [ -x "$_PICK" ]; then
   export RETRO_BENCH_LOCK="$HOST"
   exec "$_PICK" --run "$HOST" "deploy-dmg" -- "$0" "$@"
 fi
