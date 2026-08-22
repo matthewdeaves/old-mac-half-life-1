@@ -91,8 +91,22 @@ echo "==> [4/5] lipo"
 SLICES="$BUILD/sysreport-ppc $BUILD/sysreport-i386 $BUILD/sysreport-x86_64"
 ARM64_SLICE="$ROOT/dist/sysreport-arm64/sysreport"
 if [ -f "$ARM64_SLICE" ]; then
+	# Existence is not enough, for the same reason as the Mods app: this slice was
+	# built on the dev box and carried here, nothing cleans it up, and a stale one
+	# fuses silently. Issue #4, docs/adr/0015.
+	. "$ROOT/scripts/arm64-stamp.sh"
+	WANT_STAMP="$( oldmac_src_stamp $SOURCES "$SRC"/*.h )" || exit 1
+	GOT_STAMP="$( cat "$ROOT/dist/sysreport-arm64/BUILD-STAMP" 2>/dev/null || true )"
+	if [ "$GOT_STAMP" != "$WANT_STAMP" ]; then
+		echo "!! the arm64 slice was NOT built from this sysreport/ source" >&2
+		echo "   this build's source hashes to $WANT_STAMP" >&2
+		echo "   the arm64 slice says            ${GOT_STAMP:-nothing (no BUILD-STAMP)}" >&2
+		echo "   On the Apple Silicon box: scripts/build-sysreport-arm64.sh" >&2
+		echo "   then                      scripts/push-mod-arm64.sh $(hostname -s)" >&2
+		exit 1
+	fi
 	SLICES="$SLICES $ARM64_SLICE"
-	echo "    arm64 slice present, fusing it in"
+	echo "    arm64 slice present and built from this source ($WANT_STAMP), fusing it in"
 else
 	echo "    NO arm64 slice; Apple Silicon will run this under Rosetta 2"
 fi

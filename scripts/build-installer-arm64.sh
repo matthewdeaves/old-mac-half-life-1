@@ -126,6 +126,21 @@ if otool -L "$OUT/installer" | tail -n +2 | grep -vqE '^\s+(/usr/lib|/System/)';
 fi
 echo "    ok  $ARCH, floor macOS $vm, no C++ runtime, no outside dependencies"
 
+# --- build stamp -------------------------------------------------------------
+# What this slice was built FROM, so build-installer.sh on the mini can refuse
+# to fuse it once installer/ has moved on. Without this the fuse tested only
+# that the file existed, and an ordinary commit to installer/ shipped an app
+# running old code on Apple Silicon and new code on the other four slices.
+# Issue #4. The reasoning, and why this is a content hash rather than a commit
+# id, is at the top of scripts/arm64-stamp.sh and in docs/adr/0015.
+#
+# MEASURED, not restated: it is taken from the files that were just compiled.
+# Nothing in this script writes into $SRC, so there is no ordering trap of the
+# kind old-mac-quake2 hit in ea922696; the stamp is the same before and after.
+. "$ROOT/scripts/arm64-stamp.sh"
+oldmac_src_stamp $SOURCES "$SRC"/*.h > "$OUT/BUILD-STAMP"
+echo "    source stamp $( cat "$OUT/BUILD-STAMP" )"
+
 echo
 echo "Carry it to the build host with:"
 echo "  scripts/push-mod-arm64.sh HOST"

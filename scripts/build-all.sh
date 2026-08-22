@@ -83,6 +83,7 @@ if [ "${1:-}" = "--update-manifest" ]; then
 	for f in build-all.sh build-pins.sh fetch-sources.sh build-lion.sh \
 	         build-ppc-tiger.sh build-ppc-panther.sh make-universal.sh make-app.sh \
 	         build-installer.sh build-sysreport.sh build-mod.sh fuse-mod-arm64.sh \
+	         arm64-stamp.sh \
 	         patch-hlsdk-mod-bugs.py patch-hlsdk-mod-gcc4.py \
 	         patch-hlsdk-ppc-darwin.py patch-hlsdk-shared-clientbugs.py \
 	         patch-hlsdk-xcompile-ppc.py; do

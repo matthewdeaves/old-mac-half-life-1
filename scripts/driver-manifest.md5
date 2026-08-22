@@ -1,4 +1,4 @@
-0fde4eaf5511386ce1e4f016d278d658  build-all.sh
+9a9ad743f7546be164609df3a3e62adf  build-all.sh
 752d88e7b66f07680fe7cfacb5f54437  build-pins.sh
 fc367b41a04db904418e7346ba0e09ba  fetch-sources.sh
 a8713b0a4a29194b30c8deea048df1f0  build-lion.sh
@@ -6,10 +6,11 @@ ebaebab2b07e016dc3b115280496618c  build-ppc-tiger.sh
 2febe06c361ca7417cecc6b8a894884c  build-ppc-panther.sh
 ec9afdd04387ce49e448dc6750453ce4  make-universal.sh
 5504af30d3eb136b9e404d57fd8bf74b  make-app.sh
-19d46f379da6fd920cb781af1b8fc102  build-installer.sh
-9ef79ab8d8a0182bfe72cb54064353c3  build-sysreport.sh
+c7990554d54b24bfd1d09bd33ea86ccc  build-installer.sh
+d86a009f7bb9a155e7dbc9cfe408b698  build-sysreport.sh
 00d832265ea3ffec1c7e63c74c0d93aa  build-mod.sh
 e5a84cdb6441cc1fd3c36308b19f3f24  fuse-mod-arm64.sh
+3327a0e99505f3b30cf2e86322573e86  arm64-stamp.sh
 57a1c170efd62be52649fcabe7251d74  patch-hlsdk-mod-bugs.py
 3d702b6ad1a3480f4887759391ba0956  patch-hlsdk-mod-gcc4.py
 4c83ba6fd7ea6520cdc873c8cfe0263b  patch-hlsdk-ppc-darwin.py

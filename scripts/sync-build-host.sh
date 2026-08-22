@@ -71,6 +71,7 @@ scripts/make-universal.sh
 scripts/make-app.sh
 scripts/build-installer.sh
 scripts/build-sysreport.sh
+scripts/arm64-stamp.sh
 scripts/build-mod.sh
 scripts/fuse-mod-arm64.sh
 scripts/patch-hlsdk-mod-bugs.py

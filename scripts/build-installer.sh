@@ -218,8 +218,30 @@ SLICES="$BUILD/installer-ppc"
 for a in $INSTALLER_INTEL_ARCHES; do SLICES="$SLICES $BUILD/installer-$a"; done
 ARM64_SLICE="$ROOT/dist/installer-arm64/installer"
 if [ -f "$ARM64_SLICE" ]; then
+	# Existence is not enough. No mini can build arm64, so this file was built on
+	# the dev box and carried here, and nothing ever cleans it up: it can be weeks
+	# old. Testing only that it exists shipped an app running old code on Apple
+	# Silicon and new code on the other four slices, and printed "arm64 slice
+	# present, fusing it in" while doing it. Issue #4, docs/adr/0015.
+	#
+	# So compare what it was built from against the source THIS build is
+	# compiling. Both sides hash the same files the same way; see
+	# scripts/arm64-stamp.sh for what is in that set and what is deliberately not.
+	. "$ROOT/scripts/arm64-stamp.sh"
+	WANT_STAMP="$( oldmac_src_stamp $SOURCES "$SRC"/*.h )" || exit 1
+	GOT_STAMP="$( cat "$ROOT/dist/installer-arm64/BUILD-STAMP" 2>/dev/null || true )"
+	if [ "$GOT_STAMP" != "$WANT_STAMP" ]; then
+		echo "!! the arm64 slice was NOT built from this installer/ source" >&2
+		echo "   this build's source hashes to $WANT_STAMP" >&2
+		echo "   the arm64 slice says            ${GOT_STAMP:-nothing (no BUILD-STAMP)}" >&2
+		echo "   On the Apple Silicon box: scripts/build-installer-arm64.sh" >&2
+		echo "   then                      scripts/push-mod-arm64.sh $(hostname -s)" >&2
+		echo "   Refusing rather than fusing: a stale slice here is invisible in the" >&2
+		echo "   finished app until someone runs it on an Apple Silicon Mac." >&2
+		exit 1
+	fi
 	SLICES="$SLICES $ARM64_SLICE"
-	echo "    arm64 slice present, fusing it in ($ARM64_SLICE)"
+	echo "    arm64 slice present and built from this source ($WANT_STAMP), fusing it in"
 else
 	echo "    NO arm64 slice; Apple Silicon will run this under Rosetta 2"
 fi

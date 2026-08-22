@@ -72,6 +72,14 @@ if otool -L "$OUT/sysreport" | tail -n +2 | grep -vqE '^\s+(/usr/lib|/System/)';
 fi
 echo "    ok  $ARCH, floor macOS $vm, no outside dependencies"
 
+# --- build stamp -------------------------------------------------------------
+# What this slice was built FROM, so build-sysreport.sh on the mini can refuse to
+# fuse it once sysreport/ has moved on. Same reasoning as the Mods app; see
+# scripts/arm64-stamp.sh and docs/adr/0015. Issue #4.
+. "$ROOT/scripts/arm64-stamp.sh"
+oldmac_src_stamp $SOURCES "$SRC"/*.h > "$OUT/BUILD-STAMP"
+echo "    source stamp $( cat "$OUT/BUILD-STAMP" )"
+
 echo
 echo "Carry it to the build host with:"
 echo "  scripts/push-mod-arm64.sh HOST"
