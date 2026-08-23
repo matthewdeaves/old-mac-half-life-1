@@ -706,6 +706,106 @@ def test_every_repo_path_a_driver_reads_is_synced():
           "scripts/sync-build-host.sh)" % ", ".join(missing))
 
 
+# ------------------------------------------------------------ bench labels --
+
+def _registered_labels():
+    """Every machine label docs/BENCHMARKING.md recognises.
+
+    Two tables feed it: the current ssh aliases, and the seven historical
+    hostname labels that predate the alias rule. Only table rows inside those
+    two sections count, so prose elsewhere in the doc cannot widen the
+    allowlist by accident.
+    """
+    out = set()
+    keep = False
+    for line in read("docs/BENCHMARKING.md").splitlines():
+        if line.startswith("## "):
+            keep = ("Machines (SSH aliases)" in line) or ("Row labels" in line)
+            continue
+        if keep and line.lstrip().startswith("|"):
+            out.update(re.findall(r"`([^`]+)`", line))
+    return out
+
+
+def _results_labels():
+    """The host column of every data row in benchmarks/results.csv."""
+    labels = []
+    for i, line in enumerate(read("benchmarks/results.csv").splitlines()):
+        if i == 0 or not line.strip():
+            continue
+        parts = line.split(",")
+        if len(parts) > 2:
+            labels.append(parts[2])
+    return labels
+
+
+def test_every_bench_label_is_registered():
+    """No row may name a machine the fleet does not use.
+
+    bench.sh used to fall back to `hostname -s` when -N was absent and wrote 23
+    rows under names like macs-Computer and g4733, which are indistinguishable
+    from real rows without knowing the fleet. bench.sh now refuses, but a
+    hand-pasted row bypasses bench.sh entirely, so the file is checked too.
+    Issue #15.
+    """
+    known = _registered_labels()
+    labels = _results_labels()
+
+    # A count of zero from either side would make the comparison below vacuous
+    # and it would read as a pass, so prove both actually loaded.
+    check("results.csv yielded rows to check", len(labels) > 100,
+          "got %d rows" % len(labels))
+    check("BENCHMARKING.md yielded a label registry", len(known) > 15,
+          "got %d labels" % len(known))
+
+    unknown = sorted(set(x for x in labels if x not in known))
+    check("every host label in results.csv is registered in docs/BENCHMARKING.md",
+          not unknown,
+          "unregistered: %s\nAdd the machine to the alias table, or the label to\n"
+          "the historical table, in docs/BENCHMARKING.md." % ", ".join(unknown))
+
+
+def test_the_label_registry_discriminates():
+    """The registry must accept real names and reject invented ones.
+
+    A parser that returned everything, or nothing, would make the check above
+    look like it passed while testing nothing. So exercise both directions
+    against answers known before reading the output.
+    """
+    known = _registered_labels()
+    check("registry accepts a current alias", "yosemite-tiger" in known)
+    check("registry accepts a secondary alias", "g3-tiger" in known)
+    check("registry accepts a historical label", "macs-Computer" in known)
+    check("registry rejects a name that is in no table",
+          "macs-Computer-2" not in known)
+    check("registry is not simply everything",
+          "Power Mac G3" not in known and "" not in known)
+
+
+def test_bench_requires_an_explicit_machine_name():
+    """bench.sh must not reintroduce the hostname fallback.
+
+    The warning about `hostname -s` sat as a comment directly above the code
+    that did it anyway for months. A comment cannot fail a build; this can.
+    """
+    body = read("scripts/bench.sh")
+    check("bench.sh refuses a missing -N",
+          re.search(r'if \[ -z "\$NAME" \]', body) is not None,
+          "the -N guard is gone from scripts/bench.sh")
+
+    # Comments are stripped first: the guard is explained at the site in prose
+    # that necessarily names the thing it forbids, and matching that prose would
+    # fail the check for describing the bug it prevents.
+    # Match the command being RUN, not the word. The guard's own error message
+    # names hostname in order to say it is refusing to use it, and a substring
+    # test fails the check for explaining itself.
+    code = "\n".join(shell_commands(body))
+    check("bench.sh has no hostname fallback for the row label",
+          re.search(r"\$\(\s*hostname|`hostname", code) is None,
+          "scripts/bench.sh runs hostname again outside a comment; that is what\n"
+          "wrote the 23 unusable rows in benchmarks/results.csv.")
+
+
 def main():
     print("repo invariants (%s)" % REPO)
     for fn in (test_mod_tables_agree,
@@ -725,7 +825,10 @@ def main():
                test_every_repo_path_a_driver_reads_is_synced,
                test_no_em_dashes,
                test_no_stray_tool_markup,
-               test_issue_templates_reference_real_labels):
+               test_issue_templates_reference_real_labels,
+               test_every_bench_label_is_registered,
+               test_the_label_registry_discriminates,
+               test_bench_requires_an_explicit_machine_name):
         fn()
     print("\n%d passed, %d failed" % (len(PASSED), len(FAILED)))
     return len(FAILED)

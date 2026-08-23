@@ -15,9 +15,12 @@
 # POSIX sh (works on 10.3 Panther through modern macOS). No bashisms.
 #
 # Usage:
-#   bench.sh [-r gl|soft] [-W width] [-H height] [-f frames] [-n runs]
+#   bench.sh -N alias [-r gl|soft] [-W width] [-H height] [-f frames] [-n runs]
 #            [-w warmups] [-m map] [-a /path/to/Half-Life.app] [-t timeout_s]
 #            [-s fullscreen|borderless|windowed] [-x "cvar val; cvar val"] [-S]
+#
+#   -N  REQUIRED. The machine's ssh alias, which labels the row. There is no
+#       hostname fallback: see the note at the identity check below.
 #
 #   -S  accept Apple's SOFTWARE GL for a `-r gl` run. Off by default: a software
 #       GL run asserts clean on every other count and returns a number 5-10x too
@@ -61,8 +64,8 @@ LAUNCHARGS=""
 # -r gl landing on Apple's software GL is a FAILURE by default, see assertion 5.
 # -S says you meant it, for the rare case of deliberately measuring software GL.
 ALLOW_SOFTGL=0
-# Identity for the CSV row. Defaults to the machine's own hostname, which is not
-# good enough on this fleet, see the note where HOSTN is set.
+# Identity for the CSV row. No default: -N is required, see the note below where
+# HOSTN is set.
 NAME=""
 
 while getopts "r:W:H:f:n:w:m:a:t:s:x:N:SA:" opt 2>/dev/null; do
@@ -84,6 +87,35 @@ while getopts "r:W:H:f:n:w:m:a:t:s:x:N:SA:" opt 2>/dev/null; do
 		*) echo "bench.sh: bad option" >&2; exit 2 ;;
 	esac
 done
+
+# Identity of the row, and it is REQUIRED. This used to fall back to
+# `hostname -s`, with every word of the warning below already written above the
+# code that did it anyway. A comment cannot fail a build, so it is now a check.
+#
+# What the fallback cost, measured 2026-08-23: 23 of the 164 rows in
+# benchmarks/results.csv carry a name the fleet does not use, among them
+# macs-Computer, g4733, intelmacmini233 and imacg5siMacG5. They are unusable
+# without a hand-built mapping and indistinguishable from real rows. An error
+# would have cost one run; the fallback cost 23 rows of history.
+#
+# The name carries two facts. It names the MACHINE, and on this fleet it also
+# names WHICH OS booted: the G3 does Panther and Tiger, the dual G5 does Panther,
+# Tiger and Leopard, and every partition answers `hostname` identically, so a
+# hostname-labelled row silently merges two operating systems. The ssh alias is
+# the only unique name (yosemite vs yosemite-tiger). fleet-bench.sh passes it
+# with -N; a hand-run bench must pass it too.
+#
+# Checked here, before any filesystem work, so a missing -N fails the same way on
+# any machine. Valid labels are the alias table in docs/BENCHMARKING.md, which
+# tests/test-repo.py enforces against benchmarks/results.csv. Issue #15.
+if [ -z "$NAME" ]; then
+	echo 'bench.sh: -N is required. Label the row with the machine ssh alias,' >&2
+	echo 'bench.sh: e.g. -N yosemite-tiger. Refusing to fall back to hostname,' >&2
+	echo 'bench.sh: which on this fleet names neither the machine nor which' >&2
+	echo 'bench.sh: partition booted. Valid labels: docs/BENCHMARKING.md.' >&2
+	exit 2
+fi
+HOSTN=$NAME
 
 # resolve the screen-mode dash parm (overrides config.cfg at video init).
 # fullscreen (exclusive, sets a real 800x600 mode, no compositor) is the default
@@ -147,20 +179,6 @@ if [ ! -d "$VALVE" ]; then
 	exit 1
 fi
 
-# Identity of the row. `hostname -s` is the wrong answer on this fleet and was
-# quietly producing misleading history: the G3 calls itself "macs-computer",
-# which names neither the machine nor, far worse, WHICH OS it booted. Two of
-# these machines multi-boot from one IP (the G3 does Panther and Tiger, the G5
-# does Panther, Tiger and Leopard) and both partitions answer `hostname` the
-# same way, so identical labels in benchmarks/results.csv can be different
-# operating systems. The ssh alias IS the unique name (yosemite vs
-# yosemite-tiger), so fleet-bench.sh passes it with -N and this is only the
-# fallback for a hand-run bench on the machine itself.
-if [ -n "$NAME" ]; then
-	HOSTN=$NAME
-else
-	HOSTN=$(hostname -s 2>/dev/null || hostname)
-fi
 CFG="$VALVE/bench_tr.cfg"
 # The LAUNCHER owns the engine's stdout: it ends with
 #   exec "$HERE/xash3d.bin" ... >> "$LOG" 2>&1

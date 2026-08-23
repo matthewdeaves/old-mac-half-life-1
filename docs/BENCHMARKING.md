@@ -139,6 +139,32 @@ scripts/fleet-bench.sh -l fix-invalidenum -r gl -W 800 -H 600 yosemite
 | `mini-intel`     | Mac mini (Intel, Lion)     | Intel GMA 950        | 10.7    | yes   |
 | `mini-intel2`    | Mac mini (Macmini2,1)      | Intel GMA 950        | 10.7.5  | yes   |
 | `mini-sl`        | Mac mini (Macmini3,1)      | NVIDIA GeForce 9400  | 10.6.8  | **no**|
+| `g5-leopard`     | the same partition as `g5-desktop`, under its other name | ATI Radeon 9650 | 10.5.8 | yes |
+| `quad-leopard`   | Power Mac G5 quad, partition 1 | -                | 10.5    | -     |
+| `quad-tiger`     | Power Mac G5 quad, partition 2 | -                | 10.4    | -     |
+| `sawtooth`       | Power Mac G4 Sawtooth      | -                    | -       | -     |
+
+A `-` means the field is not recorded here, not that the machine lacks it. The
+quad G5 and the Sawtooth have **no rows in `results.csv`**; they are listed
+because they are live ssh aliases, so a bench on one would otherwise be rejected
+by the label check below.
+
+`g5-desktop` and `g5-leopard` are one machine, one partition, two names: they
+share a single `Host` stanza in `~/.ssh/config` with `HostKeyAlias g5-desktop`.
+Aggregating the two as separate machines double-counts one partition, which is
+why 39 rows read as two things.
+
+**Each machine also answers to a second alias**, so both spellings can appear in
+the `host` column and both are valid:
+
+| primary | synonym | | primary | synonym |
+|---|---|---|---|---|
+| `yosemite` | `g3-panther` | | `imac-g5` | `g5-imac` |
+| `yosemite-tiger` | `g3-tiger` | | `quad-leopard` | `g5quad-leopard` |
+| `quicksilver` | `g4-quicksilver` | | `quad-tiger` | `g5quad-tiger` |
+| `mini-g4` | `g4-mini` | | `sawtooth` | `g4-sawtooth` |
+| `mini-intel` | `lion-build1` | | `mini-intel2` | `lion-build2` |
+| `mini-sl` | `snow-build1` | | | |
 
 PowerPC aliases are bench and test targets only. Four of the five slices
 cross-compile on the Intel Lion minis; `arm64` is built on the orchestration box.
@@ -154,12 +180,53 @@ is 5 to 10 times too low. `bench.sh` fails the run rather than printing it (pass
 dummy EDID plug on `mini-sl` would fix it. It remains a functional test target
 for the 10.6 floor, which is what it is there for.
 
-Rows are labelled with the **ssh alias**, not the machine's own hostname, because
-the G3 and the G5 each multi-boot several OSes from one IP and every partition
-answers `hostname` identically. Rows written before 2026-08-08 carry hostnames
-instead: `macs-Computer` is the G3 on whichever OS it had booted,
-`intelmacmini233` is `mini-intel`, `g4-mini-1` is `mini-g4`. They are left as
-measured.
+## Row labels, and the seven historical ones
+
+Rows are labelled with the **ssh alias**, never the machine's own hostname,
+because the G3 and the G5 each multi-boot several OSes from one IP and every
+partition answers `hostname` identically. `bench.sh` now **requires** `-N` and
+refuses to run without it; there is no hostname fallback to inherit.
+
+Twenty-three of the 164 rows predate that and carry a hostname. They are **left
+as measured**: the label is what was recorded, and a row rewritten years later is
+worse than an odd one. This table is how they aggregate instead.
+
+| label | machine | partition | how it is known |
+|---|---|---|---|
+| `macs-Computer`   | the G3     | see below    | the G3's own short name |
+| `yosemite-g3`     | the G3     | unresolved   | name |
+| `g4733`           | `quicksilver` | 10.4      | the Quicksilver is the fleet's only 733 MHz G4 (README) |
+| `quicksilver-g4`  | `quicksilver` | 10.4      | name |
+| `g4-mini-1`       | `mini-g4`  | 10.4         | name |
+| `imacg5siMacG5`   | `imac-g5`  | 10.5         | name |
+| `intelmacmini233` | `mini-intel` | 10.7       | inferred, see below |
+
+Two of these do not resolve completely, and the gap is the point of the table:
+
+**`macs-Computer` names the machine but not the OS**, which is exactly the
+failure the alias rule exists to prevent. Of its 10 rows the run tag recovers
+three: `g3-panther-verify` is Panther, `v1.5.0-g3-tiger-singlepass` and
+`v1.5.0-g3-tiger-twopass` are Tiger. The other seven are the G3 on an unknown
+partition and cannot be compared against either alias.
+
+**`intelmacmini233` is inferred, not established.** `mini-intel` and
+`mini-intel2` are both Macmini2,1 at 2.33 GHz, so the clock in the hostname does
+not separate them. The inference is date order: every `intelmacmini233` row falls
+on or before 2026-08-05 and the first `mini-intel2` row is 2026-08-08.
+
+The two styles overlap in time, so a date does not tell you which a row uses:
+hostname labels run 2026-07-24T09:58 to 2026-08-05T00:54, and alias labels start
+2026-07-24T13:28.
+
+**Aggregate by machine, not by label.** `g5-panther`, `g5-tiger` and `g5-desktop`
+are three partitions of one Power Mac G5: distinguishing them is right for an OS
+comparison and wrong for a hardware one, and nothing in the row says which
+question is being asked. The same holds for `yosemite` and `yosemite-tiger`.
+
+`tests/test-repo.py` enforces this section: every label in `results.csv` must
+appear either in the alias table above or in this one. A bench on a machine that
+is in neither fails the repo test until it is added here, which is step 8 of the
+onboarding runbook below.
 
 The dual G5 (10.188.1.188, short name `powermacg5`) boots 10.3, 10.4 and 10.5 one
 at a time, so like `yosemite` / `yosemite-tiger` it gets **one alias per partition
