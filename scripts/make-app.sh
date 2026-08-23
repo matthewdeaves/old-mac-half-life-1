@@ -236,7 +236,7 @@ if [ "\$(uname -p)" = "powerpc" ] && { [ "\$(sysctl -n hw.cpusubtype 2>/dev/null
 	# as bench overrides. Measured 2026-08-18 on yosemite, c0a0: 44.6 fps in
 	# 16-bit, 36.1 in 32-bit, 30.0 for v1.7.2.
 	PROFILE="-ref gl -fullscreen -width 800 -height 600 -gldepth16 -glnostencil -bilinear"
-	MSAA_DEFAULT=""   # Rage 128: measured no cost and no visible change, issue #8
+	MSAA_FORCE=0      # G3: OFF, and said rather than implied. Issue #8.
 else
 	# -borderless means SDL fullscreen-desktop, and on 10.7 that leaves the menu
 	# bar in place: the window is the full 1920x1080 at 0,0 but the GL drawable is
@@ -319,7 +319,9 @@ fi
 #                          at 0 and 4 are visually identical: the Rage 128 has no
 #                          multisampling, so the request does nothing either way.
 #
-# So 2 on the G4 and G5 and nothing on the G3. 4x is a 55 to 83% cut for a
+# So 2 on the G4 and G5, and 0 ENFORCED on the G3 rather than merely absent.
+# Intel and arm64 are left alone deliberately: nothing has been measured on
+# either, so silence there means "not decided", not "off". 4x is a 55 to 83% cut for a
 # difference you have to look for, which is the wrong end of the trade even by
 # the rule that effects beat frames above a machine's floor.
 #
@@ -331,10 +333,31 @@ fi
 #
 # opengl.cfg is exec'd by R_Init_Video_ (engine/client/dll_int/ref_common.c:305)
 # BEFORE the GL context is created, so a value seeded here is live on this launch.
-if [ -n "\${MSAA_DEFAULT:-}" ] && [ -d "\$XASH3D_BASEDIR/valve" ]; then
+if [ -d "\$XASH3D_BASEDIR/valve" ]; then
 	OGLCFG="\$XASH3D_BASEDIR/valve/opengl.cfg"
-	if ! grep -q '^gl_msaa_samples' "\$OGLCFG" 2>/dev/null; then
-		printf 'gl_msaa_samples "%s"\n' "\$MSAA_DEFAULT" >> "\$OGLCFG" 2>/dev/null
+	if [ -n "\${MSAA_FORCE:-}" ]; then
+		# ENFORCED, every launch. An omitted cvar is not a cvar set to 0: the
+		# engine execs opengl.cfg before this and an archived value would stand,
+		# so a G3 that ever archived 4 would keep asking for 4. It costs nothing
+		# on the Rage 128 measured here, but a G3 with a card that CAN
+		# multisample is the machine in this fleet least able to pay for it, and
+		# that is the case a silent default gets wrong. Rewritten only when the
+		# value is not already right, so a launch normally touches nothing.
+		if ! grep -q "^gl_msaa_samples \"\$MSAA_FORCE\"" "\$OGLCFG" 2>/dev/null; then
+			if [ -f "\$OGLCFG" ]; then
+				grep -v '^gl_msaa_samples' "\$OGLCFG" > "\$OGLCFG.hlnew" 2>/dev/null &&
+					printf 'gl_msaa_samples "%s"\n' "\$MSAA_FORCE" >> "\$OGLCFG.hlnew" 2>/dev/null &&
+					cat "\$OGLCFG.hlnew" > "\$OGLCFG" 2>/dev/null
+				rm -f "\$OGLCFG.hlnew" 2>/dev/null
+			else
+				printf 'gl_msaa_samples "%s"\n' "\$MSAA_FORCE" > "\$OGLCFG" 2>/dev/null
+			fi
+		fi
+	elif [ -n "\${MSAA_DEFAULT:-}" ]; then
+		# SEEDED, on a fresh install only, so a player's own choice stands.
+		if ! grep -q '^gl_msaa_samples' "\$OGLCFG" 2>/dev/null; then
+			printf 'gl_msaa_samples "%s"\n' "\$MSAA_DEFAULT" >> "\$OGLCFG" 2>/dev/null
+		fi
 	fi
 fi
 
