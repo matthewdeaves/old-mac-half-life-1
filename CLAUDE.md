@@ -134,6 +134,17 @@ on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
   `client.dylib` for i386, and `hl_ppc`, `hl_amd64`, `hl_arm64` for the rest.
   The engine `dlopen`s these BY NAME, so a `_i386` suffix produces files it will
   never look for. `docs/adr/0001` amendment.
+- **Every benchmark here is taken with vsync OFF and every player runs it ON.**
+  `gl_vsync` defaults to 1 (`ref_common.c:35`), `configs/userconfig.cfg` pins it
+  to 1 on every machine, and `bench.sh:183` turns it off for the measurement. So
+  a fps number from `benchmarks/results.csv` is the cost, not the experience.
+  Measured 2026-08-23 on crossfire, same map and resolution, vsync the only
+  difference: **G5 181.6 off, 60.007 on**, a hard 60 Hz cap with 3x headroom;
+  **mini G4 62.9 off, 42.3 on**, which is neither 60 nor 30 because a machine
+  sitting just above the refresh misses deadlines and waits. Above the cap a
+  render cost is free to the player; just below it, a 1% cost can take several
+  fps off the vsynced average. Quote both numbers when a decision turns on them.
+
 - **Bench and test machines are claimed by name**, with
   `scripts/pick-bench-host.sh --acquire HOST LABEL`. `deploy-dmg.sh` and
   `fleet-bench.sh` do it for you and refuse a busy box. It shares the build

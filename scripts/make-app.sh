@@ -235,7 +235,7 @@ if [ "\$(uname -p)" = "powerpc" ] && { [ "\$(sysctl -n hw.cpusubtype 2>/dev/null
 	# flag re-applied every launch could never allow. -bpp 16 / -bpp 32 remain
 	# as bench overrides. Measured 2026-08-18 on yosemite, c0a0: 44.6 fps in
 	# 16-bit, 36.1 in 32-bit, 30.0 for v1.7.2.
-	PROFILE="-ref gl -fullscreen -width 800 -height 600 -gldepth16 -glnostencil -bilinear"
+	PROFILE="-ref gl -fullscreen -width 800 -height 600 -gldepth16 -glnostencil -bilinear +r_shadows 0"
 	MSAA_FORCE=0      # G3: OFF, and said rather than implied. Issue #8.
 else
 	# -borderless means SDL fullscreen-desktop, and on 10.7 that leaves the menu
@@ -255,8 +255,15 @@ else
 	# pinned to 800x600 above, by CPU and not by OS, because that is a fillrate
 	# decision about its Rage 128 rather than anything to do with Panther.
 	if [ "\$(uname -p)" = "powerpc" ]; then
-		PROFILE="-ref gl -borderless"    # G4/G5, 10.3 through 10.5: native-res borderless
+		PROFILE="-ref gl -borderless +r_shadows 1"  # G4/G5: native-res borderless
 		MSAA_DEFAULT=2   # measured, issue #8
+		# G5 only, by CPU subtype: 100 is the 970, 10 and 11 are the 7400 and
+		# 7450. The G5 is the one machine measured to have headroom to spend at
+		# its own refresh rate, so it is the only one that gets water ripples.
+		# Issue #9.
+		if [ "\$(sysctl -n hw.cpusubtype 2>/dev/null)" = "100" ]; then
+			RIPPLE_DEFAULT=1
+		fi
 		# A video.cfg carried over from a release older than issue #41 archives
 		# exclusive fullscreen, and on the iMac G5 under Leopard that launch
 		# dies in SDL_ShowWindow with "minimize failed (-4959)" (issue #57).
@@ -358,6 +365,26 @@ if [ -d "\$XASH3D_BASEDIR/valve" ]; then
 		if ! grep -q '^gl_msaa_samples' "\$OGLCFG" 2>/dev/null; then
 			printf 'gl_msaa_samples "%s"\n' "\$MSAA_DEFAULT" >> "\$OGLCFG" 2>/dev/null
 		fi
+	fi
+fi
+
+# Water ripples, on a FRESH install only, same mechanism and the same reason.
+#
+# r_ripple is FCVAR_GLCONFIG like gl_msaa_samples, so it is archived and only an
+# install that has never run can be seeded. It is NOT set through the launch
+# profile above, unlike r_shadows: a value on the command line would be re-applied
+# every launch, and mainui gives the player a "Water ripples" checkbox
+# (menus/VideoOptions.cpp:211) whose setting that would silently undo.
+#
+# Only the G5 asks for it, and only because it is the one machine measured to
+# have headroom at its own refresh rate: 60.007 fps capped against 181.6
+# uncapped. The G4 has none, 42.3 capped against 62.9, and the G3 less. The cost
+# with water actually in view is unmeasured on this fleet, because the only map
+# here carrying a water texture does not show it from the spawn point. Issue #9.
+if [ -n "\${RIPPLE_DEFAULT:-}" ] && [ -d "\$XASH3D_BASEDIR/valve" ]; then
+	RCFG="\$XASH3D_BASEDIR/valve/opengl.cfg"
+	if ! grep -q '^r_ripple ' "\$RCFG" 2>/dev/null; then
+		printf 'r_ripple "%s"\n' "\$RIPPLE_DEFAULT" >> "\$RCFG" 2>/dev/null
 	fi
 fi
 
