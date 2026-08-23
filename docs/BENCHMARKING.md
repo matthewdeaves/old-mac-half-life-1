@@ -136,8 +136,8 @@ scripts/fleet-bench.sh -l fix-invalidenum -r gl -W 800 -H 600 yosemite
 | `g5-panther`     | Power Mac G5 dual 2.7 GHz, partition 1 | ATI Radeon 9650 | 10.3.9 | yes |
 | `g5-tiger`       | Power Mac G5 dual 2.7 GHz, partition 2 | ATI Radeon 9650 | 10.4.11 | yes |
 | `g5-desktop`     | Power Mac G5 dual 2.7 GHz, partition 3 | ATI Radeon 9650 (RV351) | 10.5.8 | yes |
-| `mini-intel`     | Mac mini (Intel, Lion)     | Intel GMA 950        | 10.7    | yes   |
-| `mini-intel2`    | Mac mini (Macmini2,1)      | Intel GMA 950        | 10.7.5  | yes   |
+| `mini-intel`     | Mac mini, Core 2 T7600 2.33 GHz, 4 GB | Intel GMA 950 | 10.7.5 | yes |
+| `mini-intel2`    | Mac mini, Core 2 T5600 1.83 GHz, 2 GB | Intel GMA 950 | 10.7.5 | yes |
 | `mini-sl`        | Mac mini (Macmini3,1)      | NVIDIA GeForce 9400  | 10.6.8  | **no**|
 | `g5-leopard`     | the same partition as `g5-desktop`, under its other name | ATI Radeon 9650 | 10.5.8 | yes |
 | `quad-leopard`   | Power Mac G5 quad, partition 1 | -                | 10.5    | -     |
@@ -199,7 +199,7 @@ worse than an odd one. This table is how they aggregate instead.
 | `quicksilver-g4`  | `quicksilver` | 10.4      | name |
 | `g4-mini-1`       | `mini-g4`  | 10.4         | name |
 | `imacg5siMacG5`   | `imac-g5`  | 10.5         | name |
-| `intelmacmini233` | `mini-intel` | 10.7       | inferred, see below |
+| `intelmacmini233` | `mini-intel` | 10.7       | 2.33 GHz, and only `mini-intel` is 2.33 GHz |
 
 Two of these do not resolve completely, and the gap is the point of the table:
 
@@ -209,10 +209,24 @@ three: `g3-panther-verify` is Panther, `v1.5.0-g3-tiger-singlepass` and
 `v1.5.0-g3-tiger-twopass` are Tiger. The other seven are the G3 on an unknown
 partition and cannot be compared against either alias.
 
-**`intelmacmini233` is inferred, not established.** `mini-intel` and
-`mini-intel2` are both Macmini2,1 at 2.33 GHz, so the clock in the hostname does
-not separate them. The inference is date order: every `intelmacmini233` row falls
-on or before 2026-08-05 and the first `mini-intel2` row is 2026-08-08.
+**`intelmacmini233` resolves to `mini-intel`, on two independent facts.** The
+hostname encodes 2.33 GHz and `mini-intel` is the only 2.33 GHz machine in the
+fleet. Date order agrees: every `intelmacmini233` row falls on or before
+2026-08-05, and the first `mini-intel2` row is 2026-08-08.
+
+This entry was first written here as unresolvable, on the stated grounds that
+both Intel minis were Macmini2,1 at 2.33 GHz so the clock could not separate
+them. That was wrong, and it came from the shared model identifier rather than
+from either machine. Measured 2026-08-23, over ssh, on the machines themselves:
+
+    mini-intel    Core 2 T7600 @ 2.33 GHz   4 GB   4 MB L2   Macmini2,1
+    mini-intel2   Core 2 T5600 @ 1.83 GHz   2 GB   2 MB L2   Macmini2,1
+
+**They are not interchangeable and must never be pooled into one Intel class.**
+`hw.model` is `Macmini2,1` on both and the OS is 10.7.5 on both, so nothing but
+the CPU tells them apart. `mini-intel` is 27% faster by clock alone, with twice
+the L2 and twice the RAM. Rows carrying the two aliases are already distinct in
+`results.csv`; the hazard is aggregating them, not the labels.
 
 The two styles overlap in time, so a date does not tell you which a row uses:
 hostname labels run 2026-07-24T09:58 to 2026-08-05T00:54, and alias labels start

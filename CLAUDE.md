@@ -192,10 +192,16 @@ on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
   targets, NOT build hosts. Drivers RUN ON the mini: `build-lion.sh`,
   `build-ppc-panther.sh` (G3), `build-ppc-tiger.sh` (G4 and G5), fused by
   `make-universal.sh` and `make-app.sh`. `docs/adr/0005`
-- **TWO interchangeable Intel build minis**, either builds any slice:
-  `mini-intel` (10.188.1.190, wifi), `mini-intel2` (10.188.1.164, **wired**,
-  server room, wifi disabled), same Macmini2,1 /
-  10.7.5 / toolchain. Ask `scripts/pick-build-host.sh` (`--status`,
+- **TWO Intel build minis. Either builds any slice, but they are NOT the same
+  machine and must never be pooled into one "Intel" class for a measurement.**
+  `mini-intel` (10.188.1.245, wifi), `mini-intel2` (10.188.1.164, **wired**,
+  server room, wifi disabled). Both are `hw.model` Macmini2,1 on 10.7.5 with the
+  same toolchain and a GMA 950, which is exactly why this was written down wrong:
+  nothing but the CPU separates them. Measured on the machines 2026-08-23:
+  **`mini-intel` is a Core 2 T7600 at 2.33 GHz, 4 GB, 4 MB L2; `mini-intel2` is a
+  T5600 at 1.83 GHz, 2 GB, 2 MB L2.** 27% apart on clock alone. Interchangeable
+  for BUILDING, not for benching.
+  Ask `scripts/pick-build-host.sh` (`--status`,
   `--acquire LABEL`, `--release HOST`), never hardcode: a host is busy if it
   holds `/tmp/.retro-build-lock` or is compiling, so hand-started builds count.
 - **THREE separate G5s, and they are easy to mix up.** Read the alias, not the
