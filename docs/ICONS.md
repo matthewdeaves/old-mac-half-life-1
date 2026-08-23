@@ -130,6 +130,18 @@ partial-alpha pixels inside the lower half of the 256 chunk against 789 for a
 clean cut (789 is just the silhouette's anti-aliased edge). The mask tool was
 not at fault; a fresh `make-icon-mask.py` cut of the same source is solid at any
 threshold, so the damage rode in through a stale or reprocessed intermediate.
+
+That fix's own crop, `(0,120,1169,1289)`, cut the top ~100px off the hair
+spikes (issue #16): the source's non-background content starts at row 18, not
+120. Corrected to `(0,0,1169,1169)`, which keeps the artist's original ~18px
+headroom above the hair and loses that much more of the bottom instead: the
+orange chest badge's ring/number was already only partially in frame at
+y=1289 and is now cut higher, at y=1169. The 1169-tall square cannot fit both
+the full head (from y=18) and the full badge (to y=1345, the frame edge) at
+once; the head is what "the entire head of Gordon" asked for. Verified over
+magenta at 256 and 128, and by the same lower-40%-partial-alpha check: 813
+partial pixels, in line with the 789 clean baseline, not the 2503 defect.
+
 The recipe that produced the current shipped icns, verified over magenta at
 256 and 128 and chunk-checked Panther-safe:
 
@@ -137,7 +149,7 @@ The recipe that produced the current shipped icns, verified over magenta at
         --thresh 2 -o /tmp/hl-cut.png --preview /tmp/hl-prev.png
     # square crop BEFORE assembly (the resize is non-uniform, see above):
     .venv/bin/python -c "from PIL import Image; \
-        Image.open('/tmp/hl-cut.png').crop((0,120,1169,1289)).save('/tmp/hl-cut-sq.png')"
+        Image.open('/tmp/hl-cut.png').crop((0,0,1169,1169)).save('/tmp/hl-cut-sq.png')"
     .venv/bin/python scripts/make-icon.py /tmp/hl-cut-sq.png --keep-bg --modern \
         -o MacOSX/Half-Life.icns
 
