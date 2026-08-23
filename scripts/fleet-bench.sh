@@ -16,11 +16,18 @@
 # (e.g. "baseline", "fix-invalidenum", "vbo-on") so before/after rows are easy
 # to compare. Example:
 #   scripts/fleet-bench.sh -l baseline -r gl -W 800 -H 600 yosemite
+#
+#   BENCH_CSV  override the output CSV path. Default benchmarks/results.csv is
+#              git-tracked and every row is meant to be committed with the
+#              narrated decision it supports (old-mac-build-host#15: an
+#              automated caller with nobody curating a commit per row should
+#              point this at a gitignored path instead, and read the diff back
+#              before deciding whether it belongs in history).
 set -u
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BENCHDIR="$ROOT/benchmarks"
-CSV="$BENCHDIR/results.csv"
+CSV="${BENCH_CSV:-$BENCHDIR/results.csv}"
 BENCH_SH="$ROOT/scripts/bench.sh"
 SSH="ssh -o ConnectTimeout=8 -o BatchMode=yes"
 SCP="scp -o ConnectTimeout=8 -o BatchMode=yes"
@@ -79,7 +86,7 @@ else
 	HOSTS="yosemite quicksilver mini-g4 imac-g5 mini-intel"
 fi
 
-mkdir -p "$BENCHDIR"
+mkdir -p "$BENCHDIR" "$(dirname "$CSV")"
 if [ ! -f "$CSV" ]; then
 	echo "timestamp,label,host,renderer,resolution,screenmode,map,frames,fps_min,fps_med,fps_max,fps_runs" > "$CSV"
 fi
