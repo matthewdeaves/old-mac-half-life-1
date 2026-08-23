@@ -134,6 +134,22 @@ on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
   `client.dylib` for i386, and `hl_ppc`, `hl_amd64`, `hl_arm64` for the rest.
   The engine `dlopen`s these BY NAME, so a `_i386` suffix produces files it will
   never look for. `docs/adr/0001` amendment.
+- **A renderer default reaches a machine by one of three routes, and the cvar's
+  flags decide which.** Getting this wrong is why a feature can be "enabled" in
+  the repo and off on every machine. **No flags**, like `r_shadows`: never
+  archived, resets to its built-in default every launch, so it belongs in the
+  launcher's per-class `PROFILE` as `+r_shadows 1`, which is also the only route
+  that can differ by machine class. **`FCVAR_GLCONFIG`**, like `gl_msaa_samples`
+  and `r_ripple`: archived into `valve/opengl.cfg`, which `R_Init_Video_` execs
+  before the GL context exists, so the launcher can SEED it but only on an
+  install that has never run, and every machine that has run the game already
+  holds the key. **`FCVAR_ARCHIVE`**, like `gl_vsync` and `r_dynamic`: pin it in
+  `configs/userconfig.cfg`, which is re-applied every launch and cannot be
+  clobbered by a config reset. Choose by what the player should be able to
+  change: a `userconfig.cfg` pin overrides their own setting every launch, which
+  is why `r_ripple` is seeded rather than pinned, since mainui gives them a
+  "Water ripples" checkbox. `docs/adr/`, issues #8, #9, #10.
+
 - **Every benchmark here is taken with vsync OFF and every player runs it ON.**
   `gl_vsync` defaults to 1 (`ref_common.c:35`), `configs/userconfig.cfg` pins it
   to 1 on every machine, and `bench.sh:183` turns it off for the measurement. So
