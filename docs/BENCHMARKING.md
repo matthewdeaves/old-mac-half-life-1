@@ -124,6 +124,37 @@ scripts/fleet-bench.sh -l baseline      -r gl -W 800 -H 600 yosemite
 scripts/fleet-bench.sh -l fix-invalidenum -r gl -W 800 -H 600 yosemite
 ```
 
+### Jenkins first: the proven jobs on u25
+
+Smoke runs and single-shot bench checks go through Jenkins on u25 by default,
+not by running the scripts by hand (user's cutover instruction,
+`retro-agents` b98bd74). The jobs run this repo's own scripts from a clone at
+`~/repos/old-mac-half-life-1` on u25, re-synced to `origin/main` before every
+build, under the same bench lock; Jenkins is only the trigger and the queue.
+Proven equivalent to direct runs on 2026-08-23, build-host#15: smoke four
+times over, bench on imac-g5 47.8 fps direct vs 45.2 via Jenkins, ordinary
+variance.
+
+```
+ssh u25 'PW=$(cat ~/jenkins/home/secrets/initialAdminPassword); \
+  java -jar ~/jenkins/jenkins-cli.jar -s http://10.188.1.19:8080 \
+  -auth admin:$PW build smoke-halflife-MACHINE -p FLEET_HOST=MACHINE -s -v'
+```
+
+Jobs, from `jenkins-cli list-jobs`: `smoke-halflife-<m>` for g3, g5, imac-g5,
+mini-g4, mini-intel, mini-sl, quad, quicksilver, sawtooth, and
+`bench-halflife-imac-g5`. The bench job runs `fleet-bench.sh -n 1 imac-g5`
+with `BENCH_CSV` redirected to `~/jenkins-bench-out/old-mac-half-life-1/results.csv`
+on u25, so this repo's tracked `benchmarks/results.csv` is never touched by a
+job. A Jenkins bench row is a candidate, not a result: fetch it, sanity-check
+the run the same as a direct one (spread, cold start, vsync state), then
+append and commit by hand with the reason.
+
+Run `smoke-dmg.sh` or `fleet-bench.sh` directly only when Jenkins is down, or
+when no job covers the shape: bench exists for imac-g5 at `-n 1` only, so
+multi-leg interleaved A/B series and every other machine's bench are still
+direct runs until jobs grow to cover them.
+
 ## Machines (SSH aliases)
 
 | alias            | machine                    | GPU                  | OS      | hw GL |

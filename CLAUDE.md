@@ -33,8 +33,13 @@ scripts/build-server-linux.sh --arch aarch64   # ARM VPS
 scripts/make-dmg.sh [version-label]      # Tiger G4 ONLY, see the hard rules
 scripts/pick-bench-host.sh --status      # bench/test boxes: who is free
 scripts/deploy-dmg.sh HOST [version]     # install on a bench box as a user would
-scripts/smoke-dmg.sh HOST                # does the installed app actually launch
-scripts/fleet-bench.sh -l LABEL [host]   # timerefresh FPS, appends to benchmarks/
+# Smoke and single-shot bench are TRIGGERED VIA JENKINS on u25, which runs
+# these same scripts from a clone there, under the same lock. Trigger commands
+# and the bench-CSV review flow: docs/BENCHMARKING.md "Jenkins first". Run the
+# scripts by hand only when Jenkins is down or no job covers the shape
+# (bench job is imac-g5, -n 1 only so far; multi-leg A/B series stay direct).
+scripts/smoke-dmg.sh HOST                # implementation; job smoke-halflife-<machine>
+scripts/fleet-bench.sh -l LABEL [host]   # implementation; job bench-halflife-imac-g5
 python3 tests/test-repo.py               # repo invariants, runs on this box
 tests/test-artifact.sh                   # checks a built artifact
 ```
