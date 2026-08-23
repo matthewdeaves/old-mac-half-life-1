@@ -217,7 +217,7 @@ if [ ! -d "\$XASH3D_BASEDIR/valve" ]; then
 fi
 
 # CPU capability first. A G3 is the PowerPC 750 family: CPU subtype 9 (G4 7400/7450 = 10/11,
-# G5 970 = 100), which `machine` reports as "ppc750". NOTE: hw.optional.altivec is an
+# G5 970 = 100), which "machine" reports as "ppc750". NOTE: hw.optional.altivec is an
 # Intel-only sysctl - it does NOT exist on PowerPC Mac OS X (errors on 10.4), so "no AltiVec"
 # must be detected via the 750 subtype, not that sysctl. hw.cpusubtype exists on 10.3-10.5.
 # Gate on uname -p = powerpc so no Intel subtype number can ever match the G3 branch.
@@ -255,14 +255,43 @@ else
 	# pinned to 800x600 above, by CPU and not by OS, because that is a fillrate
 	# decision about its Rage 128 rather than anything to do with Panther.
 	if [ "\$(uname -p)" = "powerpc" ]; then
-		PROFILE="-ref gl -borderless +r_shadows 1"  # G4/G5: native-res borderless
-		MSAA_DEFAULT=2   # measured, issue #8
-		# G5 only, by CPU subtype: 100 is the 970, 10 and 11 are the 7400 and
-		# 7450. The G5 is the one machine measured to have headroom to spend at
-		# its own refresh rate, so it is the only one that gets water ripples.
-		# Issue #9.
-		if [ "\$(sysctl -n hw.cpusubtype 2>/dev/null)" = "100" ]; then
-			RIPPLE_DEFAULT=1
+		PROFILE="-ref gl -borderless"  # G4/G5: native-res borderless
+		# Shadows, MSAA and ripples were measured on this fleet's own cards:
+		# ATI Radeon 9200/9600/9650 (issues #8, #9, #10). The branch above is
+		# CPU family (ppc7400/7450/970), which is not the same class as "has a
+		# Radeon": early G4s (Sawtooth/Yikes/Gigabit) shipped a Rage 128 (Pro),
+		# the same generation as the G3's card that issue #8 measured to have
+		# NO multisampling at all, and some G4/G5 configurations shipped an
+		# nVidia card instead. None of those are this fleet's hardware, so
+		# forcing the Radeon-measured defaults onto them assumes a GPU nobody
+		# has run this port on. Issue #17.
+		#
+		# ioreg names the actual chip, and unlike system_profiler it works on
+		# Panther too: SPDisplaysDataType is not in "system_profiler
+		# -listDataTypes" on 10.3.9 at all, measured on yosemite, empty output
+		# at exit 0. ATI's Radeon-generation chips are ATY,R<code> or
+		# ATY,RV<code> (RV280 = Radeon 9200, RV351 = 9600/9650, both measured
+		# on this fleet); the Rage 128 (Pro) is ATY,Rage128*, a different
+		# prefix. An nVidia card or an unreadable ioreg has no ATY node at all.
+		if ioreg -l 2>/dev/null | grep -qE 'ATY,R[V0-9][0-9A-Za-z]*'; then
+			PROFILE="\$PROFILE +r_shadows 1"
+			MSAA_DEFAULT=2   # measured, issue #8
+			# G5 only, by CPU subtype: 100 is the 970, 10 and 11 are the 7400
+			# and 7450. The G5 is the one machine measured to have headroom to
+			# spend at its own refresh rate, so it is the only one that gets
+			# water ripples. Issue #9.
+			if [ "\$(sysctl -n hw.cpusubtype 2>/dev/null)" = "100" ]; then
+				RIPPLE_DEFAULT=1
+			fi
+		else
+			# Same position as Intel and arm64 below: nothing measured, so
+			# nothing forced. Shadows get the explicit off (r_shadows carries
+			# no flags and resets to the engine's own 0 every launch anyway,
+			# but issue #8 already established "said rather than implied" for
+			# this reason); MSAA and ripple are left unset rather than forced
+			# off, because unlike the G3's own Rage 128 this card was never
+			# actually measured to gain nothing from either.
+			PROFILE="\$PROFILE +r_shadows 0"
 		fi
 		# A video.cfg carried over from a release older than issue #41 archives
 		# exclusive fullscreen, and on the iMac G5 under Leopard that launch
