@@ -68,6 +68,39 @@ CSV columns:
   the engine's own `MODE:` line goes into the human-readable stderr note, where it
   confirms whether the requested resolution took.
 
+### Every row here is vsync OFF and every player runs vsync ON
+
+`gl_vsync` defaults to 1 (`ref_common.c:35`), `configs/userconfig.cfg` pins it to
+1 on every machine, and `bench.sh` turns it off for the measurement. So a number
+in `results.csv` is the RENDER COST. It is not what the player sees, and the two
+can differ by a factor of three.
+
+Measured 2026-08-23, map `crossfire`, 300 frames, median of 3, same resolution in
+both legs, `gl_vsync` the only difference:
+
+| machine | vsync 0 | vsync 1 | regime |
+| --- | --- | --- | --- |
+| g5-desktop 1024x768 | 181.6 | 60.007 | hard 60 Hz cap, 3x headroom |
+| mini-g4 1024x768 | 62.9 | 42.276 | above the refresh, no headroom |
+| yosemite 800x600 | 58.5 | 41.1 | same, on a slower machine |
+
+There are three regimes and only the first is intuitive.
+
+**Capped.** The G5 renders 181 and shows 60. Anything costing less than that
+headroom is free to the player. Measured: `r_shadows 1` costs 1.45% off-cap and
+reads 60.007 both ways on-cap.
+
+**Just above the refresh.** 42.276 is neither 60 nor 30. A frame that misses a
+16.7 ms deadline waits for the next vblank, so the average lands between the two
+rates and there is NO headroom. A 1% render cost can take several fps off the
+vsynced average, because it moves more frames across the deadline.
+
+**Below the refresh.** The G3 pays close to the raw cost: `r_shadows` measured
+-7.4% off-cap and -8.0% on-cap.
+
+So quote both numbers whenever a decision turns on them, and never infer the
+on-cap figure by taking a ceiling of the off-cap one.
+
 ### `scripts/fleet-bench.sh`, from the dev box
 
 Ships `bench.sh` to each reachable machine over SSH, runs it, appends one
