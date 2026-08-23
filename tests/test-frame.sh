@@ -36,6 +36,13 @@ fi
 
 SSH="ssh -o ConnectTimeout=8 -o BatchMode=yes"
 SCP="scp -o ConnectTimeout=8 -o BatchMode=yes"
+# The tilde is deliberate and must stay unexpanded HERE. This path is only ever
+# used on the far side of ssh (line 44) and scp (line 59), so the REMOTE shell
+# expands it. shellcheck's SC2088 fix, $HOME, would substitute this Mac's home
+# and send /Users/matt to machines whose home is /Users/mini, /Users/imacg5 or
+# /Users/g5quad, where nothing would be found and the test would report the
+# engine wrote no screenshot.
+# shellcheck disable=SC2088
 SHOTS='~/Desktop/Half-Life/valve/scrshots'
 
 echo "== capturing a frame on $HOST, map $MAP =="
