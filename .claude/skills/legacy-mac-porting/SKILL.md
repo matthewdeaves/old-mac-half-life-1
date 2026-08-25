@@ -5,7 +5,7 @@ description: Use when porting, compiling, benchmarking, or debugging vintage Mac
 
 # Vintage Mac OS X Porting & Cross-Compilation Reference
 
-Use this guide when diagnosing compiler errors, endianness bugs, AltiVec crashes, or OpenGL rendering artifacts on Mac OS X 10.3 to 10.7.
+Use this guide when diagnosing compiler errors, endianness bugs, AltiVec crashes, or OpenGL rendering artifacts on Mac OS X 10.3-10.7.
 
 ## 1. PowerPC Architecture Classes & CPU Slices
 
