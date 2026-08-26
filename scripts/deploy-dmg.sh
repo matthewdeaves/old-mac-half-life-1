@@ -77,7 +77,7 @@ scp -q "$DMG" "$HOST:Desktop/$DMG_BASE"
 
 # Verify the .dmg arrived intact (md5 local vs remote) - defence in depth on top
 # of make-dmg.sh's end-to-end content check.
-LCL_MD5=$(md5 "$DMG" | awk '{print $NF}')
+LCL_MD5=$(md5 -q "$DMG" 2>/dev/null || md5sum "$DMG" 2>/dev/null | awk '{print $1}')
 RMT_MD5=$(ssh "$HOST" "md5 'Desktop/$DMG_BASE' | awk '{print \$NF}'")
 [ "$LCL_MD5" = "$RMT_MD5" ] || { echo "[deploy-dmg $HOST] FATAL: scp corrupted the DMG ($LCL_MD5 != $RMT_MD5)" >&2; exit 1; }
 echo "[deploy-dmg $HOST] DMG on Desktop verified intact ($RMT_MD5)"
