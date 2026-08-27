@@ -99,6 +99,7 @@ cat > "$APP/Contents/MacOS/xash3d" <<WRAP
 HERE="\$(cd "\$(dirname "\$0")" && pwd)"
 export XASH3D_BASEDIR="\$(cd "\$HERE/../../.." && pwd)"
 export DYLD_LIBRARY_PATH="\$HERE"
+cd "\$XASH3D_BASEDIR"
 LOG="\$XASH3D_BASEDIR/last-run.log"
 
 # Refuse to run from the disk image. XASH3D_BASEDIR is the folder CONTAINING the
