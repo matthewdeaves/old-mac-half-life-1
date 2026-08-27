@@ -332,7 +332,7 @@ else
 		# nothing against engine startup. If it cannot be read we fall back to the
 		# old behaviour rather than pass a made-up size.
 		RES="\$(system_profiler SPDisplaysDataType 2>/dev/null | \
-			sed -n 's/.*Resolution: \([0-9][0-9]*\) x \([0-9][0-9]*\).*/\1 \2/p' | head -1)"
+			sed -n 's/.*Resolution:.*[^0-9]\([0-9][0-9]*\)[[:space:]]*x[[:space:]]*\([0-9][0-9]*\).*/\1 \2/p' | head -1)"
 		VW="\$(echo \$RES | awk '{print \$1}')"
 		VH="\$(echo \$RES | awk '{print \$2}')"
 		if [ -n "\$VW" ] && [ -n "\$VH" ]; then
