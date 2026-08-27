@@ -1,356 +1,64 @@
-# Half-Life old-Mac port
+# Half-Life old-Mac port (Agent Router)
 
-Half-Life 1 on Xash3D FWGS as ONE universal fat app across PowerPC and Intel
-Macs, from a single `Half-Life.app`. Sticky facts only, loaded every session.
-Reasoning and rejected alternatives live in `docs/adr/`; anything that dates
-goes in the README or an issue.
+Half-Life 1 on Xash3D FWGS as ONE universal fat app across PowerPC and Intel Macs, from a single `Half-Life.app`.
 
-## Commands
+This file is a high-level router. Depending on the task at hand, **you must read the relevant files in `.claude/rules/`** to get specific context and hard rules.
 
-The build drivers run **locally on a build mini** and do no ssh of their own, so
-claim a host first, then run them there. The repo is at `~/oldmac` on both minis.
+## Core Documentation Rules
 
-```sh
-scripts/pick-build-host.sh --status            # who is free
-HOST=$(scripts/pick-build-host.sh --acquire LABEL)
-scripts/sync-build-host.sh $HOST               # FIRST. the mini does not pull.
-ssh $HOST 'cd oldmac && scripts/build-all.sh'  # THE WHOLE BUILD. Use this.
-scripts/pick-build-host.sh --release $HOST
+- **Reasoning and rejected alternatives**: `docs/adr/`.
+- **Anything that dates**: `README.md` or an issue.
+- **NEVER PR or push to upstream repos**. Changes are commits on the `oldmac` branch of our own forks.
 
-# arm64 is the ONE slice a mini cannot build. Run these HERE, before build-all:
-scripts/build-arm64.sh                         # engine, Apple Silicon box only
-scripts/build-mod-arm64.sh --all               # the 25 mod dylib pairs
-scripts/build-installer-arm64.sh               # the Mods app's own slice
-scripts/build-sysreport-arm64.sh               # the System Report app's
-scripts/push-arm64-slice.sh $HOST              # carries the engine over, verifies by md5
-scripts/push-mod-arm64.sh $HOST                # carries the other three over
+## Context Router
 
-# The Linux dedicated server is the OTHER non-mini product. Runs HERE, in a
-# container, from the same pins. `docs/adr/0013`, operator docs `server/README.md`
-scripts/build-server-linux.sh                  # x86_64
-scripts/build-server-linux.sh --arch aarch64   # ARM VPS
+When you encounter specific problems, consult the following specialized context files before proceeding:
 
-scripts/make-dmg.sh [version-label]      # Tiger G4 ONLY, see the hard rules
-scripts/pick-bench-host.sh --status      # bench/test boxes: who is free
-scripts/deploy-dmg.sh HOST [version]     # install on a bench box as a user would
-# Smoke and single-shot bench are TRIGGERED VIA JENKINS on u25, which runs
-# these same scripts from a clone there, under the same lock. Trigger commands
-# and the bench-CSV review flow: docs/BENCHMARKING.md "Jenkins first". Run the
-# scripts by hand only when Jenkins is down or no job covers the shape
-# (bench job is imac-g5, -n 1 only so far; multi-leg A/B series stay direct).
-scripts/smoke-dmg.sh HOST                # implementation; job smoke-halflife-<machine>
-scripts/fleet-bench.sh -l LABEL [host]   # implementation; job bench-halflife-imac-g5
-python3 tests/test-repo.py               # repo invariants, runs on this box
-tests/test-artifact.sh                   # checks a built artifact
-```
+### 1. Build and Orchestration (`.claude/rules/build-commands.md`)
+Read this for:
+- Finding the exact commands to acquire a host, build, or deploy.
+- Understanding how slices (`x86_64`, `i386`, `ppc`, `arm64`) are built and fused.
+- Modifying engine, menu, or game code pins.
 
-`sync-build-host.sh` and the two push scripts refuse a mini that another session
-has claimed. They CHECK the lock through `pick-build-host.sh --status`, they do
-not take it, because the flow above already holds it and the lock is not
-reentrant. `scripts/lock-check.sh`, issue #5.
+### 2. Fleet & Hardware (`.claude/rules/legacy-mac-hardware.md`)
+Read this for:
+- Navigating the specifics of the fleet (`yosemite`, `mini-intel`, the dual/quad G5s).
+- Understanding OS targets and CPU capabilities.
+- Lion build-box limitations (e.g. `strings`, `lipo`, older toolchains).
 
-`build-all.sh` runs `fetch-sources.sh`, the FOUR slice drivers it can run
-(`build-lion.sh` twice, for x86_64 and for i386, then both PowerPC ones),
-`make-universal.sh`, `make-app.sh`, then `build-installer.sh` and
-`build-sysreport.sh`, in that order, checking each exit code. It does NOT build
-arm64, which no mini can, and every fuse takes whatever slices it finds: a slice
-that was never pushed is simply absent from the release, which is why each fuse
-SAYS so either way. It does NOT build the 25 mod dylibs either: that is
-`build-mod.sh`, it takes hours, and its output is an INPUT to
-`build-installer.sh`.
-**Do not run those steps chained by hand.** A pipeline returns its LAST command's
-status, so `driver.sh 2>&1 | tail -25 && next.sh` reads `tail`'s status, and
-`tail` always succeeds. That has already happened here: all three drivers
-correctly refused to build a tree at the wrong pin, and the run still finished
-saying "done".
+### 3. Core Architecture & Facts (`.claude/rules/core-facts.md`)
+Read this for:
+- Understanding architecture choices (CPU subtypes, Intel OS floors, SDL2 linking).
+- Renderer default behavior (`gl_vsync`, `FCVAR_GLCONFIG`, `FCVAR_ARCHIVE`).
+- The Linux dedicated server builds.
 
-To change engine, menu or game code: commit it on the `oldmac` branch of that
-fork, push, bump the pin in `scripts/build-pins.sh`, `scp` that file to the mini,
-then `build-all.sh`. If a submodule changed, **the recorded commit must move**;
-editing `.gitmodules` is not enough. `docs/adr/0012`
+### 4. Working Method & Hard Rules (`.claude/rules/working-method-and-hard-rules.md`)
+Read this for:
+- Understanding the refutation pass.
+- Verification steps (e.g. trusting `done`, codebase layout rules).
+- Hard rules about content, code, and packaging.
 
-`OLDMAC_KEEP_BUILD=1` skips the clean for a fast fix-compile loop. It poisons the
-`BUILD-STAMP` so the result cannot be fused. Never use it for anything shippable.
+### 5. Issue Tracking & Workflows (`.claude/rules/ticketing-workflow.md`)
+Read this for:
+- How to file and triage issues correctly.
+- Managing project board transitions.
+- Understanding constraints when interacting with `retro-server-infra`.
 
-`lipo` and `strings` checks belong on **this** box, never on Lion.
-**All build output lives under `~/oldmac/dist/`**, never at the repo root and never
-on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
+### 6. Build Verification (`.claude/rules/build-verification.md`)
+Read this for:
+- Procedures on verifying built artifacts, cpusubtype stamping, and the launcher's display profiles.
 
-## Facts
-
-- `dyld` grades a fat by **CPU subtype alone**, never the OS, so a slice exists
-  only for a CPU capability difference. **FIVE slices** since 2026-08-08:
-  **`ppc750`** (G3), **`ppc7400`** (G4 and G5), **`i386`** (Core Solo/Duo),
-  **`x86_64`**, **`arm64`**. PowerPC targets 10.3.9 and runs to 10.5.
-  `docs/adr/0001`
-- **Intel is 10.6 Snow Leopard+**, not 10.7. The only thing that ever held it at
-  10.7 was `libc++.1.dylib`, and `-stdlib=libstdc++` covers the whole C++
-  runtime need. That is the WIDER choice, not a compromise: the range is
-  **10.6.8 through macOS 26** against libc++'s 10.7+. The one gap is
-  `<cinttypes>`, supplied by `compat-include/`. Set `OLDMAC_INTEL_MIN=10.7` for
-  an A/B; measured cost is +0.45%, i.e. none. Full reasoning and the symbol
-  count: `scripts/build-lion.sh:29-52`.
-- **`i386` is for the 2006 Core Solo and Core Duo only** (Mac mini 1,1, iMac 4,1,
-  MacBook 1,1, MacBook Pro 1,1), the sole Intel Macs with no 64-bit mode. Built
-  by `OLDMAC_INTEL_ARCH=i386 build-lion.sh`. Never run on hardware: there is no
-  such machine here.
-- **`arm64` is built on THIS box, not a mini**: Xcode 4.6 predates it by seven
-  years. FOUR drivers, one per shipped Mach-O product: `build-arm64.sh`
-  (engine), `build-mod-arm64.sh` (the 25 mod dylib pairs),
-  `build-installer-arm64.sh` (Mods app), `build-sysreport-arm64.sh` (System
-  Report). Lion's lipo can still FUSE arm64, so every fuse stays on the mini; it
-  only fails to NAME the slice, printing `cputype (16777228)`, while `otool` and
-  `install_name_tool` refuse the whole file. **Never write "not for Apple
-  Silicon".** `docs/adr/0001` amendment.
-- **A stale arm64 slice is refused, not fused.** Nothing cleans `dist/*-arm64`
-  up, so the copy on a mini can be weeks old, and the trigger is an ordinary
-  commit to `installer/` or `sysreport/`, not a pin bump. The engine compares
-  each slice's `BUILD-STAMP` against `PIN_ENGINE_COMMIT`. The Mods app and
-  System Report cannot: they build from directories in this repo, and `~/oldmac`
-  on a mini has no git in it, so their stamp is a content hash of the source
-  computed by `scripts/arm64-stamp.sh`, which both sides source. Rebuild the
-  arm64 slice and push it; do not work around the refusal. A vendor bump is NOT
-  covered and still needs the arm64 drivers re-run by hand. The 25 mod dylib
-  pairs have their own gate: both drivers already record the hlsdk commit, in
-  `mod.info` and `arm64.info`, and `fuse-mod-arm64.sh` refuses a mod whose two
-  disagree. A mod already carrying a stale arm64 slice cannot be corrected by
-  lipo and needs `build-mod.sh <branch>`. `docs/adr/0015`, `docs/adr/0016`
-- **Every shipped app runs natively on every CPU the project supports.** Game:
-  `ppc750 ppc7400 i386 x86_64 arm64`. Mod dylibs, Mods app and System Report:
-  `ppc i386 x86_64 arm64`, no ppc split because `dlopen` grades generic `ppc`
-  correctly on a 750. In all three, `arm64` is OPTIONAL at fuse time and its
-  absence is a Rosetta 2 downgrade, not a fault. The System Report app's Intel
-  floors are deliberately LOWER than the game's, 10.4 for i386 and 10.5 for
-  x86_64. `docs/adr/0010`
-- **A Linux dedicated server ships too**, built here in a Debian 11 container
-  from the same pins, so it is protocol-identical to the Mac clients by
-  construction. It is an unauthenticated UDP amplifier (101x on `A2S_RULES`), so
-  the firewall rules are per source address and are not optional.
-  `docs/adr/0013`, `docs/adr/0014`, `server/README.md`
-- **Never put `compat-include/` on a MODERN compiler's include path.** It supplies
-  `<cstdint>` and `<cinttypes>` to header sets predating C++11, and `-isystem`
-  puts it AHEAD of libc++, so on current clang the shim SHADOWS the real header
-  instead of filling a gap: ours declares the fixed-width types in the global
-  namespace only, libc++ wants `std::intmax_t`, and `is_trivially_copyable.h`
-  fails to compile. It belongs on the PowerPC and libstdc++ paths, nowhere else.
-- **Game dylib names are NOT "arch with an underscore".**
-  `COM_GenerateLibraryName` special-cases 32-bit x86 and gives it no suffix at
-  all, that having been Half-Life's original platform. So it is `hl.dylib` /
-  `client.dylib` for i386, and `hl_ppc`, `hl_amd64`, `hl_arm64` for the rest.
-  The engine `dlopen`s these BY NAME, so a `_i386` suffix produces files it will
-  never look for. `docs/adr/0001` amendment.
-- **A renderer default reaches a machine by one of three routes, and the cvar's
-  flags decide which.** Getting this wrong is why a feature can be "enabled" in
-  the repo and off on every machine. **No flags**, like `r_shadows`: never
-  archived, resets to its built-in default every launch, so it belongs in the
-  launcher's per-class `PROFILE` as `+r_shadows 1`, which is also the only route
-  that can differ by machine class. **`FCVAR_GLCONFIG`**, like `gl_msaa_samples`
-  and `r_ripple`: archived into `valve/opengl.cfg`, which `R_Init_Video_` execs
-  before the GL context exists, so the launcher can SEED it but only on an
-  install that has never run, and every machine that has run the game already
-  holds the key. **`FCVAR_ARCHIVE`**, like `gl_vsync` and `r_dynamic`: pin it in
-  `configs/userconfig.cfg`, which is re-applied every launch and cannot be
-  clobbered by a config reset. Choose by what the player should be able to
-  change: a `userconfig.cfg` pin overrides their own setting every launch, which
-  is why `r_ripple` is seeded rather than pinned, since mainui gives them a
-  "Water ripples" checkbox. `docs/adr/`, issues #8, #9, #10.
-
-- **Every benchmark here is taken with vsync OFF and every player runs it ON.**
-  `gl_vsync` defaults to 1 (`ref_common.c:35`), `configs/userconfig.cfg` pins it
-  to 1 on every machine, and `bench.sh:183` turns it off for the measurement. So
-  a fps number from `benchmarks/results.csv` is the cost, not the experience.
-  Measured 2026-08-23 on crossfire, same map and resolution, vsync the only
-  difference: **G5 181.6 off, 60.007 on**, a hard 60 Hz cap with 3x headroom;
-  **mini G4 62.9 off, 42.3 on**, which is neither 60 nor 30 because a machine
-  sitting just above the refresh misses deadlines and waits. Above the cap a
-  render cost is free to the player; just below it, a 1% cost can take several
-  fps off the vsynced average. Quote both numbers when a decision turns on them.
-
-- **Bench and test machines are claimed by name**, with
-  `scripts/pick-bench-host.sh --acquire HOST LABEL`. `deploy-dmg.sh` and
-  `fleet-bench.sh` do it for you and refuse a busy box. It shares the build
-  lock's directory on the target, so a bench and a build cannot land on the same
-  mini. It also refuses a host booted into an OS its alias does not name: the
-  multi-boot aliases all answer on one IP, and only the ssh host key tells them
-  apart, so `deploy-dmg.sh quad-tiger` against a Leopard-booted quad would
-  otherwise install onto Leopard and label the result "tiger". Canonical copy in
-  `old-mac-build-host`, distributed by its `sync-build-lock.sh`.
-- **Mac OS X only, not Mac OS 9** (issue #23). Classic is out of scope.
-- **Three trees:** engine (`xash3d-fwgs`), menu (`mainui_cpp`), game dylibs
-  (`hlsdk-portable`). **Every slice, and the Linux server, builds from the same
-  branch of each**, our own, from mainline. There is no separate PowerPC tree any
-  more, so a fix cannot be live on one architecture and missing on another.
-  `docs/adr/0003`, `docs/adr/0012`
-- **PowerPC links `panther-sdl2` 2.0.3 statically, Intel builds SDL 2.0.22 as a
-  dylib, arm64 builds a current SDL2 (2.32.x).** `leopard-sdl2` is in no shipped
-  slice and needs 10.5, so it can never be one. `docs/adr/0004`
-- **Never use GitHub ZIPs.** Each tree is cloned `--recursive` at the pinned
-  commit into a git-ignored `vendor/`. **Nothing patches it on the way to the
-  compiler.** `docs/adr/0002`, `docs/adr/0012`
-- **`Contents/MacOS/xash3d` is a shell launcher** that picks the display
-  profile; the Mach-O beside it is `xash3d.bin`. `docs/adr/0007`
-
-## Machines
-
-- **This dev box is orchestration only** (Apple Silicon, macOS 26). ALL THREE
-  slices cross-compile on an Intel Lion mini; the PowerPC boxes are bench/test
-  targets, NOT build hosts. Drivers RUN ON the mini: `build-lion.sh`,
-  `build-ppc-panther.sh` (G3), `build-ppc-tiger.sh` (G4 and G5), fused by
-  `make-universal.sh` and `make-app.sh`. `docs/adr/0005`
-- **TWO Intel build minis. Either builds any slice, but they are NOT the same
-  machine and must never be pooled into one "Intel" class for a measurement.**
-  `mini-intel` (10.188.1.245, wifi), `mini-intel2` (10.188.1.164, **wired**,
-  server room, wifi disabled). Both are `hw.model` Macmini2,1 on 10.7.5 with the
-  same toolchain and a GMA 950, which is exactly why this was written down wrong:
-  nothing but the CPU separates them. Measured on the machines 2026-08-23:
-  **`mini-intel` is a Core 2 T7600 at 2.33 GHz, 4 GB, 4 MB L2; `mini-intel2` is a
-  T5600 at 1.83 GHz, 2 GB, 2 MB L2.** 27% apart on clock alone. Interchangeable
-  for BUILDING, not for benching.
-  Ask `scripts/pick-build-host.sh` (`--status`,
-  `--acquire LABEL`, `--release HOST`), never hardcode: a host is busy if it
-  holds `/tmp/.retro-build-lock` or is compiling, so hand-started builds count.
-- **THREE separate G5s, and they are easy to mix up.** Read the alias, not the
-  word "G5", and never assume "the quad" means whichever G5 you last touched:
-  - **`imac-g5`** (10.188.1.168) the iMac G5, 10.5.8
-  - **`g5-panther` / `g5-tiger` / `g5-desktop`** (10.188.1.188) the **dual**
-    PowerMac G5, multi-boot. `g5-desktop` is the Leopard partition, hostname
-    `g5-leopard`.
-  - **`quad-leopard` / `quad-tiger`** (10.188.1.120) the **QUAD** PowerMac G5,
-    multi-boot, user `g5quad`.
-
-  On 2026-08-21 a whole round of "deploy to the quad" and "quit the game on the
-  quad" went to 10.188.1.188 instead, because this list previously named only
-  two G5s. The quad kept running an old build and reporting the bug as unfixed,
-  and the dual G5 was killed repeatedly for no reason. `ssh_config` is the
-  authority for what exists; grep it before touching a machine by nickname.
-- **Machines that multi-boot from one IP**: the G3 (`yosemite`,
-  `yosemite-tiger`), the dual G5 and the quad G5. One OS at a time, so each
-  partition needs its own alias with `HostKeyAlias` and `CheckHostIP no`, and
-  the booted one mounts its neighbours under `/Volumes`. An alias for a
-  partition that is not booted simply fails to connect, which looks exactly
-  like the machine being off. Switch with `bless` and reboot;
-  `docs/BENCHMARKING.md`.
-
-## Lion build-box traps
-
-- Git there is Xcode 4's 1.7, which has no `git -C`. Use `( cd DIR && git ... )`.
-  Modern git, curl, OpenSSL and **ssh** live under `~/local`; the scripts prefer
-  them silently. Lion's own OpenSSL cannot do TLS 1.2 and its OpenSSH is 5.6,
-  which has no ed25519 and can only sign `ssh-rsa` under SHA-1, which GitHub
-  stopped accepting in 2022.
-- **All six forks are private.** Each mini has its own key at
-  `~/.ssh/id_ed25519_github`, wired in by `core.sshCommand` plus an
-  `url."git@github.com:".insteadOf` rewrite, so `build-pins.sh` can keep naming
-  plain https URLs. Without that a fetch fails with "could not read Username".
-- **No `pkill` on 10.7, 10.4 or 10.3 at all.** Kill by PID out of `ps`.
-- The hlsdk-specific traps (`--disable-altivec` is an ENGINE option and breaks
-  hlsdk's configure; hlsdk assumes darwin means clang and hands gcc a
-  `-Wl,--no-undefined` Apple's ld rejects; gcc-4.0 is stricter than the x86_64
-  clang) are in `docs/MODS.md`, "Things that bite on these machines", with the
-  script that handles each.
-- Lion's `strings` cannot read a modern x86_64 Mach-O and reports zero matches,
-  which looks exactly like a missing fix. Verify strings on the dev box.
-- Panther's `lipo` cannot name the x86_64 slice and prints
-  `cputype (16777223) cpusubtype (-2147483645)`. That is a correct fat binary.
-- This dev box runs zsh, where an **unquoted `$var` does not word-split**. Use an
-  array. A `git rm $LIST` silently became one long pathspec that matched nothing.
-
-## Working method: measure, and refute when it earns it
-
-Work solo by default. Agents are a tool for when they pay, not a ritual.
-
-A **refutation pass** is handing a fresh agent the diff plus the unpatched
-upstream file and telling it to **refute** the fix, not approve it. It is worth
-doing when a claim is load-bearing and hard to test directly: a mechanism about
-endianness, the frame loop, save/restore or `dlopen`, or any "this is why it
-broke" that is about to be written down as fact. Three mechanisms were published
-as fact and retracted in one session; that is the failure it exists for.
-
-**Do not run one automatically.** Judge whether it earns its cost, and when it
-does, say so and ask before running it. A build-script change or a mechanical
-port that the compiler and the hardware already check is not a candidate: the
-build and the bench boxes are the stronger evidence.
-
-Brief every agent: read-only unless told otherwise, label each claim measured or
-inferred. A partial result from a killed agent is a lead, never a finding.
-
-## Hard rules
-
-- **NEVER trust a build's "done" or exit 0.** waf exits 0 on a failed task and
-  then installs stale objects. Procedure, cpusubtype stamping and the launcher's
-  display profiles: `.claude/rules/build-verification.md`.
-- **Payload sits at the `valve/` level**, not the rodir root, or the engine's
-  pre-flight check misses it. `.claude/rules/shipped-layout.md`, `docs/adr/0006`
-- **We ship code, not content.** No Valve assets, no mod author's content, ever.
-- **Never PR or push to upstream repos.** Changes are commits on the `oldmac`
-  branch of **our own fork** of each, pinned in `scripts/build-pins.sh`. The only
-  patch scripts left are the five applied to each mod's own source tree, which is
-  not ours to fork. `docs/adr/0012`
-- **Build the release DMG only on a Tiger G4**, never the G3 or Lion, `-format
-  UDZO`; md5 every binary, `hdiutil verify` is not enough. `docs/adr/0005`
-- Before a release run `python3 tests/test-repo.py` and `tests/test-artifact.sh`.
-- **No em dashes anywhere**, prose or shipped strings.
-- **Never rate or praise work**, ours or upstream's; attribution is a fact.
-- **No Claude co-author** on commits.
-
-## Working alongside the other repos
-
-Seven repos share one board, project 8: the four game ports,
-`retro-server-infra`, `old-mac-build-host` and `retro-agents`. The process behind
-it, the columns, the labels, the approval gate and the GraphQL budget, lives in
-`retro-agents/CLAUDE.md` and in the brief every session is launched with. It is
-not restated here, because two copies of a rule drift. What follows is only what
-is specific to this repo.
-
-**Hardware is claimed, never assumed free.** Every script that deploys to,
-benches on, or otherwise drives a fleet machine re-execs itself under
-`scripts/pick-bench-host.sh --run`, so the machine is claimed for the run and
-released however it ends. The lock is a directory on the target, so it is shared
-with the build lock and visible to every repo, agent and workstation. Check
-`scripts/pick-bench-host.sh --status` before assuming a box is idle, and never
-work around a busy one. `BENCH_NO_LOCK=1` exists only for debugging the picker.
-
-**Filing puts nothing in a column.** A new board item lands with `Status: null`,
-in no column at all, which reads as work nobody raised. Measured 2026-08-22,
-issue #6: nothing on the board sets a status on add. So file the issue, then run
-
-```sh
-../retro-agents/bin/board-add.sh old-mac-half-life-1#<n>
-```
-
-which adds it and sets `Triage` in one step, over REST.
-
-**Your work stops at `Review`.** That column sits between `Blocked` and `Done`.
-Moving anything to `Done`, and closing the issue, is the user's. So never write
-`Closes #12` or `Fixes #12` in a commit message: GitHub acts on those and the
-issue reads as finished while the column says otherwise. Write `Refs #12`.
-
-**This repo is PUBLIC. `retro-server-infra` is PRIVATE.** It describes the
-topology, firewall rules and admin surface of a live host. Never copy addresses,
-key material, tunnel tokens or `.env` content out of it into this repo, in code,
-docs or a commit message. Referring to a server release tag is fine; describing
-where it runs is not.
+### 7. Shipped Layout (`.claude/rules/shipped-layout.md`)
+Read this for:
+- Understanding the required structure of the shipped `.app` bundle and where payload must sit.
 
 ## Read on demand
 
-- `README.md` public overview: fleet matrix, per-machine config, upstream credits
-- `docs/MODS.md` mods and rebuilds, `docs/MOD-AUDIT.md` the source audit,
-  `docs/ICONS.md` icons and the Panther size ceiling, `docs/LICENSING.md` the
-  per-component terms and the one grey area, `tests/README.md` coverage
-- `docs/BENCHMARKING.md` the timerefresh harness, the ssh aliases, and the
-  runbook for onboarding a new machine or partition; `docs/GL-OPTIMIZATION-CASE-STUDY.md`
-  how the single-pass world draw was measured
-- `server/README.md` running and securing the Linux dedicated server
-- `docs/adr/`: 0001 CPU-capability slices, 0002 pinned vendoring, 0003 one tree
-  per component, 0004 SDL2, 0005 Lion builds and Tiger packaging, 0006 code not
-  content, 0007 launcher, 0008 mod dylibs, 0009 mod installer, 0010 report-app
-  floors, 0011 per-mod sources + installer TLS, **0012 the port is commits on
-  our own forks** (supersedes the patching half of 0002), 0013 the Linux
-  dedicated server, 0014 the server is a UDP amplifier, 0015 the app arm64
-  slices carry a source hash, 0016 the mod arm64 slices carry the hlsdk commit
-- `docs/port/POWERPC-FINDINGS.md`: the publishable write-up, one entry per
-  finding with symptom, cause, change and the machines it was measured on,
-  **including the ones that were got wrong**; `docs/port/PPC-PORT-NOTES.md`: the
-  move onto mainline, including two diagnoses made, measured and retracted.
-  Read both before re-diagnosing anything on this fleet: several plausible
-  mechanisms in them are recorded as REFUTED and must not be republished.
+- `README.md`: Fleet matrix, per-machine config, upstream credits.
+- `docs/MODS.md`: Mods and rebuilds.
+- `docs/MOD-AUDIT.md`: The source audit.
+- `docs/ICONS.md`: Icons and the Panther size ceiling.
+- `docs/LICENSING.md`: Licensing and terms.
+- `docs/BENCHMARKING.md`: Timerefresh harness and benchmarking procedures.
+- `docs/port/POWERPC-FINDINGS.md`: Write-ups of porting findings.
+- `docs/port/PPC-PORT-NOTES.md`: Move onto mainline, including diagnoses made and retracted.

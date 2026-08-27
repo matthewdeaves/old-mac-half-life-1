@@ -1,0 +1,68 @@
+# Build Commands and Orchestration
+
+The build drivers run **locally on a build mini** and do no ssh of their own, so
+claim a host first, then run them there. The repo is at `~/oldmac` on both minis.
+
+```sh
+scripts/pick-build-host.sh --status            # who is free
+HOST=$(scripts/pick-build-host.sh --acquire LABEL)
+scripts/sync-build-host.sh $HOST               # FIRST. the mini does not pull.
+ssh $HOST 'cd oldmac && scripts/build-all.sh'  # THE WHOLE BUILD. Use this.
+scripts/pick-build-host.sh --release $HOST
+
+# arm64 is the ONE slice a mini cannot build. Run these HERE, before build-all:
+scripts/build-arm64.sh                         # engine, Apple Silicon box only
+scripts/build-mod-arm64.sh --all               # the 25 mod dylib pairs
+scripts/build-installer-arm64.sh               # the Mods app's own slice
+scripts/build-sysreport-arm64.sh               # the System Report app's
+scripts/push-arm64-slice.sh $HOST              # carries the engine over, verifies by md5
+scripts/push-mod-arm64.sh $HOST                # carries the other three over
+
+# The Linux dedicated server is the OTHER non-mini product. Runs HERE, in a
+# container, from the same pins. `docs/adr/0013`, operator docs `server/README.md`
+scripts/build-server-linux.sh                  # x86_64
+scripts/build-server-linux.sh --arch aarch64   # ARM VPS
+
+scripts/make-dmg.sh [version-label]      # Tiger G4 ONLY, see the hard rules
+scripts/pick-bench-host.sh --status      # bench/test boxes: who is free
+scripts/deploy-dmg.sh HOST [version]     # install on a bench box as a user would
+# Smoke and single-shot bench are TRIGGERED VIA old-mac-build-host, which runs
+# these same scripts from a clone there, under the same lock. Trigger commands
+# and the bench-CSV review flow: docs/BENCHMARKING.md.
+scripts/smoke-dmg.sh HOST                # implementation; job smoke-halflife-<machine>
+scripts/fleet-bench.sh -l LABEL [host]   # implementation; job bench-halflife-imac-g5
+python3 tests/test-repo.py               # repo invariants, runs on this box
+tests/test-artifact.sh                   # checks a built artifact
+```
+
+`sync-build-host.sh` and the two push scripts refuse a mini that another session
+has claimed. They CHECK the lock through `pick-build-host.sh --status`, they do
+not take it, because the flow above already holds it and the lock is not
+reentrant. `scripts/lock-check.sh`, issue #5.
+
+`build-all.sh` runs `fetch-sources.sh`, the FOUR slice drivers it can run
+(`build-lion.sh` twice, for x86_64 and for i386, then both PowerPC ones),
+`make-universal.sh`, `make-app.sh`, then `build-installer.sh` and
+`build-sysreport.sh`, in that order, checking each exit code. It does NOT build
+arm64, which no mini can, and every fuse takes whatever slices it finds: a slice
+that was never pushed is simply absent from the release, which is why each fuse
+SAYS so either way. It does NOT build the 25 mod dylibs either: that is
+`build-mod.sh`, it takes hours, and its output is an INPUT to
+`build-installer.sh`.
+**Do not run those steps chained by hand.** A pipeline returns its LAST command's
+status, so `driver.sh 2>&1 | tail -25 && next.sh` reads `tail`'s status, and
+`tail` always succeeds. That has already happened here: all three drivers
+correctly refused to build a tree at the wrong pin, and the run still finished
+saying "done".
+
+To change engine, menu or game code: commit it on the `oldmac` branch of that
+fork, push, bump the pin in `scripts/build-pins.sh`, `scp` that file to the mini,
+then `build-all.sh`. If a submodule changed, **the recorded commit must move**;
+editing `.gitmodules` is not enough. `docs/adr/0012`
+
+`OLDMAC_KEEP_BUILD=1` skips the clean for a fast fix-compile loop. It poisons the
+`BUILD-STAMP` so the result cannot be fused. Never use it for anything shippable.
+
+`lipo` and `strings` checks belong on **this** box, never on Lion.
+**All build output lives under `~/oldmac/dist/`**, never at the repo root and never
+on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
