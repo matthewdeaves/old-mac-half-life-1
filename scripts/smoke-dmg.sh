@@ -56,6 +56,7 @@ case "$HOST" in
                           MINALIVE=10; TIMEOUT=60 ;;    # G5, any partition
   mini-intel|mini-intel2) MINALIVE=6;  TIMEOUT=40 ;;    # Intel Lion (both minis: same Macmini2,1)
   mini-sl|snow-build1)    MINALIVE=6;  TIMEOUT=40 ;;    # Intel Snow Leopard (Macmini3,1), the 10.6 floor
+  imac-2019|imac|sequoia-build) MINALIVE=6; TIMEOUT=40 ;; # 2019 Intel 5K iMac (macOS 15.7 Sequoia)
   *) echo "unknown machine: $HOST" >&2; exit 2 ;;
 esac
 
