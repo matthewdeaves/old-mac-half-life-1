@@ -554,6 +554,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 $ICONKEY
 	<key>LSMinimumSystemVersion</key><string>$MIN_OS</string>
 	<key>NSHighResolutionCapable</key><true/>
+	<key>NSMicrophoneUsageDescription</key><string>Half-Life uses the microphone for in-game voice chat.</string>
 	<key>NSPrincipalClass</key><string>NSApplication</string>
 </dict>
 </plist>
