@@ -30,6 +30,21 @@ not for every commit. Deep engine writeups live in
 
 ## Scripts and harness
 
+- `smoke-dmg.sh` executed the launcher binary directly over ssh, which
+  bypasses LaunchServices and so could never catch a Gatekeeper/quarantine/
+  signature rejection a real double-click hits. Launches via `open` now; a
+  LaunchServices refusal is a FAIL. Its liveness poll then used `ps ax`,
+  whose COMMAND column truncates over a non-tty ssh pipe and cut the line off
+  before `xash3d.bin` ever appeared, reporting every working launch as a
+  crash after the full timeout; `-axww` disables the truncation. The quad
+  G5's aliases (`quad-tiger`/`quad-leopard`) were also missing from the
+  machine table entirely. d462f2c, e48e6aa, 154a109; issue #19.
+- `deploy-dmg.sh` installed a bundle without verifying the signature
+  survived, and without clearing `com.apple.quarantine` if the image arrived
+  by a route that sets it. Found via a genuinely corrupted install on
+  `imac-2019` (`codesign -v` failed there; a fresh `ditto` from the same
+  image on the same machine was clean). Both are now checked/handled on
+  every install, fatally on a bad signature. d462f2c, issue #19.
 - Two re-exec guards compared `RETRO_BENCH_LOCK` to an empty expansion, so
   the guard was always true; they now compare against the target host.
   60e7e5c, issue #13.
@@ -47,6 +62,13 @@ not for every commit. Deep engine writeups live in
 
 ## Engine and menu (see docs/port/POWERPC-FINDINGS.md)
 
+- An unreviewed same-day commit widened `SDLash_TextInputDelivers()` from a
+  Darwin-major-version gate (only 10.3/10.4 skip SDL's text input) to
+  unconditionally skipping it on every macOS version, contradicting the
+  dated finding that produced the original gate ("an iMac G5 on 10.5.8 ...
+  types fine"). Landed with no hardware confirmation; restored the version
+  gate. Does not by itself close #18 (G5 keyboard/mouse lockout) - not
+  confirmed on hardware either way today. 64edc27 (engine fork), issue #18.
 - Guard-door freeze: Panther's `dladdr` keeps the Mach-O leading underscore,
   breaking save/restore's function-pointer name round-trip; normalize in
   `COM_NameForFunction`. F1. (The gcc-miscompile diagnosis was wrong: F10.)
