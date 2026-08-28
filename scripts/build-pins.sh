@@ -35,14 +35,14 @@ XASH_VERSION="0.21"
 # commit here is the one the fleet A/Bs and the G3 hands-on pass ran against.
 PIN_ENGINE_URL="https://github.com/matthewdeaves/xash3d-fwgs.git"
 PIN_ENGINE_BRANCH="oldmac"
-PIN_ENGINE_COMMIT="1bad7f77345de54b4f40e526f4f5e09ff4d08f6a"
+PIN_ENGINE_COMMIT="add34ad9fe35d32153322c5e66b37619654a5dfd"
 PIN_ENGINE_UPSTREAM="FWGS/xash3d-fwgs@f0ea3a19"
 
 # --- menu: submodule of the engine, re-pointed by our engine branch ----------
 # Fork of FWGS/mainui_cpp, branched at 510c30c5.
 PIN_MENU_URL="https://github.com/matthewdeaves/mainui_cpp.git"
 PIN_MENU_BRANCH="oldmac"
-PIN_MENU_COMMIT="a24538d44fe95fdb78dac90495cc0ea04731aaa7"
+PIN_MENU_COMMIT="9c7d83825421cd046ca35ddc52ac26ed788ab350"
 PIN_MENU_UPSTREAM="FWGS/mainui_cpp@510c30c5"
 
 # --- miniutl: submodule of the menu ------------------------------------------
