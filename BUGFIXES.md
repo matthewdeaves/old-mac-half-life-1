@@ -62,13 +62,33 @@ not for every commit. Deep engine writeups live in
 
 ## Engine and menu (see docs/port/POWERPC-FINDINGS.md)
 
-- An unreviewed same-day commit widened `SDLash_TextInputDelivers()` from a
-  Darwin-major-version gate (only 10.3/10.4 skip SDL's text input) to
-  unconditionally skipping it on every macOS version, contradicting the
-  dated finding that produced the original gate ("an iMac G5 on 10.5.8 ...
-  types fine"). Landed with no hardware confirmation; restored the version
-  gate. Does not by itself close #18 (G5 keyboard/mouse lockout) - not
-  confirmed on hardware either way today. 64edc27 (engine fork), issue #18.
+- `SDLash_TextInputDelivers()` was gated on Darwin major version (only
+  10.3/10.4 skip SDL's text input), on the strength of one dated finding that
+  a G5 on 10.5.8 typed fine. Measured hands-on on a SECOND G5 (dual PowerMac,
+  g5-desktop): that finding did not generalise, and the same build produced a
+  system-wide, unrecoverable beachball opening a text box. Re-gated on CPU
+  architecture instead (`__ppc__`/`__ppc64__`) - every PowerPC OS version
+  takes the key-derived path now, not just pre-10.5. ff64ebd3 (engine fork),
+  issue #18.
+- `Sys_Crash`'s dialog (`SDL_ShowSimpleMessageBox`) allocates memory and is
+  not safe to call from a signal handler: if the crashing thread was already
+  inside `malloc`, the handler's own attempt to allocate deadlocked on the
+  same lock forever - measured live, two concurrent crashes both stuck in the
+  identical deadlock trying to show their own dialogs. A crash could cost a
+  hard reboot. Added a re-entrancy guard and a 5-second watchdog that
+  force-exits if the dialog call hangs; the crash text is already safely on
+  disk by that point either way. Apple-only. 66d5bd78 (engine fork), issue
+  #18.
+- The key-derived text-input path delivered a typed character, then fell
+  through to normal key dispatch for the same keydown, which matched it
+  against every OTHER menu item's hotkey - typing a player name could jump
+  the whole menu away mid-keystroke ('g' in a name left Customize for Game
+  Options). Intel never hit this: once SDL's own text input is active it
+  already returns before reaching that dispatch, so only PowerPC (forced onto
+  the key-derived path above) was exposed. Returns after delivering a
+  character now, matching Intel; non-printable keys (Backspace, arrows,
+  Enter) still fall through since `CMenuField::KeyDown`, not `Char`, handles
+  those. 1bad7f77 (engine fork), issue #18.
 - Guard-door freeze: Panther's `dladdr` keeps the Mach-O leading underscore,
   breaking save/restore's function-pointer name round-trip; normalize in
   `COM_NameForFunction`. F1. (The gcc-miscompile diagnosis was wrong: F10.)
