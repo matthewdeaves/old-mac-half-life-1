@@ -151,20 +151,30 @@ done
 # machine's prior install state broke it, not this script). A signature that
 # fails codesign -v also fails spctl and is refused by LaunchServices on a
 # real double-click, so this must be fatal - ON A PLATFORM WHERE IT MEANS
-# ANYTHING. Leopard's own codesign (introduced in 10.5, the format has moved
-# on hugely since) reports this dev box's modern ad-hoc signature as "code or
-# signature modified" on a bundle a fresh `ditto` produced seconds earlier -
-# a tool-version mismatch, not corruption, and there is no Gatekeeper on
-# PowerPC to reject anything anyway. Measured on g5-desktop (10.5.8): the
-# freshly-mounted, untouched DMG's own Half-Life.app already fails this
-# machine's codesign -v. Fatal only on non-PowerPC, where LaunchServices can
-# actually act on the answer; a non-fatal note everywhere else.
-if command -v codesign >/dev/null 2>&1 && [ "$(uname -p)" != "powerpc" ]; then
+# ANYTHING.
+#
+# The ad-hoc signature is written by THIS dev box's current codesign, and an
+# old enough codesign cannot parse a format that far ahead of it: measured
+# FATAL false positives on g5-desktop (10.5.8, PowerPC, Darwin 9 - codesign
+# itself debuted in Leopard) and mini-sl (10.6.8, Intel, Darwin 10) - both
+# report "code or signature modified" on a bundle `ditto` had just produced
+# seconds earlier. Not CPU-specific: mini-sl is Intel. Gated on Darwin major
+# instead: >= 15 (El Capitan, when SIP and the modern codesign format had
+# landed) is the only class of machine this check can trust either way, and
+# the only one where Gatekeeper enforcement is real enough to reject a bad
+# signature on a double-click. Below that, a warning, never a failed deploy.
+DARWIN_MAJOR=$(uname -r | cut -d. -f1)
+if command -v codesign >/dev/null 2>&1 && [ "${DARWIN_MAJOR:-0}" -ge 15 ] 2>/dev/null; then
 	for app in "$DEST/Half-Life.app" "$DEST/Half-Life Mods.app" "$DEST/Half-Life System Report.app"; do
 		[ -d "$app" ] || continue
 		codesign -v "$app" 2>&1 || { echo "FATAL: $(basename "$app") signature is invalid after install" >&2; exit 1; }
 	done
 	echo "signatures verified on the installed bundles"
+elif command -v codesign >/dev/null 2>&1; then
+	for app in "$DEST/Half-Life.app" "$DEST/Half-Life Mods.app" "$DEST/Half-Life System Report.app"; do
+		[ -d "$app" ] || continue
+		codesign -v "$app" >/dev/null 2>&1 || echo "note: codesign -v disagrees on $(basename "$app") - not trusted below Darwin 15, continuing"
+	done
 fi
 
 # Old releases put our game code, default config and mod artwork INSIDE the
