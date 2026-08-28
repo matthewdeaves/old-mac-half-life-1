@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 # Smoke-test the DMG-installed copy on a target Mac EXACTLY as a human launches
-# it: the production bundle (Half-Life.app launcher self-configures renderer +
-# display mode per machine). We start it, confirm it reaches the running state
-# and survives (a corrupt code slice crashes in under a second), scan the log for
-# fatal errors, then quit it cleanly.
+# it: `open` on the bundle (what a Finder double-click does, i.e. through
+# LaunchServices, not a direct exec of the binary) with the production config.
+# We start it, confirm it reaches the running state and survives (a corrupt
+# code slice crashes in under a second), scan the log for fatal errors, then
+# quit it cleanly.
 #
-# This is the gate a corrupt-image bug slips past: a direct deploy can be clean
-# while the human DMG-launch path crashes instantly. So we test the as-installed,
-# as-launched artifact.
+# This is the gate a corrupt-image bug OR a Gatekeeper/quarantine/signature
+# rejection slips past: a direct deploy, or a direct exec of the binary, can be
+# clean while the human double-click path is refused outright or crashes
+# instantly. So we test the as-installed, as-launched artifact through the same
+# door a human uses. Issue #19: this script used to exec the binary directly,
+# which bypasses LaunchServices entirely and so could never catch what a real
+# double-click hits.
 #
 # usage: scripts/smoke-dmg.sh <machine>
 #   machine: yosemite | sawtooth | quicksilver | mini-g4 | imac-g5
@@ -60,11 +65,12 @@ case "$HOST" in
   *) echo "unknown machine: $HOST" >&2; exit 2 ;;
 esac
 
-echo "[smoke $HOST] launching DMG-installed Half-Life.app with production config"
+echo "[smoke $HOST] launching DMG-installed Half-Life.app via LaunchServices (open), like a Finder double-click"
 RESULT=$(ssh "$HOST" bash -s "$DEST_DIR" "$MINALIVE" "$TIMEOUT" <<'REMOTE_EOF'
 set -u
 DEST="$HOME/$1"; MINALIVE="$2"; TIMEOUT="$3"
-APP="$DEST/Half-Life.app/Contents/MacOS/xash3d"
+BUNDLE="$DEST/Half-Life.app"
+APP="$BUNDLE/Contents/MacOS/xash3d"
 LOG="$DEST/last-run.log"
 
 [ -x "$APP" ] || { echo "NO_INSTALL"; exit 0; }
@@ -75,11 +81,31 @@ killall -TERM xash3d.bin 2>/dev/null || true; sleep 1
 killall -KILL xash3d.bin 2>/dev/null || true
 rm -f "$LOG"
 
-# The launcher execs xash3d.bin (same PID) and redirects console -> last-run.log.
-"$APP" >/dev/null 2>&1 &
-PID=$!
-alive=0
+# `open` is what a Finder double-click does: it goes through LaunchServices,
+# which is what actually runs Gatekeeper's assessment. Direct exec of the
+# binary (the old path here) skips LaunchServices entirely, so it could never
+# catch a quarantine/signature/Info.plist rejection a real double-click hits -
+# issue #19, "CLI/ssh exec passing while double-click fails". `open` returns as
+# soon as the launch REQUEST is accepted or refused; it does not wait for the
+# app, so a refusal is caught here and the app's own liveness is polled by PID
+# separately below, the same as before.
+OPEN_ERR=$(open "$BUNDLE" 2>&1 >/dev/null) || { echo "OPEN_REJECTED"; echo "OPENERR=$OPEN_ERR"; exit 0; }
+
+PID=""
 i=0
+while [ "$i" -lt "$TIMEOUT" ]; do
+  PID=$(ps -axo pid,comm | grep -F "xash3d.bin" | grep -v grep | awk '{print $1; exit}')
+  [ -n "$PID" ] && break
+  sleep 1; i=$((i+1))
+done
+if [ -z "$PID" ]; then
+  echo "ALIVE=0 LOGSIZE=0"
+  echo "----LOGTAIL----"
+  [ -f "$LOG" ] && tail -15 "$LOG" 2>/dev/null || true
+  exit 0
+fi
+
+alive=0
 while [ "$i" -lt "$TIMEOUT" ]; do
   if ! kill -0 "$PID" 2>/dev/null; then break; fi   # died - capture below
   alive=$((alive+1))
@@ -104,8 +130,9 @@ REMOTE_EOF
 echo "$RESULT" | sed 's/^/  /'
 
 case "$RESULT" in
-  NO_INSTALL*) echo "[smoke $HOST] FAIL - Half-Life.app not installed (run deploy-dmg.sh first)"; exit 1 ;;
-  NO_DATA*)    echo "[smoke $HOST] FAIL - no valve/pak0.pak (add retail game data before smoke)"; exit 1 ;;
+  NO_INSTALL*)    echo "[smoke $HOST] FAIL - Half-Life.app not installed (run deploy-dmg.sh first)"; exit 1 ;;
+  NO_DATA*)       echo "[smoke $HOST] FAIL - no valve/pak0.pak (add retail game data before smoke)"; exit 1 ;;
+  OPEN_REJECTED*) echo "[smoke $HOST] FAIL - LaunchServices refused the launch (exactly what a real double-click hits: Gatekeeper/quarantine/signature/Info.plist)"; exit 1 ;;
 esac
 
 ALIVE=$(printf '%s\n' "$RESULT" | sed -n 's/^ALIVE=\([0-9]*\).*/\1/p' | head -1)

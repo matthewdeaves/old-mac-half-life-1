@@ -126,6 +126,32 @@ if [ -d "$MNT/Half-Life System Report.app" ]; then
 	echo "installed: Half-Life System Report.app"
 fi
 
+# Strip com.apple.quarantine on every installed bundle. ditto/scp from our own
+# pipeline never sets it, but the image this script installs from can arrive by
+# a route that does (AirDrop, a browser download, a Mail attachment), and a
+# quarantined ad-hoc-signed app is exactly what Gatekeeper blocks on a real
+# Finder double-click while a direct exec (our old smoke path) never notices.
+# Defence in depth: cheap, idempotent, never fatal if the flag was never set.
+for app in "$DEST/Half-Life.app" "$DEST/Half-Life Mods.app" "$DEST/Half-Life System Report.app"; do
+	[ -d "$app" ] || continue
+	xattr -dr com.apple.quarantine "$app" 2>/dev/null || true
+done
+
+# Verify the signature survived the install byte-for-byte. make-dmg.sh ad-hoc
+# signs every bundle and checks it there; this catches corruption introduced
+# between the image and the installed copy (issue #19: found genuinely broken
+# on imac-2019 - ditto alone was clean in isolation, so something about that
+# machine's prior install state broke it, not this script). A signature that
+# fails codesign -v also fails spctl and is refused by LaunchServices on a
+# real double-click, so this must be fatal, not a warning.
+if command -v codesign >/dev/null 2>&1; then
+	for app in "$DEST/Half-Life.app" "$DEST/Half-Life Mods.app" "$DEST/Half-Life System Report.app"; do
+		[ -d "$app" ] || continue
+		codesign -v "$app" 2>&1 || { echo "FATAL: $(basename "$app") signature is invalid after install" >&2; exit 1; }
+	done
+	echo "signatures verified on the installed bundles"
+fi
+
 # Old releases put our game code, default config and mod artwork INSIDE the
 # player's valve/. All of that now ships inside Half-Life.app, and valve/ outranks
 # the app's read-only root in the search path, so anything left behind would shadow
