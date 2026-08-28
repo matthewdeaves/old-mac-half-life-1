@@ -701,6 +701,22 @@ else
 	echo "[make-dmg] WARN: no codesign here; the bundles will NOT run on Apple Silicon" >&2
 fi
 
+# ---- Finder window layout ----------------------------------------------------
+# Built HERE and shipped as data, so the image is still created on the Tiger G4
+# with -format UDZO. A .DS_Store is just a file in the staged folder and
+# `hdiutil create -srcfolder` below packages it like any other. Tiger has no
+# create-dmg and no way to install one, which is why this is not done there.
+# Never fatal: an unstyled image is a cosmetic loss, not a broken release.
+# scripts/make-dmg-layout.sh, issue #23.
+if [ -x "$REPO_ROOT/scripts/make-dmg-layout.sh" ]; then
+  if "$REPO_ROOT/scripts/make-dmg-layout.sh" "$VOLNAME" "$IMG/.DS_Store"; then
+    echo "[make-dmg] Finder layout staged"
+  else
+    echo "[make-dmg] NOTE: no Finder layout (see above); image will be unstyled" >&2
+    rm -f "$IMG/.DS_Store"
+  fi
+fi
+
 src_sums() { while IFS= read -r f; do
   printf '%s  %s\n' "$(md5 "$IMG/$f" | awk '{print $NF}')" "$f"; done < "$SHIP_LIST" | sort; }
 SRC_SUMS="$(src_sums)"
