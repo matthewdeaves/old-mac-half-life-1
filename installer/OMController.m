@@ -1361,10 +1361,18 @@ static BOOL om_is_heading( NSString *line )
 		 * it with scripts/make-about-art.py, which prints the size to use here if
 		 * the source art is ever changed.
 		 *
-		 * The PNG is authored at exactly these dimensions and -setSize: pins the
-		 * NSImage to them, so nothing is resampled on screen. That matters here:
-		 * none of the target machines has a HiDPI display, and 10.3's NSButton
-		 * has no image-scaling mode to fall back on. */
+		 * The PNG is NOT authored at these dimensions. It is 269x440 pixels, an
+		 * exact 2x, and -setSize: asks the NSImage to present itself at 135x220
+		 * points. This comment used to say the file was 1:1 and it was, until
+		 * 5c1339e made it 228x440 and then 269x440; the comment did not follow.
+		 *
+		 * -setSize: alone is not enough on old AppKit. NSImage's
+		 * scalesWhenResized defaults to NO there, and with it off the image
+		 * draws at its representation's PIXEL size and ignores the size we set,
+		 * so a 2x asset comes out at twice the intended size. Modern AppKit
+		 * scales regardless and the property is deprecated, which is why this
+		 * only ever looked wrong on Tiger while testing clean on macOS 26.
+		 * Reported by the user on a Tiger G5. Issue #24. */
 		/* 135x220 keeps the artwork's own aspect (269x440 pixels, 0.611). The frame
 		 * used to be 147x240 and setSize forced the image into it, stretching
 		 * Gordon horizontally by about 18 percent. scripts/make-about-art.py
@@ -1378,6 +1386,23 @@ static BOOL om_is_heading( NSString *line )
 			[[self resourcesPath] stringByAppendingPathComponent:@"About-Gordon.png"]] autorelease];
 		if( art != nil )
 		{
+			/* Must come BEFORE -setSize:. Deprecated since 10.6 and a no-op on
+			 * modern AppKit, which always scales; on 10.3/10.4/10.5 it is the
+			 * difference between a correctly sized figure and a double-size one.
+			 * Sent via -respondsToSelector: so the arm64 slice, built against a
+			 * current SDK where the selector may be gone, neither warns nor
+			 * throws. */
+			if( [art respondsToSelector:@selector( setScalesWhenResized: )] )
+			{
+				NSMethodSignature *sig = [art methodSignatureForSelector:@selector( setScalesWhenResized: )];
+				NSInvocation *inv = [NSInvocation invocationWithMethodSignature:sig];
+				BOOL yes = YES;
+
+				[inv setSelector:@selector( setScalesWhenResized: )];
+				[inv setTarget:art];
+				[inv setArgument:&yes atIndex:2];
+				[inv invoke];
+			}
 			[art setSize:NSMakeSize( 135, 220 )];
 			[gordon setImage:art];
 		}
