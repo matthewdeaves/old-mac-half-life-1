@@ -34,6 +34,15 @@ inferred. A partial result from a killed agent is a lead, never a finding.
 - **Build the release DMG only on a Tiger G4**, never the G3 or Lion, `-format
   UDZO`; md5 every binary, `hdiutil verify` is not enough. `docs/adr/0005`
 - Before a release run `python3 tests/test-repo.py` and `tests/test-artifact.sh`.
+- **A release claim lives in two places, and correcting one does not correct the
+  other.** `v1.9.9` went out on 2026-08-28 with a body that correctly listed the
+  microphone fix as withdrawn, and a TITLE that still said "permissions asked up
+  front", because the title was baked into the publish script before the revert.
+  It was public and wrong for about a minute. When what shipped changes, re-read
+  the title, the notes AND the `--title` argument in whatever script publishes
+  them. The same applies to a release that is re-cut under an existing version
+  number: the artifacts change, the prose usually does not, and nothing checks
+  that they still agree.
 - **No em dashes anywhere**, prose or shipped strings.
 - **Never rate or praise work**, ours or upstream's; attribution is a fact.
 - **No Claude co-author** on commits.
