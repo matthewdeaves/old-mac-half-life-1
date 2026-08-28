@@ -496,6 +496,61 @@ cmd_release() {
 						echo \"  or use a host-aware reboot recovery if the host is known safe to force.\" >&2
 					fi
 				fi
+				# Issue #39, user directive 2026-08-28: keep fleet machines tidy,
+				# not just idle -- clear (or at least flag) cruft a session left
+				# behind before releasing. Same choke point as the game check
+				# above, same WARN-don't-delete shape: a script deleting a file on
+				# someone else's machine without knowing what it is is a worse
+				# failure than leaving it (measured live 2026-08-28: quakespasm's
+				# own results.csv/raw logs are INTENTIONAL leftovers on some
+				# hosts, so blind deletion would destroy real data). Scoped to
+				# the two concrete patterns actually measured today: a stale DMG
+				# left on the Desktop (quad-tiger's Half-Life DMG) and a stray
+				# file dropped straight in /tmp (g5-desktop's g5-postreboot.png,
+				# nobody's -- flagged cross-repo, never claimed). Both are places
+				# a deploy/verify step commonly writes and rarely cleans up.
+				# Plain glob loops, not find -- POSIX sh, no GNU-only flags,
+				# same portability reasoning as clear-launch-quarantine.sh's
+				# own walk. Also sidesteps a real difference measured
+				# 2026-08-28: a sandboxed dev shell can block find's
+				# directory-traversal syscalls on /tmp while still allowing
+				# plain readdir-based globbing to see the exact same files --
+				# this fleet's actual Macs are never sandboxed, but the glob
+				# form works identically either way, so there is no reason to
+				# carry the fragile one.
+				# Run under an explicit /bin/sh, not whatever the login shell is.
+				# BUG FOUND 2026-08-28: imac-2019's login shell is zsh (the
+				# modern macOS default), and zsh's default NOMATCH option
+				# throws \"no matches found\" to stderr for a glob that matches
+				# nothing, instead of leaving it literal like sh/bash do -- the
+				# behavior the [ -e ] guards below assume. Every other host in
+				# this fleet defaults to bash or sh as the login shell, which
+				# is why this only surfaced today, on the one host that matters
+				# most. /bin/sh has existed on every OS this fleet runs since
+				# Panther; nothing here needs a login shell's own config.
+				cruft=\"\$(/bin/sh -c '
+					cruft=\"\"
+					for f in \"\$HOME\"/Desktop/*.dmg \"\$HOME\"/Desktop/*.DMG \"\$HOME\"/Desktop/*.app; do
+						[ -e \"\$f\" ] && cruft=\"\$cruft
+\$f\"
+					done
+					for f in /tmp/*; do
+						case \"\$(basename \"\$f\")\" in
+							objc_sharing_*) continue ;;
+						esac
+						[ -f \"\$f\" ] && cruft=\"\$cruft
+\$f\"
+					done
+					printf %s \"\$cruft\"
+				' 2>/dev/null | sed \"/^\$/d\")\"
+				if [ -n \"\$cruft\" ]; then
+					echo \"pick-bench-host: cruft left on \$(hostname -s 2>/dev/null || echo host) at release:\" >&2
+					echo \"\$cruft\" | while IFS= read -r f; do
+						echo \"  \$(ls -ld \"\$f\" 2>/dev/null || echo \"\$f\")\" >&2
+					done
+					echo \"  Not deleting anything -- some of this may be intentional (a port's own\" >&2
+					echo \"  results/logs). Clear it yourself if it is yours, or ask whoever's is it.\" >&2
+				fi
 			else
 				echo 'not ours; leaving it' >&2; exit 1
 			fi
