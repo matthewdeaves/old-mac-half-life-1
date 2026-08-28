@@ -86,6 +86,17 @@
   sitting just above the refresh misses deadlines and waits. Above the cap a
   render cost is free to the player; just below it, a 1% cost can take several
   fps off the vsynced average. Quote both numbers when a decision turns on them.
+- **Never copy `valve/opengl.cfg`, `config.cfg` or `video.cfg` from one machine
+  to another.** They are GENERATED per machine, not retail data, and
+  `opengl.cfg` holds the `FCVAR_GLCONFIG` cvars the launcher seeds ONLY on an
+  install that has never run. A machine that arrives holding another machine's
+  copy therefore keeps the wrong renderer settings forever, with nothing failing
+  and nothing to grep. Measured 2026-08-28 provisioning `quad-tiger`: `rsync`ing
+  the whole of `~/hl-assets/valve/` carried a G4's generated configs onto a quad
+  G5, player name `G4testteeed` and all. Delete those three after any bulk copy,
+  or copy the retail files by name. The retail data itself (`pak0.pak`, `*.wad`,
+  `maps/`, `models/`, `sound/`) is fine to copy and is what that staging
+  directory is for.
 - **Mac OS X only, not Mac OS 9** (issue #23). Classic is out of scope.
 - **Three trees:** engine (`xash3d-fwgs`), menu (`mainui_cpp`), game dylibs
   (`hlsdk-portable`). **Every slice, and the Linux server, builds from the same
