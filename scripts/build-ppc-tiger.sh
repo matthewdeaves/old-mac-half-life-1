@@ -86,7 +86,8 @@ WAFOUT=build-tiger                                     # separate waf out dir pe
 
 # 10.3.9-SDK include gaps (identical to build-ppc-panther.sh): gcc-4.0's own unwind.h for
 # 3rdparty/libbacktrace, and the 10.3.9 SDK's libstdc++ target subdir (powerpc-apple-darwin7).
-GCCINC=/usr/lib/gcc/powerpc-apple-darwin10/4.0.1/include
+# oldmac: overridable, the compiler's own include dir; default is Lion-specific.
+GCCINC="${OLDMAC_PPC_GCCINC:-/usr/lib/gcc/powerpc-apple-darwin10/4.0.1/include}"
 CXXINC="-isystem $SDK/usr/include/c++/4.0.0/powerpc-apple-darwin7"
 
 # --- pre-flight: every tree must be at the commit build-pins.sh names ---------
@@ -261,7 +262,7 @@ if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
 	  # It builds clean and exports all 13 driver entry points. Issue #2.
 	  # --disable-haptic stays: force feedback needs the 10.5-only FFB API too and
 	  # nothing here asks for rumble.
-	  CC="gcc-4.0 $ARCHFLAGS" CFLAGS="$ARCHFLAGS -isystem $GCCINC" LDFLAGS="$ARCHFLAGS" \
+	  CC="$CC $ARCHFLAGS" CFLAGS="$ARCHFLAGS -isystem $GCCINC" LDFLAGS="$ARCHFLAGS" \
 	  ./configure --prefix="$SDLPREFIX" --host=powerpc-apple-darwin8 --build=i686-apple-darwin11 \
 	              --enable-joystick --disable-haptic --without-x --disable-shared --enable-static
 	  make -j"$(sysctl -n hw.ncpu)" && make install )

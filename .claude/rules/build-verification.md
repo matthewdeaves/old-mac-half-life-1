@@ -107,6 +107,32 @@ human, and the wrong one got the blame. The rule that follows:
   decide, which costs nothing, rather than "your deploy broke it", which costs
   them a search.
 
+### The common root: testing a proxy, not the real invocation
+
+Three times on 2026-08-29, a confident negative came from a test that did not
+replicate what the build or the game actually does:
+
+1. A microphone probe timed at 0.100s and read as "does not block". It ran on a
+   machine where permission was ALREADY granted, so no dialog ever appeared. The
+   blocking path is the one with a dialog up, and shipping on that reading hung
+   the game at launch.
+2. A client/server compatibility test driven headlessly with nobody at the
+   keyboard, reported as the server's new build being at fault. The client needs
+   a keypress at a loading screen; the server was fine.
+3. `clang++ -stdlib=libstdc++` run with NO `-isysroot`, giving "library 'stdc++'
+   not found", reported as the Intel slice being unable to move to a new build
+   host. `build-lion.sh` always passes `-isysroot` at the 10.7 SDK. With that one
+   flag it compiles and links `/usr/lib/libstdc++.6.dylib` cleanly.
+
+Each was a simplified stand-in for the real thing, each produced a clean
+negative, and a clean negative feels like evidence in a way a clean positive
+does not. Two of the three pointed at another team's work.
+
+**Before reporting that something cannot work, diff your test command against
+the command the build actually runs.** In case 3 the difference was a single
+flag that the script has carried for years, with a 24-line comment above it
+explaining why. Reading that comment would have been faster than the test.
+
 ## Exact cpusubtype, never generic ppc ALL
 
 Each PPC slice MUST carry its EXACT cpusubtype: **ppc750** (G3) and **ppc7400**

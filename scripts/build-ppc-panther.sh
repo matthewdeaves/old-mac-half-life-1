@@ -100,7 +100,10 @@ if [ "${DBG:-0}" = "1" ]; then ARCHFLAGS="$ARCHFLAGS -g"; echo "==> DBG=1: build
 #    compiler header; add gcc-4.0's own include dir so it's found.
 #  * the 10.3.9 SDK's libstdc++ target subdir is powerpc-apple-darwin7 (Panther's kernel), which
 #    the darwin10-hosted g++ doesn't probe, so <cmath> can't find bits/c++config.h. Add it.
-GCCINC=/usr/lib/gcc/powerpc-apple-darwin10/4.0.1/include
+# oldmac: overridable. This is the COMPILER's own include dir, not an SDK's,
+# and the default path is Lion-specific. GCC14 on another host keeps its
+# unwind.h somewhere else entirely. Issue #22.
+GCCINC="${OLDMAC_PPC_GCCINC:-/usr/lib/gcc/powerpc-apple-darwin10/4.0.1/include}"
 CXXINC="-isystem $SDK/usr/include/c++/4.0.0/powerpc-apple-darwin7"
 
 # --- pre-flight: every tree must be at the commit build-pins.sh names ---------
@@ -232,7 +235,13 @@ if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
 	  # here at all; the legacy backend uses the older IOCFPlugIn API that 10.3.9
 	  # does have. Full mechanism and the measured A/B are in the same block of
 	  # build-ppc-tiger.sh. --disable-haptic stays. Issue #2.
-	  CC="gcc-4.0 $ARCHFLAGS $TUNE750" CFLAGS="$ARCHFLAGS $TUNE750" LDFLAGS="$ARCHFLAGS $TUNE750" \
+	  # CPP/CXXCPP pinned to the chosen compiler. Without them autoconf probes
+	  # for a preprocessor and falls back to /lib/cpp, which on a modern host is
+	  # not a PowerPC preprocessor at all: "C++ preprocessor /lib/cpp fails
+	  # sanity check". Harmless on Lion, where the fallback happened to work.
+	  CC="$CC $ARCHFLAGS $TUNE750" CXX="$CXX $ARCHFLAGS $TUNE750" \
+	  CPP="$CC -E" CXXCPP="$CXX -E" \
+	  CFLAGS="$ARCHFLAGS $TUNE750" LDFLAGS="$ARCHFLAGS $TUNE750" \
 	  ./configure --prefix="$SDLPREFIX" --host=powerpc-apple-darwin8 --build=i686-apple-darwin11 \
 	              --enable-joystick --disable-haptic --without-x --disable-shared --enable-static \
 	              --disable-altivec
