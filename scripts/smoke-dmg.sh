@@ -56,8 +56,11 @@ case "$HOST" in
   sawtooth|quicksilver|mini-g4) MINALIVE=10; TIMEOUT=60 ;; # G4 Tiger
   # The dual G5 multi-boots three OSes from one IP, so each partition has its own
   # alias. They were missing here, which made the machine that boots the most
-  # OS versions the one this gate could not be run against at all.
-  imac-g5|g5-imac|g5-panther|g5-tiger|g5-leopard|g5-desktop)
+  # OS versions the one this gate could not be run against at all. The quad G5
+  # (quad-tiger/quad-leopard) had the same gap - "unknown machine: quad-leopard"
+  # - found running the #19 launch matrix, since nothing else here exercises
+  # every multi-boot alias by name.
+  imac-g5|g5-imac|g5-panther|g5-tiger|g5-leopard|g5-desktop|quad-tiger|quad-leopard|g5quad-tiger|g5quad-leopard)
                           MINALIVE=10; TIMEOUT=60 ;;    # G5, any partition
   mini-intel|mini-intel2) MINALIVE=6;  TIMEOUT=40 ;;    # Intel Lion (both minis: same Macmini2,1)
   mini-sl|snow-build1)    MINALIVE=6;  TIMEOUT=40 ;;    # Intel Snow Leopard (Macmini3,1), the 10.6 floor
