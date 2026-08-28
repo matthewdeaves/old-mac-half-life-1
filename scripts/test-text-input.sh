@@ -5,9 +5,15 @@
 # Issue #18: every prior "fix" in this area (SDL_StartTextInput gating, focus-
 # on-open, Escape-to-dismiss) was verified by launching the game and reaching
 # the menu - never by actually opening the dialog and typing, which is the one
-# thing that reproduces the bug. This script is that missing check. It found,
-# hands-on, a genuine PowerPC crash (SIGBUS in CMenuItemsHolder::Key) that
-# every earlier smoke test missed, because none of them typed anything.
+# thing that reproduces the bug. This script is that missing check.
+#
+# It did NOT find the crash. The user did, by hand, on g5-panther. This script
+# could not have: its "reached the menu" gate grepped for the literal string
+# "execing mainui.cfg", which the engine writes with colour escapes inside it,
+# so the gate never matched and the typing below never ran once. Corrected
+# 2026-08-28. Worth remembering that a test which never reached its assertion
+# reports as a failure to reach the menu, not as a pass - but nobody read it
+# either way.
 #
 # WHAT THIS CANNOT BE: a headless/CI check. It drives the real keyboard of a
 # real logged-in GUI session via System Events, which needs Accessibility
@@ -17,12 +23,14 @@
 # will not get a clean answer). Run it right after using the machine for
 # something else, or right after a fresh boot, not cold.
 #
-# Non-deterministic by nature: the underlying bug (if present) is believed to
-# be a heap-corruption timing issue, not a fixed trigger - see issue #18's
-# writeup. A single PASS is evidence, not proof. Run it more than once before
-# trusting a quiet run, especially after any change anywhere near menu init,
-# audio init, or allocation patterns generally - the crash has shown up
-# alongside an unrelated CoreAudio fault, not only in isolation.
+# The "non-deterministic heap corruption" and "SDL_DYNAPI jump table" readings
+# of this bug were both wrong and are withdrawn. Root cause, measured: a cursor
+# left past the end of the field's buffer makes both of CMenuField's memmoves
+# compute a negative length, which memmove takes as a ~4 GB size_t. It is a
+# fixed trigger, not a race - it fires on the first keystroke after the field's
+# buffer is replaced by a shorter cvar value. Fixed in menu 9c7d838.
+#
+# A PASS here is still only evidence for the paths it actually drove.
 #
 # usage: scripts/test-text-input.sh <machine>
 #   machine: any PowerPC or Intel alias smoke-dmg.sh knows. Hotkeys below are
@@ -50,7 +58,13 @@ ssh "$HOST" "open \"\$HOME/$DEST_DIR/Half-Life.app\""
 # execs on the way to the menu.
 i=0
 while [ "$i" -lt 30 ]; do
-	if ssh "$HOST" "grep -q 'execing mainui.cfg' \"\$HOME/$DEST_DIR/last-run.log\" 2>/dev/null"; then
+	# The engine colours the filename, so the log holds
+	#   execing ESC[1;32mmainui.cfg ESC[0m
+	# and a grep for the literal "execing mainui.cfg" can never match. That is
+	# how this gate silently failed every run: the script reported "never
+	# reached the menu" on a machine sitting happily at the menu, so the typing
+	# step below had never once executed. Match the filename alone.
+	if ssh "$HOST" "grep -q 'mainui\.cfg' \"\$HOME/$DEST_DIR/last-run.log\" 2>/dev/null"; then
 		break
 	fi
 	sleep 1; i=$((i+1))
@@ -68,10 +82,26 @@ echo "[text-input $HOST] typing into the address field"
 osa 'keystroke "209.255.10.255:27015"'
 sleep 1
 
+# Both memmoves in CMenuField have to be exercised, not just one. Typing goes
+# through Char()'s insert branch; Backspace goes through KeyDown()'s. Issue #18
+# was originally reported as a Backspace bug and turned out to be neither -
+# both branches compute a length of the shape len - iCursor + 1, so both blow
+# up on a cursor left past the terminator. Delete a chunk and retype over it.
+echo "[text-input $HOST] backspacing over it and retyping"
+for _ in 1 2 3 4 5 6 7 8 9 10; do osa 'key code 51' >/dev/null 2>&1 || true; done
+sleep 1
+osa 'keystroke "27015"'
+sleep 1
+
 # The actual check: is the process still there, and did the log pick up a
 # crash record while we were typing.
+#
+# NOT `pgrep` (absent on 10.3/10.4/10.7) and NOT bare `ps ax`, whose COMMAND
+# column truncates over a non-tty ssh pipe and cuts the line off long before
+# the trailing "xash3d.bin" - the same trap that made smoke-dmg.sh report every
+# healthy launch as a crash. `-axww` disables the truncation.
 ALIVE=1
-ssh "$HOST" "pgrep -f xash3d.bin >/dev/null 2>&1 || ps ax | grep -q '[x]ash3d.bin'" || ALIVE=0
+ssh "$HOST" "ps -axww | grep -q '[x]ash3d.bin'" || ALIVE=0
 CRASH=$(ssh "$HOST" "grep -c '^Crash:' \"\$HOME/$DEST_DIR/last-run.log\" 2>/dev/null || true")
 
 echo "[text-input $HOST] dismissing (Escape) and quitting"
