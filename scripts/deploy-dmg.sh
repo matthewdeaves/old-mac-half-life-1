@@ -61,6 +61,36 @@ if [ "${RETRO_BENCH_LOCK:-}" != "$HOST" ] && [ "${BENCH_NO_LOCK:-0}" != 1 ] && [
   exec "$_PICK" --run "$HOST" "deploy-dmg" -- "$0" "$@"
 fi
 
+# PRESTAGE=1: mount the image HERE and rsync its contents over, instead of
+# shipping the .dmg and mounting it on the target. For a machine whose DiskImages
+# stack cannot attach anything at all - quad-tiger fails every attach with
+# DI_kextDriveActivate error 0xE00002C9 on a freshly booted box, with an image
+# that mounts fine everywhere else (old-mac-build-host#41). Everything after the
+# mount is the same code, so this is a different way to reach the install, not a
+# second install path to keep in sync.
+if [ "${PRESTAGE:-0}" = 1 ]; then
+	echo "[deploy-dmg $HOST] PRESTAGE: mounting the image locally and rsyncing its contents"
+	LMNT="$(mktemp -d -t hl-prestage)"
+	hdiutil detach "$LMNT" >/dev/null 2>&1 || true
+	hdiutil attach -nobrowse -readonly -mountpoint "$LMNT" "$DMG" >/dev/null
+	trap 'hdiutil detach "$LMNT" >/dev/null 2>&1 || hdiutil detach -force "$LMNT" >/dev/null 2>&1 || true; rmdir "$LMNT" 2>/dev/null || true' EXIT
+	[ -d "$LMNT/Half-Life.app" ] || { echo "[deploy-dmg $HOST] FATAL: local mount has no Half-Life.app" >&2; exit 1; }
+	ssh "$HOST" 'rm -rf "$HOME/hlinstall-mnt" && mkdir -p "$HOME/hlinstall-mnt"'
+	# -E preserves the resource forks the icons live in, the way ditto does.
+	#
+	# The excludes are HFS volume housekeeping, not payload, and .Trashes is not
+	# readable even by the user who mounted the image: without excluding it rsync
+	# fails the whole transfer with "opendir .Trashes: Permission denied" and
+	# exit 23, having skipped the deletion pass. None of these are part of the
+	# release and none are copied by the hdiutil path either, which only ever
+	# ditto's the three .app bundles by name.
+	rsync -aE --delete \
+		--exclude '.Trashes' --exclude '.fseventsd' --exclude '.Spotlight-V100' \
+		--exclude '.DS_Store' --exclude '.TemporaryItems' --exclude '.VolumeIcon.icns' \
+		"$LMNT"/ "$HOST:hlinstall-mnt/"
+	echo "[deploy-dmg $HOST] contents staged at ~/hlinstall-mnt"
+else
+
 echo "[deploy-dmg $HOST] copy $DMG_BASE to ~/Desktop/"
 ssh "$HOST" 'mkdir -p ~/Desktop'
 
@@ -82,12 +112,30 @@ RMT_MD5=$(ssh "$HOST" "md5 'Desktop/$DMG_BASE' | awk '{print \$NF}'")
 [ "$LCL_MD5" = "$RMT_MD5" ] || { echo "[deploy-dmg $HOST] FATAL: scp corrupted the DMG ($LCL_MD5 != $RMT_MD5)" >&2; exit 1; }
 echo "[deploy-dmg $HOST] DMG on Desktop verified intact ($RMT_MD5)"
 
+fi   # end of the non-PRESTAGE image transfer
+
 echo "[deploy-dmg $HOST] mount + install into ~/$DEST_DIR/ (preserving retail valve/ data)"
-ssh "$HOST" bash -s "$DMG_BASE" "$DEST_DIR" <<'REMOTE_EOF'
+ssh "$HOST" "PRESTAGED=${PRESTAGE:-0} bash -s '$DMG_BASE' '$DEST_DIR'" <<'REMOTE_EOF'
 set -e
 DMG_BASE="$1"; DEST_DIR="$2"
 MNT="$HOME/hlinstall-mnt"
 DEST="$HOME/$DEST_DIR"
+
+# PRESTAGED=1 means the caller could not mount the image on this machine and has
+# already put the image's CONTENTS at $MNT by other means. Skip the attach and
+# use what is there; everything after this point is identical, which is the whole
+# point of doing it this way rather than hand-rolling a second install path.
+#
+# quad-tiger needs this: its DiskImages kext fails every attach with
+# DI_kextDriveActivate error 0xE00002C9 / "timed out waiting for IOService to
+# become quiescent", on a freshly booted machine, with an image that mounts fine
+# on every other host in the fleet. That is a kernel-level fault on that box, not
+# a bad image. old-mac-build-host#41.
+if [ "${PRESTAGED:-0}" = 1 ]; then
+	[ -d "$MNT/Half-Life.app" ] || { echo "PRESTAGED=1 but $MNT holds no Half-Life.app" >&2; exit 1; }
+	echo "prestaged: using image contents already at $MNT (no hdiutil on this host)"
+	DEV=""
+else
 
 # fresh mountpoint - detach any stale attach, then rmdir (never rm -rf a path
 # that might still be a mounted read-only volume).
@@ -101,6 +149,8 @@ mkdir -p "$MNT"
 # leaving the image mounted after every deploy.
 ATTACH_OUT=$(hdiutil attach -nobrowse -readonly -mountpoint "$MNT" "$HOME/Desktop/$DMG_BASE")
 DEV=$(echo "$ATTACH_OUT" | awk '/^\/dev\/disk/ { print $1; exit }')
+
+fi   # end of the non-PRESTAGED attach
 
 mkdir -p "$DEST/valve"
 # Replace the app wholesale so no stale bundle files survive. ditto keeps the
@@ -266,6 +316,12 @@ rm -f "$DEST/.DS_Store" 2>/dev/null || true
 # Every detach here is best-effort and must not abort the script under `set -e`:
 # by this point the install has already succeeded, and a stubborn image is worth a
 # warning, not a failed deploy.
+if [ "${PRESTAGED:-0}" = 1 ]; then
+	# Nothing was ever mounted, so there is nothing to detach. $MNT is an
+	# ordinary directory the caller rsynced; remove it rather than leaving a
+	# second full copy of the payload on the machine's disk.
+	rm -rf "$MNT"
+else
 for k in 1 2 3 4 5; do
 	if [ -n "$DEV" ] && hdiutil detach "$DEV" >/dev/null 2>&1; then break; fi
 	if hdiutil detach "$MNT" >/dev/null 2>&1; then break; fi
@@ -276,6 +332,7 @@ hdiutil detach -force "$MNT" >/dev/null 2>&1 || true
 rmdir "$MNT" 2>/dev/null || true
 if mount | grep -q " $MNT " 2>/dev/null; then
 	echo "WARNING: $MNT is still mounted - eject it by hand"
+fi
 fi
 
 echo "installed into $DEST:"
