@@ -114,4 +114,28 @@ if [ "$ALIVE" != 1 ] || [ "${CRASH:-0}" -gt 0 ]; then
 	exit 1
 fi
 
-echo "[text-input $HOST] PASS - survived typing into the add-server field"
+echo "[text-input $HOST] INCONCLUSIVE - survived typing into the add-server field,"
+echo "  but that field CANNOT reproduce issue #18 and a pass here is not a guard."
+echo
+echo "  Measured 2026-08-28 by A/B on g5-panther: the pre-fix libmenu.dylib"
+echo "  (md5 9ceae18169c8a4c8a19a0213c15c3a26) passes this script exactly as the"
+echo "  fixed one does. Not a flaky reproduction - a structural one."
+echo
+echo "  ServerBrowser's addressField has no LinkCvar (menus/ServerBrowser.cpp"
+echo "  around 1249). #18 needs a cvar-linked field: the crash comes from"
+echo "  CMenuField::UpdateEditable() replacing the buffer from a cvar without"
+echo "  resyncing iCursor, and UpdateEditable only does anything when a cvar is"
+echo "  linked. A field with no cvar behind it is immune by construction."
+echo
+echo "  The field that does reproduce it is 'name' in Multiplayer -> Customize"
+echo "  (menus/PlayerSetup.cpp, name.LinkCvar( \"name\" )). Driving it needs"
+echo "  focus, and CMenuBaseWindow::Show() takes focus from the mouse position,"
+echo "  so 'u' then Tab or Down does not land on it - tried both, the name cvar"
+echo "  was unchanged afterwards. It likely needs a real click at the field's"
+echo "  screen coordinates. Keystroke injection itself is fine on this machine:"
+echo "  'q' then 'o' from the main menu quits the game, proving System Events"
+echo "  keys reach it."
+echo
+echo "  Until this drives a cvar-linked field and asserts the cvar changed, it"
+echo "  must not report PASS. See issue #18."
+exit 2
