@@ -42,7 +42,7 @@ PIN_ENGINE_UPSTREAM="FWGS/xash3d-fwgs@f0ea3a19"
 # Fork of FWGS/mainui_cpp, branched at 510c30c5.
 PIN_MENU_URL="https://github.com/matthewdeaves/mainui_cpp.git"
 PIN_MENU_BRANCH="oldmac"
-PIN_MENU_COMMIT="903dc47e3754d47280e1e4e8a97975964dc7affe"
+PIN_MENU_COMMIT="a24538d44fe95fdb78dac90495cc0ea04731aaa7"
 PIN_MENU_UPSTREAM="FWGS/mainui_cpp@510c30c5"
 
 # --- miniutl: submodule of the menu ------------------------------------------
