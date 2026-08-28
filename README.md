@@ -28,6 +28,13 @@ are privacy-gated per app, and an unsigned app has its writes silently denied
 there, so the game cannot save. The launcher explains this if it happens. On
 Mac OS X 10.3 through 10.14 any folder works, the Desktop included.
 
+On macOS 10.14 and later the game asks for microphone access the first time it
+runs. That is for in-game voice chat and nothing else, and declining is fine:
+everything except voice chat works either way. It is asked at launch, before the
+window opens, deliberately. Asked any later it arrives while the game is
+fullscreen with the mouse grabbed, where the prompt cannot be answered and
+joining a server is blocked.
+
 That is the whole install. Nothing is merged: everything this project builds
 lives inside the app, and saves and settings are written to your folder, so a
 newer build swaps in without losing anything. Tested against the retail Game of
