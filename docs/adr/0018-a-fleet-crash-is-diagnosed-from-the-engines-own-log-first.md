@@ -101,9 +101,14 @@ ordering is load bearing. Anything that moves, buffers or conditionalises the
 log write costs the fleet its best diagnostic, and `-nomsgbox` must keep
 suppressing only the dialog.
 
-**`deploy-dmg.sh` should not delete `last-run.log` on install.** Not yet
-checked. If it does, a crash from the previous build is gone before anyone asks
-about it.
+**Nothing may destroy `last-run.log` without keeping a generation.** Checked
+rather than assumed, and the answer was not the one expected. `deploy-dmg.sh`
+removes `valve/last-run.log`, a legacy path nothing writes any more, and leaves
+the real log at the game root alone. `smoke-dmg.sh` was the one deleting it:
+`LOG="$DEST/last-run.log"` then `rm -f "$LOG"` for a clean slate. So running a
+smoke test destroyed the crash evidence from whatever had just gone wrong,
+which is precisely when someone is about to ask about it. It now moves the
+previous log to `last-run.prev.log` first.
 
 **Nothing here says stop using hardware.** The user reproducing this by hand,
 and correcting "it crashes on Backspace" to "it crashes on any key", is what

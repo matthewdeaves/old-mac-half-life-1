@@ -82,6 +82,14 @@ LOG="$DEST/last-run.log"
 # clean slate
 killall -TERM xash3d.bin 2>/dev/null || true; sleep 1
 killall -KILL xash3d.bin 2>/dev/null || true
+
+# Keep the previous run's log instead of deleting it. The engine's crash
+# handler writes the "Crash:" line and its symbolizable module+offset frames
+# here, and per ADR 0018 that file is the first thing to read when a fleet
+# machine crashes. Deleting it meant a smoke run destroyed the evidence from
+# whatever went wrong just before it, which is exactly when someone is about to
+# ask. One generation back is enough to cover "run the smoke test, then look".
+[ -f "$LOG" ] && mv -f "$LOG" "$DEST/last-run.prev.log" 2>/dev/null || true
 rm -f "$LOG"
 
 # `open` is what a Finder double-click does: it goes through LaunchServices,
