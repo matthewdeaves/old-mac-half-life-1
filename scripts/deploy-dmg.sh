@@ -132,9 +132,16 @@ fi
 # quarantined ad-hoc-signed app is exactly what Gatekeeper blocks on a real
 # Finder double-click while a direct exec (our old smoke path) never notices.
 # Defence in depth: cheap, idempotent, never fatal if the flag was never set.
+#
+# `xattr -d -r` (recursive), not `-dr`: Leopard's xattr has no -r at all
+# ("usage: xattr [-l] file ... / -p / -w / -d"), so `-dr` was an unrecognized
+# option that printed usage and did nothing - harmless here since our own
+# pipeline never sets the flag, but silently no-op on the one OS that most
+# needs a working fallback. `find | xargs` works on every OS back to 10.3,
+# with or without -r.
 for app in "$DEST/Half-Life.app" "$DEST/Half-Life Mods.app" "$DEST/Half-Life System Report.app"; do
 	[ -d "$app" ] || continue
-	xattr -dr com.apple.quarantine "$app" 2>/dev/null || true
+	find "$app" -print0 2>/dev/null | xargs -0 xattr -d com.apple.quarantine 2>/dev/null || true
 done
 
 # Verify the signature survived the install byte-for-byte. make-dmg.sh ad-hoc
@@ -143,8 +150,16 @@ done
 # on imac-2019 - ditto alone was clean in isolation, so something about that
 # machine's prior install state broke it, not this script). A signature that
 # fails codesign -v also fails spctl and is refused by LaunchServices on a
-# real double-click, so this must be fatal, not a warning.
-if command -v codesign >/dev/null 2>&1; then
+# real double-click, so this must be fatal - ON A PLATFORM WHERE IT MEANS
+# ANYTHING. Leopard's own codesign (introduced in 10.5, the format has moved
+# on hugely since) reports this dev box's modern ad-hoc signature as "code or
+# signature modified" on a bundle a fresh `ditto` produced seconds earlier -
+# a tool-version mismatch, not corruption, and there is no Gatekeeper on
+# PowerPC to reject anything anyway. Measured on g5-desktop (10.5.8): the
+# freshly-mounted, untouched DMG's own Half-Life.app already fails this
+# machine's codesign -v. Fatal only on non-PowerPC, where LaunchServices can
+# actually act on the answer; a non-fatal note everywhere else.
+if command -v codesign >/dev/null 2>&1 && [ "$(uname -p)" != "powerpc" ]; then
 	for app in "$DEST/Half-Life.app" "$DEST/Half-Life Mods.app" "$DEST/Half-Life System Report.app"; do
 		[ -d "$app" ] || continue
 		codesign -v "$app" 2>&1 || { echo "FATAL: $(basename "$app") signature is invalid after install" >&2; exit 1; }
