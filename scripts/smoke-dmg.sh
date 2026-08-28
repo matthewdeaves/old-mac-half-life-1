@@ -94,7 +94,14 @@ OPEN_ERR=$(open "$BUNDLE" 2>&1 >/dev/null) || { echo "OPEN_REJECTED"; echo "OPEN
 PID=""
 i=0
 while [ "$i" -lt "$TIMEOUT" ]; do
-  PID=$(ps -axo pid,comm | grep -F "xash3d.bin" | grep -v grep | awk '{print $1; exit}')
+  # Plain `ps ax`, not `ps -o comm`: Tiger's ps has no comm keyword at all
+  # ("ps: comm: keyword not found"). And `-ww`, not bare `ps ax`: without it
+  # BSD ps truncates COMMAND to terminal width, which over a non-tty ssh pipe
+  # cut the line off at ".../Half-Life.app/Contents/" - before "xash3d.bin"
+  # ever appeared - so this found nothing and spun for the full TIMEOUT even
+  # though the game was running. Measured on quicksilver (Tiger G4). `ps -axww`
+  # works back to 10.3.
+  PID=$(ps -axww | grep -F "xash3d.bin" | grep -v grep | awk '{print $1; exit}')
   [ -n "$PID" ] && break
   sleep 1; i=$((i+1))
 done
