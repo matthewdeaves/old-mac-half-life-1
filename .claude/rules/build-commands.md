@@ -48,6 +48,15 @@ Both refusals were correct. Also note `--acquire` with no host picks ANY free
 mini, so acquiring after the fact can hand you the machine your build is not on:
 name the host explicitly when a specific one holds your artifacts.
 
+**Then RELEASE it, the moment the fetch is done.** The rule above says when it
+is safe to let go, not that letting go is optional. Same afternoon, having
+learned the first half: held `mini-intel2` correctly through the DMG fetch and
+then never released it at all, leaving it locked and idle for 77 minutes with
+two other repos waiting, until the manager asked whether it was still live work.
+Too early and too late are the same mistake with the sign flipped. The fetch
+completing is the release trigger; nothing later in the release process needs
+the mini.
+
 `sync-build-host.sh` and the two push scripts refuse a mini that another session
 has claimed. They CHECK the lock through `pick-build-host.sh --status`, they do
 not take it, because the flow above already holds it and the lock is not
