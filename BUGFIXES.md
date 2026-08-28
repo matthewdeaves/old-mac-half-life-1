@@ -62,6 +62,29 @@ not for every commit. Deep engine writeups live in
 
 ## Engine and menu (see docs/port/POWERPC-FINDINGS.md)
 
+- Typing any character into a menu text box, or backspacing in one, ran a
+  `memmove` off the end of the heap block. `CMenuField` keeps `iCursor` and
+  `iScroll` as byte indices into `szBuffer`, so every writer of `szBuffer` has
+  to bring them back into range; `SetBuffer()`, `Clear()` and `VidInit()` all
+  do, and `UpdateEditable()`, the writer that runs on every `Show()`, did not.
+  `CMenuBaseWindow::Show()` is `Init()`, `VidInit()`, `Reload()`, and `Reload()`
+  reaches `UpdateEditable()`, so the resync happens BEFORE the write: the cursor
+  is set from the old buffer's length, then the buffer is replaced by the cvar's
+  value. Whenever the cvar is shorter than what the field last held, and the
+  engine truncates and sanitises `name` behind the menu's back, the cursor is
+  left past the terminator. Both memmoves then take a length of the shape
+  `len - iCursor + 1`, which is negative, and memmove's third parameter is
+  `size_t`, so it converts to about 4 GB and the copy runs to an unmapped page.
+  Measured on `g5-panther` (10.3.9), engine build 1bad7f77: SIGBUS at
+  `0xffff9228`, the PowerPC commpage bcopy, from `CMenuField::KeyDown+0x1dc`
+  under `CMenuItemsHolder::Key+0x164`, symbolized against the deployed
+  `libmenu.dylib`. `KeyDown`'s backspace branch is one memmove and `Char`'s
+  insert branch is the other, which is why this was never actually about
+  Backspace. All three call sites clamp now. Two more found reading the same
+  file against upstream: `VidInit()` computed `iScroll` from `iRealWidth` and
+  assigned `iRealWidth` afterwards, and `m_bOverrideOverstrike` was never
+  initialised while only ever being read. All present in upstream mainui.
+  9c7d838 (menu fork), issue #18.
 - `SDLash_TextInputDelivers()` was gated on Darwin major version (only
   10.3/10.4 skip SDL's text input), on the strength of one dated finding that
   a G5 on 10.5.8 typed fine. Measured hands-on on a SECOND G5 (dual PowerMac,
