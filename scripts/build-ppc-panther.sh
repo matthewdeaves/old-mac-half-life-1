@@ -36,8 +36,16 @@ set -euo pipefail
 
 # --- toolchain / SDK ---------------------------------------------------------
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer  # for git etc.
-SDK=/Developer/SDKs/MacOSX10.3.9.sdk
-export CC="gcc-4.0" CXX="g++-4.0"
+# oldmac: overridable so a host without /Developer/SDKs can build. imac-2019
+# is macOS 15 with a sealed system volume, where that path can never exist;
+# its real SDKs live at ~/SDKs/*.sdk. Default unchanged, so the Lion minis
+# behave exactly as before. Issue #22.
+SDK="${OLDMAC_PPC_SDK:-/Developer/SDKs/MacOSX10.3.9.sdk}"
+# oldmac: overridable for the same reason. GCC14 satisfies every requirement
+# these scripts state (unwind.h, __builtin_bswap32/64, AltiVec, the 10.3.9
+# header chain), which also collapses the gcc-4.2/g++-4.0 split. Default
+# unchanged. Issue #22.
+export CC="${OLDMAC_PPC_CC:-gcc-4.0}" CXX="${OLDMAC_PPC_CXX:-g++-4.0}"
 export MACOSX_DEPLOYMENT_TARGET=10.3
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
