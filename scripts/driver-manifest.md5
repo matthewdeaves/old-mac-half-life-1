@@ -2,8 +2,8 @@
 a508be1510e6489ba6fbd3b2d3c82db5  build-pins.sh
 fc367b41a04db904418e7346ba0e09ba  fetch-sources.sh
 a8713b0a4a29194b30c8deea048df1f0  build-lion.sh
-f2ea1559aa7caa847ac3387e35b7238e  build-ppc-tiger.sh
-651ea5777bcc6bb9eb07e5dceba0359c  build-ppc-panther.sh
+fe683b119f369913a3ef7ba73237026c  build-ppc-tiger.sh
+3a702985bff4eb09ffbd64b3f6b92cc8  build-ppc-panther.sh
 4cedd572ce7cc1951838df21692afcfb  make-universal.sh
 3062939cae243b7ba5bd335f65ca6d26  make-app.sh
 3404083ce3615dbe82eea202bdfcff86  build-installer.sh
