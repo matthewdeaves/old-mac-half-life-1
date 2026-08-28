@@ -76,6 +76,37 @@ This generalises past text input. The same shape - "the check ran, said nothing,
 and nobody noticed it was checking the wrong thing" - is what
 `smoke-dmg.sh`'s `ps ax` truncation and its LaunchServices bypass both were.
 
+### And the mirror of it: a headless test of something that needs a human
+
+The failure above is a false PASS. This one is a false FAIL, and it is worse,
+because a false fail gets pointed at someone else's work.
+
+Measured 2026-08-28. `retro-server-infra` asked for a client compatibility pass
+against a freshly deployed dedicated server. Driving it headlessly, by appending
+`connect <host>` to `userconfig.cfg` and launching via LaunchServices with
+nobody at the keyboard, three clients on three machines all connected, negotiated
+protocol, then stalled with no map and were timed out by the server. From that
+plus a timeline where every earlier success predated their deploy, a theory was
+published that their new server build was at fault.
+
+It was not. The server had a map loaded, unchanged content, and logged nothing
+unusual. The client sits somewhere that needs a keypress, stops sending, and
+gets dropped. The user joined the same server by hand minutes later.
+
+Two variables had changed at once, the server version AND the presence of a
+human, and the wrong one got the blame. The rule that follows:
+
+- **A headless run of something that normally needs a person is a false-negative
+  generator.** Before reporting that it failed, ask what the human was doing in
+  the working case. Here they were pressing a key at a loading screen.
+- **Weight your own confound above a suggestive timeline.** The confound was
+  known and stated in the same message as the accusation, and still lost to a
+  neat before/after story.
+- **Never hand another team a fail you have not separated from your own method.**
+  Say "connection verified, in-game not demonstrated by my method" and let them
+  decide, which costs nothing, rather than "your deploy broke it", which costs
+  them a search.
+
 ## Exact cpusubtype, never generic ppc ALL
 
 Each PPC slice MUST carry its EXACT cpusubtype: **ppc750** (G3) and **ppc7400**
