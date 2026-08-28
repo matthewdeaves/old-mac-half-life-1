@@ -35,6 +35,19 @@ python3 tests/test-repo.py               # repo invariants, runs on this box
 tests/test-artifact.sh                   # checks a built artifact
 ```
 
+**Hold the build-host lock until the artifact has been FETCHED off it, not until
+the build finishes.** `make-dmg.sh` pulls the assembled bundle from a mini and
+refuses to pull from one another session holds, for a good reason: `~/oldmac`
+there is one tree shared by every repo. Releasing at "build done" opens a window
+for another repo to claim the machine, and then the DMG cannot be cut from it.
+
+Measured 2026-08-28, twice in one afternoon. Released `mini-intel` on completion;
+`alephone` claimed it for a PowerPC build seconds later. Rebuilt on
+`mini-intel2` instead, released that; `quakespasm` claimed it for a smoke run.
+Both refusals were correct. Also note `--acquire` with no host picks ANY free
+mini, so acquiring after the fact can hand you the machine your build is not on:
+name the host explicitly when a specific one holds your artifacts.
+
 `sync-build-host.sh` and the two push scripts refuse a mini that another session
 has claimed. They CHECK the lock through `pick-build-host.sh --status`, they do
 not take it, because the flow above already holds it and the lock is not

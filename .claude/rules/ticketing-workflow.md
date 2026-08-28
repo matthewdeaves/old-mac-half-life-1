@@ -8,6 +8,20 @@ it, the columns, the labels, the approval gate and the GraphQL budget, lives in
 `retro-agents/CLAUDE.md` and in the brief every session is launched with. What follows is only what
 is specific to this repo.
 
+**A human at the keyboard is a state only you can put in the lock.** When the
+user says they are testing on a machine by hand, `--acquire` it for them with a
+label saying so, and release it when they are done. No process check can see
+someone sitting at a console: the lock and the proc-regex both read free, which
+is exactly what they are supposed to read.
+
+Measured 2026-08-28. The user said they were going to play on the dual G5.
+Three minutes later `old-mac-build-host` rebooted that box into Tiger for a
+boot-sequencing round, having checked `--status g5-panther` immediately before
+and correctly read free/0 procs. Their check was working on every signal
+available to it; the information it lacked was sitting in this session's chat.
+Remember the three G5 partitions are one physical machine, so "reboot into
+another partition" ends whatever is running on the current one.
+
 **Hardware is claimed, never assumed free.** Every script that deploys to,
 benches on, or otherwise drives a fleet machine re-execs itself under
 `scripts/pick-bench-host.sh --run`, so the machine is claimed for the run and

@@ -46,6 +46,36 @@ survive.
 substitute for any of the above: it runs after packaging, so a stale object that
 happens to have the right architecture passes it.
 
+## A regression test nobody has watched FAIL is not known to work
+
+Before believing a test guards a bug, install the UNFIXED artifact and require
+the test to fail on it. A test that passes on the broken build is worse than no
+test, because it buys confidence that is not there.
+
+Measured 2026-08-28, issue #21. `scripts/test-text-input.sh` was written to
+catch issue #18 and could not: it typed into `ServerBrowser`'s `addressField`,
+which has no `LinkCvar`, and #18 comes from `CMenuField::UpdateEditable()`
+replacing the buffer from a cvar, so a field with no cvar behind it is immune by
+construction. The pre-fix `libmenu.dylib` passed that script exactly as the
+fixed one did. It had also never once reached its own assertion: its "reached
+the menu" gate grepped for the literal `execing mainui.cfg`, and the engine
+writes colour escapes inside that string, so every run reported "never reached
+the menu" and exited before typing anything. That reads like a machine or
+display problem, so it was treated as one for weeks.
+
+Two rules fall out, both cheap:
+
+- **Keep the unfixed artifact.** Both `libmenu.dylib` builds are kept in the
+  session scratchpad precisely so the A/B can be re-run whenever the script
+  changes. Without the old one there is nothing to prove the test works.
+- **A test that cannot reach its assertion must not report PASS.** Make the
+  early-exit paths say INCONCLUSIVE and exit non-zero-but-distinct, so a
+  harness that never ran its check cannot be mistaken for a green one.
+
+This generalises past text input. The same shape - "the check ran, said nothing,
+and nobody noticed it was checking the wrong thing" - is what
+`smoke-dmg.sh`'s `ps ax` truncation and its LaunchServices bypass both were.
+
 ## Exact cpusubtype, never generic ppc ALL
 
 Each PPC slice MUST carry its EXACT cpusubtype: **ppc750** (G3) and **ppc7400**
