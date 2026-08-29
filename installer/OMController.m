@@ -1361,10 +1361,12 @@ static BOOL om_is_heading( NSString *line )
 		 * it with scripts/make-about-art.py, which prints the size to use here if
 		 * the source art is ever changed.
 		 *
-		 * The PNG is NOT authored at these dimensions. It is 269x440 pixels, an
-		 * exact 2x, and -setSize: asks the NSImage to present itself at 135x220
-		 * points. This comment used to say the file was 1:1 and it was, until
-		 * 5c1339e made it 228x440 and then 269x440; the comment did not follow.
+		 * The PNG is NOT authored at these dimensions. It is 267x440 pixels, a
+		 * hair over 2x, and -setSize: asks the NSImage to present itself at
+		 * 134x220 points. This comment used to say the file was 1:1 and it was,
+		 * until 5c1339e made it 228x440 and then 269x440; the comment did not
+		 * follow. The width moved again when the boot sole was recovered, so
+		 * take the number from what make-about-art.py prints, never from here.
 		 *
 		 * -setSize: alone is not enough on old AppKit. NSImage's
 		 * scalesWhenResized defaults to NO there, and with it off the image
@@ -1373,11 +1375,11 @@ static BOOL om_is_heading( NSString *line )
 		 * scales regardless and the property is deprecated, which is why this
 		 * only ever looked wrong on Tiger while testing clean on macOS 26.
 		 * Reported by the user on a Tiger G5. Issue #24. */
-		/* 135x220 keeps the artwork's own aspect (269x440 pixels, 0.611). The frame
+		/* 134x220 keeps the artwork's own aspect (267x440 pixels, 0.607). The frame
 		 * used to be 147x240 and setSize forced the image into it, stretching
 		 * Gordon horizontally by about 18 percent. scripts/make-about-art.py
 		 * prints the correct point size when it regenerates the file. */
-		gordon = [[[NSButton alloc] initWithFrame:NSMakeRect( 24, 30, 135, 220 )] autorelease];
+		gordon = [[[NSButton alloc] initWithFrame:NSMakeRect( 24, 30, 134, 220 )] autorelease];
 		[gordon setBordered:NO];
 		[gordon setTitle:@""];
 		[gordon setImagePosition:NSImageOnly];
@@ -1403,7 +1405,7 @@ static BOOL om_is_heading( NSString *line )
 				[inv setArgument:&yes atIndex:2];
 				[inv invoke];
 			}
-			[art setSize:NSMakeSize( 135, 220 )];
+			[art setSize:NSMakeSize( 134, 220 )];
 			[gordon setImage:art];
 		}
 		[gordon setTarget:self];
