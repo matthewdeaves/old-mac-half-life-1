@@ -77,6 +77,15 @@ status, so `driver.sh 2>&1 | tail -25 && next.sh` reads `tail`'s status, and
 correctly refused to build a tree at the wrong pin, and the run still finished
 saying "done".
 
+`;` inside a group is the same trap wearing different clothes, and it caught a
+release run on 2026-08-29. `{ echo A; deploy.sh X; echo B; echo DONE; }` reports
+the status of the LAST `echo`, which cannot fail. Both deploys had refused
+immediately, one because the version label wanted a `v` prefix and one because
+the host was locked, and the group still exited 0 with "DONE" printed. The
+script was right both times; the harness around it threw the answer away. Chain
+with `&&`, and when steps must all run, check each one's status rather than the
+group's.
+
 To change engine, menu or game code: commit it on the `oldmac` branch of that
 fork, push, bump the pin in `scripts/build-pins.sh`, `scp` that file to the mini,
 then `build-all.sh`. If a submodule changed, **the recorded commit must move**;
