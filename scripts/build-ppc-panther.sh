@@ -46,6 +46,20 @@ SDK="${OLDMAC_PPC_SDK:-/Developer/SDKs/MacOSX10.3.9.sdk}"
 # header chain), which also collapses the gcc-4.2/g++-4.0 split. Default
 # unchanged. Issue #22.
 export CC="${OLDMAC_PPC_CC:-gcc-4.0}" CXX="${OLDMAC_PPC_CXX:-g++-4.0}"
+# oldmac: the SDL stage can need a DIFFERENT compiler from the engine stage,
+# and cannot be told to use two at once. panther-sdl2 is C plus 28 Objective-C
+# sources (src/video/cocoa/*.m and friends), and its generated Makefile.rules
+# compiles BOTH with a single $(CC): there is no OBJCC in SDL 2.0.3 at all, so
+# a per-file split is not available. The engine stage is the mirror image, C
+# and C++ with no Objective-C.
+#
+# On the Lion minis one compiler covers everything and this default keeps their
+# behaviour byte-identical. It exists for imac-2019, where the GCC14 cross
+# toolchains are built per-language: ~/gcc14-ppc is c,c++ and cannot compile a
+# .m, ~/gcc14-ppc-objc is c,objc and cannot compile a .cpp. So SDL takes the
+# objc one, the engine takes the c++ one, and their objects link together.
+# Issue #22, old-mac-build-host#50.
+export SDL_CC="${OLDMAC_PPC_SDL_CC:-$CC}" SDL_CXX="${OLDMAC_PPC_SDL_CXX:-$CXX}"
 export MACOSX_DEPLOYMENT_TARGET=10.3
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -239,8 +253,8 @@ if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
 	  # for a preprocessor and falls back to /lib/cpp, which on a modern host is
 	  # not a PowerPC preprocessor at all: "C++ preprocessor /lib/cpp fails
 	  # sanity check". Harmless on Lion, where the fallback happened to work.
-	  CC="$CC $ARCHFLAGS $TUNE750" CXX="$CXX $ARCHFLAGS $TUNE750" \
-	  CPP="$CC -E" CXXCPP="$CXX -E" \
+	  CC="$SDL_CC $ARCHFLAGS $TUNE750" CXX="$SDL_CXX $ARCHFLAGS $TUNE750" \
+	  CPP="$SDL_CC -E" CXXCPP="$SDL_CXX -E" \
 	  CFLAGS="$ARCHFLAGS $TUNE750" LDFLAGS="$ARCHFLAGS $TUNE750" \
 	  ./configure --prefix="$SDLPREFIX" --host=powerpc-apple-darwin8 --build=i686-apple-darwin11 \
 	              --enable-joystick --disable-haptic --without-x --disable-shared --enable-static \
