@@ -60,6 +60,25 @@ export CC="${OLDMAC_PPC_CC:-gcc-4.0}" CXX="${OLDMAC_PPC_CXX:-g++-4.0}"
 # objc one, the engine takes the c++ one, and their objects link together.
 # Issue #22, old-mac-build-host#50.
 export SDL_CC="${OLDMAC_PPC_SDL_CC:-$CC}" SDL_CXX="${OLDMAC_PPC_SDL_CXX:-$CXX}"
+# oldmac: extra CFLAGS for the SDL stage only, default EMPTY so the Lion minis
+# compile exactly as before. This is for demoting diagnostics that a compiler
+# newer than the vendor code promoted to errors, and every entry needs its own
+# justification, because the alternative to each is a vendor patch we will not
+# write and the lazy option is to blanket-disable and stop reading.
+#
+# What it is for today, on GCC14: SDL_render_gl.c:486 passes a GLint* where
+# SDL_GL_GetAttribute wants an int*. GCC14 made -Wincompatible-pointer-types an
+# error by default; gcc-4.0 warned. Passing
+# -Wno-error=incompatible-pointer-types puts it back to a warning, which keeps
+# it VISIBLE rather than silencing it.
+#
+# That is safe here for one reason and it is worth stating: this slice is
+# 32-bit PowerPC, where int and long are both 32 bits, so the two pointers
+# agree on size, alignment and representation. The same code on a 64-bit target
+# would be a real defect and must not be waved through. Nothing else is demoted
+# by default: implicit-function-declaration in particular is left as an error,
+# because it can silently produce a wrong call. Issue #22.
+export SDL_EXTRA_CFLAGS="${OLDMAC_PPC_SDL_EXTRA_CFLAGS:-}"
 export MACOSX_DEPLOYMENT_TARGET=10.3
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -266,7 +285,7 @@ if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
 	  # without and clean with.
 	  CC="$SDL_CC $ARCHFLAGS $TUNE750" CXX="$SDL_CXX $ARCHFLAGS $TUNE750" \
 	  CPP="$SDL_CC $ARCHFLAGS $TUNE750 -E" CXXCPP="$SDL_CXX $ARCHFLAGS $TUNE750 -E" \
-	  CFLAGS="$ARCHFLAGS $TUNE750" LDFLAGS="$ARCHFLAGS $TUNE750" \
+	  CFLAGS="$ARCHFLAGS $TUNE750 $SDL_EXTRA_CFLAGS" LDFLAGS="$ARCHFLAGS $TUNE750" \
 	  ./configure --prefix="$SDLPREFIX" --host=powerpc-apple-darwin8 --build=i686-apple-darwin11 \
 	              --enable-joystick --disable-haptic --without-x --disable-shared --enable-static \
 	              --disable-altivec
