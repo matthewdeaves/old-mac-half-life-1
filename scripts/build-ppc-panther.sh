@@ -79,6 +79,12 @@ export SDL_CC="${OLDMAC_PPC_SDL_CC:-$CC}" SDL_CXX="${OLDMAC_PPC_SDL_CXX:-$CXX}"
 # by default: implicit-function-declaration in particular is left as an error,
 # because it can silently produce a wrong call. Issue #22.
 export SDL_EXTRA_CFLAGS="${OLDMAC_PPC_SDL_EXTRA_CFLAGS:-}"
+# oldmac: waf is invoked through this. Default `python` keeps the Lion minis
+# identical, where python is 2.7 and present. macOS 15 ships no `python` at all,
+# only `python3`, so the engine stage there died with "python: command not
+# found" AFTER SDL had built clean, which reads like a broken driver and is a
+# missing binary. Issue #22.
+export PYTHON="${OLDMAC_PPC_PYTHON:-python}"
 export MACOSX_DEPLOYMENT_TARGET=10.3
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -331,9 +337,9 @@ export CXXFLAGS="$ARCHFLAGS $TUNE750 -isystem $SHIM -isystem $GCCINC $CXXINC -DM
   # get instructions that would SIGILL. Passing it made waf print its usage and
   # exit. SDL keeps its own --disable-altivec above: that is SDL's option, and
   # SDL 2.0.3 really does compile AltiVec blitters without it.
-  python waf --out="$WAFOUT" configure --sdl-use-pkgconfig --skip-sdl2-sanity-check --disable-werror --disable-rpath
-  python waf --out="$WAFOUT" build -j"$(sysctl -n hw.ncpu)"
-  rm -rf "$DP"; python waf --out="$WAFOUT" install --destdir="$DP" )
+  "$PYTHON" waf --out="$WAFOUT" configure --sdl-use-pkgconfig --skip-sdl2-sanity-check --disable-werror --disable-rpath
+  "$PYTHON" waf --out="$WAFOUT" build -j"$(sysctl -n hw.ncpu)"
+  rm -rf "$DP"; "$PYTHON" waf --out="$WAFOUT" install --destdir="$DP" )
 
 # waf can print "The configuration failed" or "Build failed" and still leave this
 # script running, which is how a broken PowerPC configure reached the fuse step on
@@ -375,9 +381,9 @@ export CXXFLAGS="$ARCHFLAGS -isystem $SHIM -isystem $GCCINC $CXXINC"
   else
   	rm -rf "$WAFOUT"
   fi
-  python waf --out="$WAFOUT" configure --disable-werror
-  python waf --out="$WAFOUT" build -j"$(sysctl -n hw.ncpu)"
-  rm -rf "$DH"; python waf --out="$WAFOUT" install --destdir="$DH" )
+  "$PYTHON" waf --out="$WAFOUT" configure --disable-werror
+  "$PYTHON" waf --out="$WAFOUT" build -j"$(sysctl -n hw.ncpu)"
+  rm -rf "$DH"; "$PYTHON" waf --out="$WAFOUT" install --destdir="$DH" )
 
 # --- 4) assemble self-contained Panther app ----------------------------------
 echo "==> [4] assemble $APP"
