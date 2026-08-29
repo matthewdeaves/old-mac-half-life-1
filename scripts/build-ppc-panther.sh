@@ -253,8 +253,19 @@ if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
 	  # for a preprocessor and falls back to /lib/cpp, which on a modern host is
 	  # not a PowerPC preprocessor at all: "C++ preprocessor /lib/cpp fails
 	  # sanity check". Harmless on Lion, where the fallback happened to work.
+	  #
+	  # They carry ARCHFLAGS for the same reason CC and CXX do, and leaving it
+	  # off cost an afternoon. -isysroot lives in ARCHFLAGS, and without it the
+	  # preprocessor cannot reach the SDK's headers: gcc's own limits.h does an
+	  # #include_next and dies with "limits.h: No such file or directory" at
+	  # its line 210, which reads like a broken toolchain and is not. On Lion it
+	  # passed anyway, because that host has a real /usr/include to fall into.
+	  # On imac-2019 the system volume is sealed and there is nothing to fall
+	  # into, so the same command fails. Measured both ways on the box, issue
+	  # #22: identical g++ invocation, -isysroot the only difference, fatal
+	  # without and clean with.
 	  CC="$SDL_CC $ARCHFLAGS $TUNE750" CXX="$SDL_CXX $ARCHFLAGS $TUNE750" \
-	  CPP="$SDL_CC -E" CXXCPP="$SDL_CXX -E" \
+	  CPP="$SDL_CC $ARCHFLAGS $TUNE750 -E" CXXCPP="$SDL_CXX $ARCHFLAGS $TUNE750 -E" \
 	  CFLAGS="$ARCHFLAGS $TUNE750" LDFLAGS="$ARCHFLAGS $TUNE750" \
 	  ./configure --prefix="$SDLPREFIX" --host=powerpc-apple-darwin8 --build=i686-apple-darwin11 \
 	              --enable-joystick --disable-haptic --without-x --disable-shared --enable-static \
