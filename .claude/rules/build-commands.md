@@ -18,10 +18,22 @@ scripts/build-sysreport-arm64.sh               # the System Report app's
 scripts/push-arm64-slice.sh $HOST              # carries the engine over, verifies by md5
 scripts/push-mod-arm64.sh $HOST                # carries the other three over
 
-# The Linux dedicated server is the OTHER non-mini product. Runs HERE, in a
-# container, from the same pins. `docs/adr/0013`, operator docs `server/README.md`
-scripts/build-server-linux.sh                  # x86_64
-scripts/build-server-linux.sh --arch aarch64   # ARM VPS
+# The Linux dedicated server is the OTHER non-mini product, built in a
+# container from the same pins. `docs/adr/0013`, operator docs `server/README.md`
+scripts/build-server-x86_64.sh                 # x86_64: prefers imac-2019 (native
+                                                #   linux/amd64), falls back to HERE
+                                                #   (emulated) if it's busy/off/
+                                                #   unreachable. Both produce
+                                                #   byte-identical output (issue #22,
+                                                #   measured 2026-08-30) - never make
+                                                #   imac-2019 the only path.
+                                                #   HOST=imac-2019 / HOST=workstation
+                                                #   forces one side.
+scripts/build-server-linux.sh --arch aarch64   # ARM VPS: runs HERE, no wrapper -
+                                                #   this box is native for aarch64,
+                                                #   imac-2019 would be the emulated
+                                                #   side, so there is nothing to
+                                                #   prefer it for. Issue #22.
 
 scripts/make-dmg.sh [version-label]      # Tiger G4 ONLY, see the hard rules
 scripts/pick-bench-host.sh --status      # bench/test boxes: who is free
