@@ -236,7 +236,7 @@ if [ "\$(uname -p)" = "powerpc" ] && { [ "\$(sysctl -n hw.cpusubtype 2>/dev/null
 	# flag re-applied every launch could never allow. -bpp 16 / -bpp 32 remain
 	# as bench overrides. Measured 2026-08-18 on yosemite, c0a0: 44.6 fps in
 	# 16-bit, 36.1 in 32-bit, 30.0 for v1.7.2.
-	PROFILE="-ref gl -fullscreen -width 800 -height 600 -gldepth16 -glnostencil -bilinear +r_shadows 0"
+	PROFILE="-ref gl -fullscreen -width 800 -height 600 -gldepth16 -glnostencil -bilinear +r_shadows 0 +gl_singlepass 1"
 	MSAA_FORCE=0      # G3: OFF, and said rather than implied. Issue #8.
 else
 	# -borderless means SDL fullscreen-desktop, and on 10.7 that leaves the menu
@@ -256,7 +256,7 @@ else
 	# pinned to 800x600 above, by CPU and not by OS, because that is a fillrate
 	# decision about its Rage 128 rather than anything to do with Panther.
 	if [ "\$(uname -p)" = "powerpc" ]; then
-		PROFILE="-ref gl -borderless"  # G4/G5: native-res borderless
+		PROFILE="-ref gl -borderless +gl_singlepass 1"  # G4/G5: native-res borderless
 		# Shadows, MSAA and ripples were measured on this fleet's own cards:
 		# ATI Radeon 9200/9600/9650 (issues #8, #9, #10). The branch above is
 		# CPU family (ppc7400/7450/970), which is not the same class as "has a
@@ -336,9 +336,41 @@ else
 		VW="\$(echo \$RES | awk '{print \$1}')"
 		VH="\$(echo \$RES | awk '{print \$2}')"
 		if [ -n "\$VW" ] && [ -n "\$VH" ]; then
-			PROFILE="-ref gl -fullscreen -width \$VW -height \$VH"
+			PROFILE="-ref gl -fullscreen -width \$VW -height \$VH +gl_singlepass 0"
 		else
-			PROFILE="-ref gl -fullscreen"
+			PROFILE="-ref gl -fullscreen +gl_singlepass 0"
+		fi
+		# gl_singlepass OFF here, deliberately, and said rather than implied -
+		# this whole branch is everything that is not PowerPC (arm64 included:
+		# uname -p there is "arm", not "powerpc", so it lands here too). The
+		# optimization exists for GPUs that ARE fillrate-bound (measured on
+		# the G3's Rage 128, ~81% GPU-blocked); nothing in this branch ever
+		# is, so there is nothing to trade for the risk. And the risk is
+		# confirmed real, not theoretical: user-reported 2026-08-31, the
+		# flashlight beam on imac-2019 (AMD Radeon Pro 580X) rendered as a
+		# grid of grey squares instead of a light cone, with gl_singlepass 1.
+		# Setting it to 0 live in-game fixed it completely; toggling
+		# gl_overbright made no difference. The classic two-pass world render
+		# (this cvar off) is the one path proven correct on every piece of
+		# hardware in the fleet, PowerPC included - it is what single-pass
+		# was built to improve on, not replace as the fallback. Issue #28.
+		#
+		# +gl_singlepass 0 above is not enough on its own: the cvar is
+		# FCVAR_GLCONFIG, archived into opengl.cfg, and every machine that has
+		# ever run a build before this fix (every machine in the fleet,
+		# tonight, since the old fleet-wide pin forced "1") already holds a
+		# "1" there. A command-line +cvar is not guaranteed to win a race
+		# against that archived value depending on exactly where in the boot
+		# sequence stuffcmds runs relative to the opengl.cfg exec - untested
+		# and not worth trusting blind. Patching the file directly, the same
+		# proven pattern as the video.cfg fix above, removes the question
+		# entirely. sed -i does not exist on 10.3 either, hence the temp file,
+		# even though this branch never runs there.
+		OGLCFG_SP="\$XASH3D_BASEDIR/valve/opengl.cfg"
+		if [ -f "\$OGLCFG_SP" ] && grep -q '^gl_singlepass "1"' "\$OGLCFG_SP" 2>/dev/null; then
+			sed 's/^gl_singlepass "1"/gl_singlepass "0"/' "\$OGLCFG_SP" > "\$OGLCFG_SP.hlfix" 2>/dev/null &&
+				cat "\$OGLCFG_SP.hlfix" > "\$OGLCFG_SP" 2>/dev/null
+			rm -f "\$OGLCFG_SP.hlfix" 2>/dev/null
 		fi
 	fi
 fi
