@@ -8,6 +8,24 @@ not for every commit. Deep engine writeups live in
 
 ## Launcher and config
 
+- Flashlight (and any dynamic light) rendered as a grid of grey squares
+  instead of a light cone, confirmed on imac-2019 (AMD Radeon Pro 580X),
+  confirmed absent on imac-g5 (ATI Radeon 9600, PowerPC). Cause: this fork's
+  own single-pass world multitexture optimization (`gl_singlepass`), built
+  and measured for fillrate-bound PowerPC GPUs, misbehaves on at least one
+  modern GPU/driver on the path that's supposed to defer dynamic-lit
+  surfaces to the classic renderer. User isolated it live in-game
+  (`gl_singlepass 0` fixed it, `gl_overbright` made no difference). Fix:
+  `gl_singlepass` now defaults on for PowerPC only (launcher profile in
+  `make-app.sh`) and off everywhere else, including a direct `opengl.cfg`
+  patch since the cvar is `FCVAR_GLCONFIG` and was already archived "1"
+  fleet-wide. Root cause in the single-pass code itself not found - this is
+  a workaround, not a source fix. 26d92b2, issue #28.
+- Crouch (default Ctrl) could trigger macOS's own "press Control key twice"
+  Dictation/Voice Control shortcut mid-game, since crouching in a firefight
+  means pressing Control repeatedly - a system-level shortcut the game
+  cannot suppress. Fixed by binding `C` to `+duck` too, alongside the
+  existing Ctrl bind, in `userconfig.cfg`. 9208385.
 - Launcher forced Radeon-measured MSAA/shadows/ripple defaults on every
   G4/G5, whatever GPU it actually had; now gated on an ioreg check for a
   Radeon-generation chip, anything else gets conservative defaults. 46a6dd8,
