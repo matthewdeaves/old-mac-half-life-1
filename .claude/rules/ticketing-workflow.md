@@ -45,8 +45,10 @@ Moving anything to `Done`, and closing the issue, is the user's. So never write
 `Closes #12` or `Fixes #12` in a commit message: GitHub acts on those and the
 issue reads as finished while the column says otherwise. Write `Refs #12`.
 
-**This repo is PUBLIC. `retro-server-infra` is PRIVATE.** It describes the
-topology, firewall rules and admin surface of a live host. Never copy addresses,
-key material, tunnel tokens or `.env` content out of it into this repo, in code,
+**This repo is PUBLIC. `retro-server-infra` is also public now (as of
+2026-08-31, confirmed with the user).** It still describes the topology,
+firewall rules and admin surface of a live host, and the caution stands
+regardless of either repo's visibility: never copy addresses, key material,
+tunnel tokens or `.env` content out of it into this repo, in code,
 docs or a commit message. Referring to a server release tag is fine; describing
 where it runs is not.

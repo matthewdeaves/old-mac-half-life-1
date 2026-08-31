@@ -141,8 +141,9 @@ usable as a DDoS reflector. The reasoning is in
 and [docs/adr/0014](docs/adr/0014-the-server-is-an-amplifier-so-it-is-allowlisted-and-sandboxed.md).
 
 Building and configuring the server binary is covered here. Deploying and
-running a live instance is handled by a separate, private infrastructure
-repo (`retro-server-infra`), not part of this repo.
+running a live instance is handled by a separate infrastructure repo,
+[`retro-server-infra`](https://github.com/matthewdeaves/retro-server-infra),
+not part of this repo.
 
 ## Upstream
 
