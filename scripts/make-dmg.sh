@@ -673,14 +673,36 @@ else
 	esac
 fi
 
-# Step 3: clear Gatekeeper quarantine on every bundle here. Same xattr
-# pattern as deploy-dmg.sh: `-d -r`, not `-dr`, and never fatal if the flag
-# was never set.
+# Step 3: clear Gatekeeper quarantine on every bundle here, and re-register
+# each with LaunchServices. Same approach as scripts/clear-launch-quarantine.sh
+# (this repo's canonical primitive, synced from old-mac-build-host): verify by
+# `xattr -l`'s actual output rather than trust any removal command's exit code
+# (measured 2026-08-28: modern `xattr -dr` exits 0 whether or not the flag was
+# ever there, and Leopard/PPC's `-p` exits 0 for a flag that is NOT present),
+# and fall back to a manual per-file walk since `-dr` itself does not exist on
+# every xattr this ships for (Leopard prints usage and exits 64). Clearing the
+# flag before the app is ever launched is also what keeps an unsigned app out
+# of App Translocation - a translocated app runs from a hidden randomized
+# path, which would read as "somewhere else entirely" to Step 2 above, no
+# matter how correct that step's own logic is.
+LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 echo "Clearing quarantine..."
 for app in "$HERE/Half-Life.app" "$HERE/Half-Life Mods.app" "$HERE/Half-Life System Report.app"; do
 	[ -d "$app" ] || continue
-	find "$app" -print0 2>/dev/null | xargs -0 xattr -d com.apple.quarantine 2>/dev/null || true
-	echo "  $(basename "$app")"
+	had=0
+	xattr -l "$app" 2>/dev/null | grep -q '^com\.apple\.quarantine:' && had=1
+	xattr -dr com.apple.quarantine "$app" >/dev/null 2>&1 || true
+	find "$app" 2>/dev/null | while IFS= read -r f; do
+		xattr -d com.apple.quarantine "$f" >/dev/null 2>&1 || true
+	done
+	if xattr -l "$app" 2>/dev/null | grep -q '^com\.apple\.quarantine:'; then
+		echo "  $(basename "$app"): quarantine flag survived, please report this"
+	elif [ "$had" = 1 ]; then
+		echo "  $(basename "$app"): cleared"
+	else
+		echo "  $(basename "$app"): no quarantine flag"
+	fi
+	[ -x "$LSREGISTER" ] && "$LSREGISTER" -f "$app" >/dev/null 2>&1
 done
 
 echo
