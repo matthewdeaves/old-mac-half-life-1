@@ -61,9 +61,11 @@ MODS="$MNT/Half-Life Mods.app"
 SR="$MNT/Half-Life System Report.app"
 
 # ---- what is on the image -------------------------------------------------
-for f in "$APP" "$MODS" "$SR" "$MNT/README.txt" "$MNT/BUILD-INFO.txt"; do
+for f in "$APP" "$MODS" "$SR" "$MNT/README.txt" "$MNT/BUILD-INFO.txt" "$MNT/Fix Half-Life.command"; do
 	[ -e "$f" ] && ok "present: $(basename "$f")" || bad "missing: $(basename "$f")"
 done
+[ -x "$MNT/Fix Half-Life.command" ] && ok "Fix Half-Life.command is executable" \
+                                     || bad "Fix Half-Life.command is not executable"
 # We ship no game content, ever. A valve folder here would mean Valve's data
 # leaked into the image.
 [ -e "$MNT/valve" ] && bad "a valve folder is on the image" "we ship code, not content" \

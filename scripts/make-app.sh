@@ -96,8 +96,17 @@ mv "$APP/Contents/MacOS/xash3d" "$APP/Contents/MacOS/xash3d.bin"
 # valve/: that folder is the player's own retail data and we do not write into it.
 cat > "$APP/Contents/MacOS/xash3d" <<WRAP
 #!/bin/bash
-HERE="\$(cd "\$(dirname "\$0")" && pwd)"
-export XASH3D_BASEDIR="\$(cd "\$HERE/../../.." && pwd)"
+# pwd -P, not plain pwd: bash's plain "cd X && pwd" is LOGICAL, it does not
+# resolve symlinks, it just string-collapses the ".." components. Launched
+# through a symlink/alias sitting on the Desktop (a normal thing for a player
+# to make), plain pwd here reports a path that still reads as being under
+# ~/Desktop even though the app's real, physical folder is elsewhere and is
+# NOT under Desktop/Documents/Downloads. That fed a Desktop-rooted path into
+# the write test below, tripping the "macOS privacy protection" dialog for an
+# app that was never actually stored anywhere TCC gates. Measured 2026-09-02
+# on imac-2019/Sequoia via a Desktop alias to a home-folder install.
+HERE="\$(cd -P "\$(dirname "\$0")" && pwd -P)"
+export XASH3D_BASEDIR="\$(cd -P "\$HERE/../../.." && pwd -P)"
 export DYLD_LIBRARY_PATH="\$HERE"
 cd "\$XASH3D_BASEDIR"
 LOG="\$XASH3D_BASEDIR/last-run.log"

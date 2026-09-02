@@ -490,21 +490,27 @@ merge and nothing of ours to overwrite by accident.
 
 INSTALL
 -------
-1. Make a folder for the game, e.g.  ~/Desktop/Half-Life/  - it can be anywhere
-   and named anything (Desktop, Applications, an external drive); the app only
-   needs your "valve" folder sitting next to it.
-2. Copy Half-Life.app from this disk image into that folder.
-3. Copy your own "valve" folder in beside it, whole and unmodified. It should
-   contain at least:
+1. Double-click "Fix Half-Life.command" on this disk image. It copies
+   Half-Life to ~/Half-Life, your home folder, and clears the two things
+   recent macOS does to an unsigned app before it can be double-clicked (see
+   MODERN macOS below). On Panther, Tiger or Leopard this step still works,
+   it just has nothing to clear.
+2. Copy your own "valve" folder into ~/Half-Life, beside Half-Life.app,
+   whole and unmodified. It should contain at least:
        valve/pak0.pak
        valve/liblist.gam
        valve/*.wad   (halflife.wad, decals.wad, liquids.wad, xeno.wad, ...)
        valve/maps/  valve/models/  valve/sound/  valve/sprites/  valve/gfx/
-4. Double-click Half-Life.app.
+3. Double-click Half-Life.app.
+
+Doing this by hand instead: copy Half-Life.app into any normal folder (your
+home folder or /Applications both work - NOT Desktop, Documents or
+Downloads, recent macOS silently blocks an unsigned app writing there, see
+MODERN macOS below), put your "valve" folder beside it, then launch it.
 
 Final layout:
-   ~/Desktop/Half-Life/Half-Life.app         (ours: engine + Mac game code inside)
-   ~/Desktop/Half-Life/valve/                (yours: retail game data, untouched)
+   ~/Half-Life/Half-Life.app                 (ours: engine + Mac game code inside)
+   ~/Half-Life/valve/                        (yours: retail game data, untouched)
 
 Your saves and settings are written into your valve folder as you play. The app
 itself is never written to, so you can replace it with a newer version at any
@@ -550,12 +556,22 @@ The tested list above is the hardware available here, not the limit of what can
 work. Reports are how that list gets widened, and a report that it simply worked
 is as useful as one that it did not.
 
-MODERN macOS (Gatekeeper)
--------------------------
-The app is unsigned, so recent macOS will quarantine it. Right-click
-Half-Life.app and choose Open the first time, or run:
-   xattr -dr com.apple.quarantine ~/Desktop/Half-Life/Half-Life.app
-(Not needed on Panther / Tiger / Leopard.)
+MODERN macOS (Gatekeeper and privacy protection)
+-------------------------------------------------
+The app is unsigned. On recent macOS this causes two separate problems, both
+of which "Fix Half-Life.command" (above, INSTALL step 1) handles for you:
+
+1. Gatekeeper quarantines it, so the very first launch is blocked with a
+   warning. (Manual fix: right-click Half-Life.app and choose Open, or run
+   xattr -dr com.apple.quarantine on it.)
+2. Recent macOS silently blocks an unsigned app from writing its saves and
+   settings if it is stored inside Desktop, Documents or Downloads - no
+   prompt, and Full Disk Access does not help, because it cannot attach to
+   an app with no stable signed identity. If you see a dialog saying macOS
+   is blocking Half-Life, this is why: move the whole Half-Life folder to
+   your home folder or /Applications and launch it from there.
+
+Neither applies on Panther, Tiger or Leopard.
 
 NOTES
 -----
@@ -573,6 +589,109 @@ If you like this, you may also like my old-Mac universal builds of Quake:
 
 Project: https://github.com/matthewdeaves/old-mac-half-life-1
 EOF
+
+# ---- double-click fixer for modern macOS's two unsigned-app frictions -------
+# Quarantine and TCC's Desktop/Documents/Downloads write-block used to both be
+# manual steps in the README above (right-click Open, or an xattr command
+# typed by hand, plus "move the folder yourself" once a player already hit
+# the privacy-protection dialog from Contents/MacOS/xash3d). A human is not
+# guaranteed to be there to do that - same reasoning as deploy-dmg.sh's own
+# quarantine strip, applied to a player's own download instead of a bench
+# deploy. A .command file opens in Terminal on double-click, no other click
+# needed. Not needed and harmless on Panther/Tiger/Leopard: neither
+# restriction exists pre-10.15, so every check below finds nothing to do.
+cat > "$IMG/Fix Half-Life.command" <<'FIXEOF'
+#!/bin/bash
+# Run this once if Half-Life won't open, or before you play for the first
+# time on a Mac running Sequoia or newer.
+set +e
+HERE="$(cd -P "$(dirname "$0")" && pwd -P)"
+TARGET="$HOME/Half-Life"
+
+echo "Half-Life fixer"
+echo "==============="
+echo
+
+# Step 1: get off the disk image, if that is where this is running from.
+# Same detection as the game's own launcher (Contents/MacOS/xash3d): a
+# read-only volume cannot take the write-test file at all.
+ON_DMG=0
+if ! touch "$HERE/.hlfixtest" 2>/dev/null; then
+	ON_DMG=1
+else
+	rm -f "$HERE/.hlfixtest"
+fi
+
+if [ "$ON_DMG" = 1 ]; then
+	echo "Running from the disk image. Copying Half-Life to:"
+	echo "    $TARGET"
+	echo
+	mkdir -p "$TARGET"
+	for item in "Half-Life.app" "Half-Life Mods.app" "Half-Life System Report.app" "README.txt" "BUILD-INFO.txt"; do
+		if [ -e "$HERE/$item" ]; then
+			cp -R "$HERE/$item" "$TARGET/" && echo "  copied $item"
+		fi
+	done
+	HERE="$TARGET"
+	echo
+	if [ ! -d "$HERE/valve" ]; then
+		echo "Your own Half-Life \"valve\" folder is not here yet. Copy it in"
+		echo "beside Half-Life.app at:"
+		echo "    $TARGET"
+		echo "before you launch the game."
+		echo
+	fi
+else
+	# Step 2: already off the image. Is it somewhere recent macOS silently
+	# blocks an unsigned app's saves and settings writes (no prompt, no
+	# error until the app's own check catches it)?
+	case "$HERE" in
+		"$HOME/Desktop"|"$HOME/Desktop"/*|"$HOME/Documents"|"$HOME/Documents"/*|"$HOME/Downloads"|"$HOME/Downloads"/*)
+			if [ "$HERE" = "$TARGET" ]; then
+				: # already the target
+			elif [ -e "$TARGET" ]; then
+				echo "This folder is inside Desktop, Documents or Downloads, which recent"
+				echo "macOS blocks an unsigned app from writing to - but $TARGET"
+				echo "already exists, so this cannot move it there for you."
+				echo "Move this folder to your home folder or /Applications by hand,"
+				echo "then run this again."
+				echo
+			else
+				echo "This folder is inside Desktop, Documents or Downloads. Recent macOS"
+				echo "silently blocks an unsigned app's saves and settings there, so"
+				echo "moving the whole folder to:"
+				echo "    $TARGET"
+				echo
+				mv "$HERE" "$TARGET" && HERE="$TARGET" && echo "  moved."
+				echo
+			fi
+			;;
+		*)
+			echo "Location looks fine: $HERE"
+			echo
+			;;
+	esac
+fi
+
+# Step 3: clear Gatekeeper quarantine on every bundle here. Same xattr
+# pattern as deploy-dmg.sh: `-d -r`, not `-dr`, and never fatal if the flag
+# was never set.
+echo "Clearing quarantine..."
+for app in "$HERE/Half-Life.app" "$HERE/Half-Life Mods.app" "$HERE/Half-Life System Report.app"; do
+	[ -d "$app" ] || continue
+	find "$app" -print0 2>/dev/null | xargs -0 xattr -d com.apple.quarantine 2>/dev/null || true
+	echo "  $(basename "$app")"
+done
+
+echo
+echo "Done. Half-Life is at:"
+echo "    $HERE"
+echo
+echo "Double-click Half-Life.app from there to play."
+echo
+read -p "Press Return to close this window..." _
+FIXEOF
+chmod +x "$IMG/Fix Half-Life.command"
 
 # ---- the shippable, corruption-sensitive files, verified end-to-end ---------
 # hdiutil verify only checks the container's INTERNAL checksum (that its blocks

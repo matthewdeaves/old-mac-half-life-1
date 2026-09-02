@@ -8,6 +8,21 @@ not for every commit. Deep engine writeups live in
 
 ## Launcher and config
 
+- "macOS is blocking Half-Life" privacy dialog fired even though the game's
+  real folder was already outside Desktop/Documents/Downloads. Reproduced on
+  imac-2019/Sequoia: the folder lived at `~/Half-Life`, reached via a
+  `~/Desktop/Half-Life` symlink. Cause: the launcher wrapper computed its
+  writable base directory with plain `cd ... && pwd`, which is bash's
+  LOGICAL pwd and does not resolve symlinks, so it kept the Desktop-prefixed
+  path from the symlink instead of the real location; the resulting write
+  probe then hit modern macOS's Desktop/Documents/Downloads block for an
+  unsigned app even though the actual storage was never inside any of them.
+  Fix: `cd -P` / `pwd -P` (physical resolution) in `make-app.sh`'s launcher
+  heredoc. Also added `Fix Half-Life.command` to the DMG: a double-click
+  Terminal script that copies the game out of a mounted disk image (or
+  relocates an install stuck inside Desktop/Documents/Downloads) to
+  `~/Half-Life` and clears quarantine, replacing the manual `xattr` step
+  that used to be the only fix in the README.
 - Flashlight (and any dynamic light) rendered as a grid of grey squares
   instead of a light cone, confirmed on imac-2019 (AMD Radeon Pro 580X),
   confirmed absent on imac-g5 (ATI Radeon 9600, PowerPC). Cause: this fork's
