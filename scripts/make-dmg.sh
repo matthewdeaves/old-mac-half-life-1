@@ -490,7 +490,7 @@ merge and nothing of ours to overwrite by accident.
 
 INSTALL
 -------
-1. Double-click "Fix Half-Life.command" on this disk image. It copies
+1. Double-click "Fix Launch Problems.command" on this disk image. It copies
    Half-Life to ~/Half-Life, your home folder, and clears the two things
    recent macOS does to an unsigned app before it can be double-clicked (see
    MODERN macOS below). On Panther, Tiger or Leopard this step still works,
@@ -559,7 +559,7 @@ is as useful as one that it did not.
 MODERN macOS (Gatekeeper and privacy protection)
 -------------------------------------------------
 The app is unsigned. On recent macOS this causes two separate problems, both
-of which "Fix Half-Life.command" (above, INSTALL step 1) handles for you:
+of which "Fix Launch Problems.command" (above, INSTALL step 1) handles for you:
 
 1. Gatekeeper quarantines it, so the very first launch is blocked with a
    warning. (Manual fix: right-click Half-Life.app and choose Open, or run
@@ -600,7 +600,7 @@ EOF
 # deploy. A .command file opens in Terminal on double-click, no other click
 # needed. Not needed and harmless on Panther/Tiger/Leopard: neither
 # restriction exists pre-10.15, so every check below finds nothing to do.
-cat > "$IMG/Fix Half-Life.command" <<'FIXEOF'
+cat > "$IMG/Fix Launch Problems.command" <<'FIXEOF'
 #!/bin/bash
 # Run this once if Half-Life won't open, or before you play for the first
 # time on a Mac running Sequoia or newer.
@@ -713,7 +713,7 @@ echo "Double-click Half-Life.app from there to play."
 echo
 read -p "Press Return to close this window..." _
 FIXEOF
-chmod +x "$IMG/Fix Half-Life.command"
+chmod +x "$IMG/Fix Launch Problems.command"
 
 # ---- the shippable, corruption-sensitive files, verified end-to-end ---------
 # hdiutil verify only checks the container's INTERNAL checksum (that its blocks

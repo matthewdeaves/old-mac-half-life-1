@@ -346,4 +346,18 @@ if [ -f "$DEST/valve/pak0.pak" ]; then echo "retail valve/ game data present (pa
 else echo "NOTE: no valve/pak0.pak yet - add your retail Half-Life data to $DEST/valve before launching."; fi
 REMOTE_EOF
 
+# The DMG on Desktop has now been fully extracted into $DEST_DIR - remove it,
+# so a manual test/deploy round doesn't leave its own source image behind
+# forever. Scoped to our own named release artifact, same as the pre-copy
+# cleanup above; never touches anything of the player's. old-mac-build-host's
+# own fleet sweep (issue #26) found this leftover on 8 of 9 reachable hosts:
+# every deploy up to this fix installed cleanly and then left the .dmg it was
+# installed from sitting on the Desktop, since nothing ever removed it after
+# use. PRESTAGE mode never copies a .dmg to the target at all, so there is
+# nothing to remove there.
+if [ "${PRESTAGE:-0}" != 1 ]; then
+	ssh "$HOST" "rm -f ~/Desktop/$DMG_BASE"
+	echo "[deploy-dmg $HOST] removed ~/Desktop/$DMG_BASE (installed copy is at ~/$DEST_DIR)"
+fi
+
 echo "[deploy-dmg $HOST] done - installed from $DMG_BASE"

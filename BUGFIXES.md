@@ -18,11 +18,14 @@ not for every commit. Deep engine writeups live in
   probe then hit modern macOS's Desktop/Documents/Downloads block for an
   unsigned app even though the actual storage was never inside any of them.
   Fix: `cd -P` / `pwd -P` (physical resolution) in `make-app.sh`'s launcher
-  heredoc. Also added `Fix Half-Life.command` to the DMG: a double-click
-  Terminal script that copies the game out of a mounted disk image (or
-  relocates an install stuck inside Desktop/Documents/Downloads) to
+  heredoc. Also added `Fix Launch Problems.command` to the DMG: a
+  double-click Terminal script that copies the game out of a mounted disk
+  image (or relocates an install stuck inside Desktop/Documents/Downloads) to
   `~/Half-Life` and clears quarantine, replacing the manual `xattr` step
-  that used to be the only fix in the README.
+  that used to be the only fix in the README. Present on every slice
+  (G3 through Apple Silicon) but a no-op on Panther/Tiger/Leopard, where
+  neither restriction it clears exists. Named to match the same tool's
+  filename in the other old-Mac ports. 7084c3d, 92fe2df.
 - Flashlight (and any dynamic light) rendered as a grid of grey squares
   instead of a light cone, confirmed on imac-2019 (AMD Radeon Pro 580X),
   confirmed absent on imac-g5 (ATI Radeon 9600, PowerPC). Cause: this fork's
@@ -63,6 +66,12 @@ not for every commit. Deep engine writeups live in
 
 ## Scripts and harness
 
+- `deploy-dmg.sh` copied its source `.dmg` to the target's Desktop, installed
+  from it, and never removed it: every manual test/deploy round left its own
+  release image sitting there permanently. Found by old-mac-build-host's own
+  fleet Desktop-cruft sweep, a leftover DMG on 8 of 9 reachable hosts, mtimes
+  matching known bench-testing rounds. Now removed once the install it was
+  copied for has fully succeeded. Issue #26.
 - `smoke-dmg.sh` executed the launcher binary directly over ssh, which
   bypasses LaunchServices and so could never catch a Gatekeeper/quarantine/
   signature rejection a real double-click hits. Launches via `open` now; a
