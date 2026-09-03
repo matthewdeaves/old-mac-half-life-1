@@ -78,7 +78,11 @@ scripts/patch-hlsdk-mod-bugs.py
 scripts/patch-hlsdk-mod-gcc4.py
 scripts/patch-hlsdk-ppc-darwin.py
 scripts/patch-hlsdk-shared-clientbugs.py
-scripts/patch-hlsdk-xcompile-ppc.py"
+scripts/patch-hlsdk-xcompile-ppc.py
+scripts/build-server-linux.sh
+server/server.cfg
+server/README.md
+server/xash-server.service"
 
 # md5 is the one digest spelling present on 10.3 through modern macOS. `md5 -q`
 # exists on all of them; md5sum does not exist on any of them by default.
