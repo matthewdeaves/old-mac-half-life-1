@@ -104,6 +104,19 @@ not for every commit. Deep engine writeups live in
 
 ## Engine and menu (see docs/port/POWERPC-FINDINGS.md)
 
+- The voice-init fix for issue #25 (letting go of the mouse before macOS's
+  microphone prompt can appear) called `SDL_SetRelativeMouseMode` and
+  `Platform_SetMouseGrab` directly, bypassing `IN_SetRelativeMouseMode`'s and
+  `IN_SetMouseGrab`'s own static state flags. Left out of sync, a later
+  legitimate re-enable of relative mouse mode could silently no-op, leaving
+  mouse-look broken for the rest of the session. Now routed through those
+  wrappers instead, which also removes the need to manually restore state
+  afterward. This does NOT fix issue #25's actual complaint (the permission
+  dialog itself still cannot be reached mid-connect on real hardware, per
+  that issue's own hardware testing) - it fixes a real but separate
+  correctness bug found while working on it, and adds diagnostic logging for
+  the next hardware verification pass. f9043e87 (engine fork).
+
 - Typing any character into a menu text box, or backspacing in one, ran a
   `memmove` off the end of the heap block. `CMenuField` keeps `iCursor` and
   `iScroll` as byte indices into `szBuffer`, so every writer of `szBuffer` has

@@ -33,9 +33,12 @@ XASH_VERSION="0.21"
 # Fork of FWGS/xash3d-fwgs, branched at f0ea3a19.
 # The PPC performance work merged to oldmac on 2026-08-19, fast-forward, so the
 # commit here is the one the fleet A/Bs and the G3 hands-on pass ran against.
+# f9043e87 (2026-09-03): issue #25 voice-init mouse-state fix + diagnostics.
+# Not yet hardware-verified against the actual complaint (unreachable TCC
+# dialog) - see that issue for what is and is not confirmed.
 PIN_ENGINE_URL="https://github.com/matthewdeaves/xash3d-fwgs.git"
 PIN_ENGINE_BRANCH="oldmac"
-PIN_ENGINE_COMMIT="9a4d195ea6b55babde8c205df65aa43029590fca"
+PIN_ENGINE_COMMIT="f9043e87184d60aaa4765828a3a425d084cd33e9"
 PIN_ENGINE_UPSTREAM="FWGS/xash3d-fwgs@f0ea3a19"
 
 # --- menu: submodule of the engine, re-pointed by our engine branch ----------
