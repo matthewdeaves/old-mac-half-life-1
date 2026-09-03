@@ -344,13 +344,19 @@ for d in $DIRS; do
 	# strip), so it needs neither; --format only wants an `=` under its
 	# long-option parsing, not a space. Branch on the actual tar in front of us
 	# rather than assume every caller is this box.
+	#
+	# A plain string, not an array: the shebang up top is #!/bin/sh, and u25's
+	# /bin/sh is dash, which has no arrays at all - "Syntax error: '(' unexpected"
+	# on the very assignment meant to fix the last thing this hit. None of these
+	# flags need their own quoting, so unquoted word-splitting on $TAR_CREATE_FLAGS
+	# is exactly what is wanted here, same as $FILES elsewhere in this script.
 	if tar --version 2>&1 | grep -q "GNU tar"; then
-		TAR_CREATE_FLAGS=(--format=ustar)
+		TAR_CREATE_FLAGS="--format=ustar"
 	else
-		TAR_CREATE_FLAGS=(--format ustar --no-mac-metadata --no-xattrs)
+		TAR_CREATE_FLAGS="--format ustar --no-mac-metadata --no-xattrs"
 	fi
 	send_dir () {
-		COPYFILE_DISABLE=1 tar "${TAR_CREATE_FLAGS[@]}" -cf - "$1" \
+		COPYFILE_DISABLE=1 tar $TAR_CREATE_FLAGS -cf - "$1" \
 			| ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" "mkdir -p oldmac && tar xf - -C oldmac"
 	}
 	if retry3 send_dir "$d"; then
