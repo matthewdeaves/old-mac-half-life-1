@@ -335,8 +335,22 @@ for d in $DIRS; do
 	# attribute" for every file and then "Error exit delayed from previous
 	# errors", so the transfer arrives intact and still reports failure. That is
 	# how installer/ came to report TAR FAILED with the files sitting there.
+	#
+	# --no-mac-metadata and --no-xattrs are bsdtar-only, though: old-mac-build-
+	# host#53 runs this CALLER-side step from u25, a Ubuntu Jenkins agent with
+	# GNU tar, which rejects both as unrecognized options - "installer/ COPY DID
+	# NOT TAKE". GNU tar never had the problem those flags exist to work around
+	# in the first place (a Linux filesystem does not carry Apple xattrs to
+	# strip), so it needs neither; --format only wants an `=` under its
+	# long-option parsing, not a space. Branch on the actual tar in front of us
+	# rather than assume every caller is this box.
+	if tar --version 2>&1 | grep -q "GNU tar"; then
+		TAR_CREATE_FLAGS=(--format=ustar)
+	else
+		TAR_CREATE_FLAGS=(--format ustar --no-mac-metadata --no-xattrs)
+	fi
 	send_dir () {
-		COPYFILE_DISABLE=1 tar --format ustar --no-mac-metadata --no-xattrs -cf - "$1" \
+		COPYFILE_DISABLE=1 tar "${TAR_CREATE_FLAGS[@]}" -cf - "$1" \
 			| ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" "mkdir -p oldmac && tar xf - -C oldmac"
 	}
 	if retry3 send_dir "$d"; then
