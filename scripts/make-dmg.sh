@@ -571,7 +571,13 @@ of which "Fix Launch Problems.command" (above, INSTALL step 1) handles for you:
    is blocking Half-Life, this is why: move the whole Half-Life folder to
    your home folder or /Applications and launch it from there.
 
-Neither applies on Panther, Tiger or Leopard.
+On Panther or Tiger, neither applies at all: run "Fix Launch Problems.command"
+if you like, but there is nothing for it to do, and it will tell you so.
+Leopard and Snow Leopard have the older, milder version of problem 1 (a
+one-click "are you sure" warning, not a hard block) and not problem 2 at all;
+the fixer still clears it for you as a courtesy. Problem 1 gets a real, hard
+block starting with Lion (previewed 10.7.3, shipped 10.7.5, default from
+Mountain Lion). Problem 2 is Catalina (10.15, 2019) on.
 
 NOTES
 -----
@@ -612,6 +618,41 @@ echo "Half-Life fixer"
 echo "==============="
 echo
 
+# Three separate things here, not one, each with its own date - checked
+# against multiple independent sources rather than trusted from memory, after
+# two sibling ports' READMEs turned out to have this wrong in two different
+# directions (one dated it to Lion 10.7.3, one to Sierra 10.12):
+#   1. The quarantine attribute itself (com.apple.quarantine, the "are you
+#      sure you want to open this application downloaded from the Internet"
+#      dialog) - Leopard, 10.5, Darwin 9. Tiger (10.4) added the underlying
+#      extended-attribute filesystem support this needs, but nothing used it
+#      yet, so Tiger itself has none of this.
+#   2. Gatekeeper's code-signature enforcement (actually BLOCKING an
+#      unsigned/unnotarized app, not just a dismissable warning) - previewed
+#      in Lion 10.7.3, shipped generally in 10.7.5, and made the DEFAULT
+#      behaviour only in Mountain Lion, 10.8.
+#   3. App Translocation (a quarantined app silently runs from a random
+#      hidden path instead of where it was launched from, which breaks
+#      anything using a relative/nearby path to find its own data) - a much
+#      later, different mechanism, Sierra 10.12.
+# What this tool actually needs to know is just #1: Step 3 below exists to
+# clear the quarantine flag, and #2 and #3 are both consequences of that same
+# flag being set, so clearing it early covers both regardless of which one
+# would have bitten on a given macOS. So Panther and Tiger (10.3/10.4, Darwin
+# 7/8) are the only OSes with NOTHING here to fix, at all. Leopard and Snow
+# Leopard DO carry the quarantine flag and its warning dialog, so they still
+# get Step 3 below, even though neither has Gatekeeper's hard block or App
+# Translocation - clearing it there has never been strictly necessary, only
+# ever a courtesy against a dismissable prompt.
+# Darwin major, not `sw_vers`: this is already how the rest of this project
+# gates old-macOS behaviour.
+OLD_MACOS=0
+DARWIN_MAJOR="$(uname -r 2>/dev/null | cut -d. -f1)"
+case "$DARWIN_MAJOR" in
+	''|*[!0-9]*) ;;                                    # unknown uname - assume modern, run every step
+	*) [ "$DARWIN_MAJOR" -lt 9 ] && OLD_MACOS=1 ;;
+esac
+
 # Step 1: get off the disk image, if that is where this is running from.
 # Same detection as the game's own launcher (Contents/MacOS/xash3d): a
 # read-only volume cannot take the write-test file at all.
@@ -641,6 +682,17 @@ if [ "$ON_DMG" = 1 ]; then
 		echo "before you launch the game."
 		echo
 	fi
+	if [ "$OLD_MACOS" = 1 ]; then
+		echo "This Mac's macOS predates the app-quarantine system entirely, so"
+		echo "there is nothing else for this tool to do - just double-click"
+		echo "Half-Life.app from here."
+		echo
+	fi
+elif [ "$OLD_MACOS" = 1 ]; then
+	echo "This Mac is running an older macOS with no app-quarantine system at"
+	echo "all (added in a later version of macOS) - there is nothing for this"
+	echo "tool to fix here."
+	echo
 else
 	# Step 2: already off the image. Is it somewhere recent macOS silently
 	# blocks an unsigned app's saves and settings writes (no prompt, no
@@ -685,6 +737,15 @@ fi
 # of App Translocation - a translocated app runs from a hidden randomized
 # path, which would read as "somewhere else entirely" to Step 2 above, no
 # matter how correct that step's own logic is.
+#
+# Skipped on OLD_MACOS: the message already printed above covers this case,
+# and Panther/Tiger/Leopard/Snow Leopard's own xattr (where it exists at all)
+# has nothing to find here - running the loop would only silently report "no
+# quarantine flag" for a reason the player was never told, which is the exact
+# thing this whole check exists to stop doing.
+if [ "$OLD_MACOS" = 1 ]; then
+	:
+else
 LSREGISTER=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 echo "Clearing quarantine..."
 for app in "$HERE/Half-Life.app" "$HERE/Half-Life Mods.app" "$HERE/Half-Life System Report.app"; do
@@ -704,6 +765,7 @@ for app in "$HERE/Half-Life.app" "$HERE/Half-Life Mods.app" "$HERE/Half-Life Sys
 	fi
 	[ -x "$LSREGISTER" ] && "$LSREGISTER" -f "$app" >/dev/null 2>&1
 done
+fi
 
 echo
 echo "Done. Half-Life is at:"

@@ -23,9 +23,18 @@ not for every commit. Deep engine writeups live in
   image (or relocates an install stuck inside Desktop/Documents/Downloads) to
   `~/Half-Life` and clears quarantine, replacing the manual `xattr` step
   that used to be the only fix in the README. Present on every slice
-  (G3 through Apple Silicon) but a no-op on Panther/Tiger/Leopard, where
-  neither restriction it clears exists. Named to match the same tool's
-  filename in the other old-Mac ports. 7084c3d, 92fe2df.
+  (G3 through Apple Silicon); genuinely nothing to do on Panther or Tiger
+  (checks the Darwin major version and says so explicitly rather than
+  silently running through steps that no-op), since neither predates the
+  extended-attribute support the quarantine flag needs. Leopard and Snow
+  Leopard DO carry the quarantine flag and its one-click warning even though
+  neither has Gatekeeper's hard block, so the fixer still clears it there as
+  a courtesy - a claim this file previously got wrong the other way ("no-op
+  on Panther/Tiger/Leopard"), corrected after a sibling port's own README
+  turned out to have the Gatekeeper/App Translocation dates wrong too, in a
+  different direction, and it was worth checking independently rather than
+  trusting either. Named to match the same tool's filename in the other
+  old-Mac ports. 7084c3d, 92fe2df.
 - Flashlight (and any dynamic light) rendered as a grid of grey squares
   instead of a light cone, confirmed on imac-2019 (AMD Radeon Pro 580X),
   confirmed absent on imac-g5 (ATI Radeon 9600, PowerPC). Cause: this fork's
