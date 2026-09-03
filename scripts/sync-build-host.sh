@@ -85,7 +85,24 @@ server/README.md
 server/xash-server.service"
 
 # md5 is the one digest spelling present on 10.3 through modern macOS. `md5 -q`
-# exists on all of them; md5sum does not exist on any of them by default.
+# exists on all of them; md5sum does not exist on any of them by default. Every
+# HOST this script ever targets is one of those Macs, so remote_md5 stays as
+# plain `md5 -q` on purpose.
+#
+# The CALLER of this script is not guaranteed to be a Mac any more, though:
+# old-mac-build-host#53 runs it from u25, a Ubuntu Jenkins agent, which has no
+# `md5` at all, only `md5sum`. Every LOCAL digest below (this box's own copy of
+# a tracked file) goes through this instead, which is why it exists as a
+# separate function from remote_md5 rather than one shared helper - the two
+# sides can and do run on different kinds of machine. Confirmed by
+# old-mac-build-host 2026-09-03: every driver hash silently fell through to
+# "missing" and reported all 18 tracked drivers as mismatched, on a repo that
+# was actually clean at the right commit - `md5 -q` failing (command not
+# found) still exits nonzero, which `|| echo missing` was built to treat as
+# "the file's not there yet", not "this box has no md5 at all".
+local_md5 () {
+	md5 -q "$1" 2>/dev/null || md5sum "$1" 2>/dev/null | awk '{print $1}'
+}
 remote_md5 () {
 	ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" "md5 -q ~/oldmac/$1 2>/dev/null" 2>/dev/null
 }
@@ -132,7 +149,7 @@ check_manifest () {
 	stale=""
 	while read -r want name; do
 		[ -n "${name:-}" ] || continue
-		got=$( md5 -q "$ROOT/scripts/$name" 2>/dev/null || echo missing )
+		got=$( local_md5 "$ROOT/scripts/$name" 2>/dev/null || echo missing )
 		[ "$got" = "$want" ] || stale="$stale $name"
 	done < "$man"
 
@@ -152,7 +169,7 @@ refresh_manifest () {
 	: > "$tmp"
 	while read -r _ name; do
 		[ -n "${name:-}" ] || continue
-		printf '%s  %s\n' "$( md5 -q "$ROOT/scripts/$name" )" "$name" >> "$tmp"
+		printf '%s  %s\n' "$( local_md5 "$ROOT/scripts/$name" )" "$name" >> "$tmp"
 	done < "$man"
 	mv "$tmp" "$man"
 	echo "== scripts/driver-manifest.md5 regenerated =="
@@ -207,7 +224,7 @@ if [ "$MODE" = "--all" ]; then
 	# Verify the same way the per-file path does: checksum, do not trust exit codes.
 	bad=0
 	for f in $FILES; do
-		l=$(md5 -q "$f" 2>/dev/null)
+		l=$(local_md5 "$f")
 		r=$(remote_md5 "$f")
 		[ "$l" = "$r" ] || { echo "!! $f did not take"; bad=1; }
 	done
@@ -218,7 +235,7 @@ fi
 drift=0
 for f in $FILES; do
 	[ -f "$f" ] || { echo "!! $f missing from this repo" >&2; drift=1; continue; }
-	l=$(md5 -q "$f" 2>/dev/null)
+	l=$(local_md5 "$f")
 	r=$(remote_md5 "$f")
 	if [ "$l" = "$r" ]; then
 		printf '%-34s same\n' "$f"
@@ -284,7 +301,7 @@ sysreport"
 # the sync that silences it. Byte order on both sides, always.
 fp_local () {
 	( cd "$1" 2>/dev/null && find . -type f | LC_ALL=C sort | while read -r f; do
-		echo "$f $(md5 -q "$f")"; done ) | md5 -q
+		echo "$f $(local_md5 "$f")"; done ) | { md5 -q 2>/dev/null || md5sum 2>/dev/null | awk '{print $1}'; }
 }
 fp_remote () {
 	ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" \
