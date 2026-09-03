@@ -64,6 +64,19 @@ not for every commit. Deep engine writeups live in
   source content hash, and mod dylibs carry the hlsdk commit; a mismatch
   refuses the fuse. 61c52f2, e8c8125, d3fda6e; issue #4, ADR 0015/0016.
 
+## Server
+
+- Bans placed with `banid`/`addip` did not survive a server restart:
+  neither is written to disk on its own, and `server.cfg` never executed the
+  files that would restore them. Confirmed reading the engine source
+  (`sv_filter.c` calls out that `banned.cfg` "is not executed by engine" at
+  its own init). `server.cfg` now execs `banned.cfg` and `listip.cfg` at
+  startup (harmless no-op before either file exists); operators still need
+  to run `writeid`/`writeip` after a ban for it to be saved. Documented in
+  `server/README.md`, including the separate dead-code trap where `banid`'s
+  `#<userid>` short form silently does nothing. From infra's admin-panel
+  survey, issue #31.
+
 ## Scripts and harness
 
 - `deploy-dmg.sh` copied its source `.dmg` to the target's Desktop, installed

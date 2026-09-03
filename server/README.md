@@ -118,6 +118,42 @@ There is also XRCON in this engine, a TCP admin console on
 `127.0.0.1:27000`. It has no authentication of any kind, so leave it bound to
 localhost and reach it over an ssh tunnel. Never bind it to `0.0.0.0`.
 
+## Kicking and banning players
+
+Kick by exact player name, not `status`'s printed slot number:
+
+```
+rcon kick "playername"
+```
+
+`status`'s slot index and the userid a numbered kick expects are different
+counters that only happen to line up before anyone has reconnected - a kick
+button built off the slot number in `status` will kick the wrong player once
+someone has.
+
+Banning is two separate steps, and skipping the second one means the ban
+silently stops working the next time the server restarts:
+
+```
+rcon banid 0 STEAM_0:1:12345678     // 0 minutes = permanent; a number = minutes
+rcon writeid                        // appends the current ban list to banned.cfg
+rcon addip 0 203.0.113.5
+rcon writeip                        // appends the current IP ban list to listip.cfg
+```
+
+`banid`/`addip` alone only change the running server's in-memory list -
+confirmed reading the engine source, which calls out that `banned.cfg` "is
+not executed by engine" on its own. `writeid`/`writeip` are what actually
+save it to disk, and `server.cfg` here execs both files at every startup so a
+saved ban is still in effect after a restart. Skip `writeid`/`writeip` and
+the ban is gone the moment the process restarts, with nothing logged to say
+so.
+
+`banid`'s `#<userid>` short form (ban whoever `status` shows as that number)
+is dead code in this engine - it prints `banid: not supported` and does
+nothing. Always pass the player's actual unique ID string (the `STEAM_...`,
+or the WON-style ID shown by `status`), never a `#` number.
+
 ## The network side
 
 Default port is UDP 27015, IPv4 and IPv6.
