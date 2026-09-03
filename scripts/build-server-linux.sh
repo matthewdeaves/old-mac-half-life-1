@@ -111,6 +111,7 @@ prepare_tree() {
 	local url="$2"
 	local commit="$3"
 	local reuse="$4"
+	local branch="$5"
 	local dest="$WORK/src/$name"
 
 	if [ -d "$dest/.git" ]; then
@@ -137,13 +138,32 @@ prepare_tree() {
 
 	echo "[server] $name: cloning at $(short "$commit")"
 	rm -rf "$dest"
-	git clone -q --recursive "$url" "$dest"
+	# --branch, not a plain default-branch clone: every fork here defaults to
+	# "master" on GitHub (an unrelated/stale import), and PIN_*_COMMIT names a
+	# commit on "oldmac" instead. A plain `git clone --recursive` populates
+	# each submodule from whatever the DEFAULT branch's tree records, and
+	# GitHub refuses a later `git submodule update`'s attempt to fetch an
+	# arbitrary commit by bare SHA if that commit is not reachable from any
+	# ref it advertises ("not our ref") - which a commit that is only an
+	# ancestor of oldmac, not of master, is exactly. Cloning oldmac directly
+	# means the recursive submodule population already walks oldmac's own
+	# history, which is where the pinned submodule commit actually lives, so
+	# the later exact-commit checkout is a local operation, not a fetch.
+	# Measured 2026-09-03 building the server after an engine pin bump: this
+	# exact failure, on the mainui submodule specifically. Matches
+	# fetch-sources.sh's own `git clone --branch "$branch"`, which has never
+	# hit this because it was never missing.
+	if [ -n "$branch" ]; then
+		git clone -q --recursive --branch "$branch" "$url" "$dest"
+	else
+		git clone -q --recursive "$url" "$dest"
+	fi
 	( cd "$dest" && git checkout -q "$commit" && git submodule -q update --init --recursive )
 }
 
 mkdir -p "$WORK/src"
-prepare_tree engine "$PIN_ENGINE_URL" "$PIN_ENGINE_COMMIT" "$REPO_ROOT/vendor/engine-src"
-prepare_tree hlsdk  "$PIN_HLSDK_URL"  "$PIN_HLSDK_COMMIT"  ""
+prepare_tree engine "$PIN_ENGINE_URL" "$PIN_ENGINE_COMMIT" "$REPO_ROOT/vendor/engine-src" "$PIN_ENGINE_BRANCH"
+prepare_tree hlsdk  "$PIN_HLSDK_URL"  "$PIN_HLSDK_COMMIT"  ""                              "$PIN_HLSDK_BRANCH"
 
 # Refuse to build a tree that is not at the pin. This is the same rule the Mac
 # drivers follow, and the reason is on record: three drivers once correctly
