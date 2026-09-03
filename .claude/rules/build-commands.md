@@ -35,7 +35,8 @@ scripts/build-server-linux.sh --arch aarch64   # ARM VPS: runs HERE, no wrapper 
                                                 #   side, so there is nothing to
                                                 #   prefer it for. Issue #22.
 
-scripts/make-dmg.sh [version-label]      # Tiger G4 ONLY, see the hard rules
+scripts/make-dmg.sh [version-label]      # staging: workstation OR imac-2019 (below).
+                                          #   hdiutil packaging: Tiger G4 ONLY, hard rules
 scripts/pick-bench-host.sh --status      # bench/test boxes: who is free
 scripts/deploy-dmg.sh HOST [version]     # install on a bench box as a user would
 # Smoke and single-shot bench are TRIGGERED VIA old-mac-build-host, which runs
@@ -46,6 +47,23 @@ scripts/fleet-bench.sh -l LABEL [host]   # implementation; job bench-halflife-im
 python3 tests/test-repo.py               # repo invariants, runs on this box
 tests/test-artifact.sh                   # checks a built artifact
 ```
+
+**`make-dmg.sh` can stage from `imac-2019` instead of this workstation, with no
+script change.** It fetches the built app from `SRC_HOST`, stages (icons,
+ad-hoc signing, `lipo -archs` on the mod dylibs and system report bundle),
+then ships the staged image to `DMG_HOST` for `hdiutil` - two legs that both
+cross whatever link the invoking box has. Nothing in the script hardcodes the
+workstation as that box: `REPO_ROOT` is derived from the script's own
+location, `SRC_HOST`/`DMG_HOST` are just hostnames. `imac-2019` has the same
+`lipo`/`codesign`/`sips`/`iconutil` this needs and sits on the same fleet LAN
+as every mini and Tiger box, so invoking it there instead removes the
+workstation as a relay hop for the ~115 MB image. Verified end-to-end
+2026-09-04: synced `scripts/*.sh` + `configs/` there (its `~/oldmac` is a
+hand-managed tree, same as a mini's - no git, so a run from there stamps the
+build id `git:unknown+dirty` instead of a real commit hash; harmless, just
+missing that one provenance line), ran `SRC_HOST=mini-intel DMG_HOST=mini-g4
+scripts/make-dmg.sh <label>` there directly, got a byte-verified DMG back.
+`issue #32`.
 
 **Hold the build-host lock until the artifact has been FETCHED off it, not until
 the build finishes.** `make-dmg.sh` pulls the assembled bundle from a mini and
