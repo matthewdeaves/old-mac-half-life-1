@@ -154,6 +154,30 @@ is dead code in this engine - it prints `banid: not supported` and does
 nothing. Always pass the player's actual unique ID string (the `STEAM_...`,
 or the WON-style ID shown by `status`), never a `#` number.
 
+## Movement house rules
+
+These are `sv_*` cvars, `rcon`-settable, and take effect live (no restart).
+Confirmed against engine source
+(`vendor/engine-src/engine/server/sv_main.c`), default value shown next to
+each name:
+
+```
+sv_gravity          800   world gravity
+sv_maxspeed         320   player top speed
+sv_accelerate        10   ground acceleration
+sv_airaccelerate     10   air acceleration
+sv_wateraccelerate   10   water acceleration
+sv_friction           4   ground friction
+sv_waterfriction      1   water friction
+sv_bounce             1   bounce off other players/objects
+sv_stepsize          18   max step height the player can walk up without jumping
+sv_maxvelocity     2000   hard velocity cap, any axis
+```
+
+```
+rcon sv_gravity 400
+```
+
 ## The network side
 
 Default port is UDP 27015, IPv4 and IPv6.
