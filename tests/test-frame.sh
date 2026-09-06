@@ -44,16 +44,19 @@ SCP="scp -o ConnectTimeout=8 -o BatchMode=yes"
 # engine wrote no screenshot.
 # shellcheck disable=SC2088
 SHOTS='~/Desktop/Half-Life/valve/scrshots'
+SHOTNAME="hlframe-$(date +%s)-$$.png"
 
 echo "== capturing a frame on $HOST, map $MAP =="
 $SCP "$ROOT/scripts/bench.sh" "$HOST:/tmp/bench.sh" >/dev/null || {
 	echo "!! could not copy bench.sh to $HOST" >&2; exit 1; }
-$SSH "$HOST" "rm -f $SHOTS/*.png $SHOTS/*.bmp $SHOTS/*.tga 2>/dev/null; true"
+# Name our own capture. Never erase the player's screenshots to find a new one.
+$SSH "$HOST" "test ! -e $SHOTS/$SHOTNAME" || {
+	echo "!! capture name already exists on $HOST" >&2; exit 1; }
 
 # 30 frames, one run, no warmup: this is a capture, not a measurement. The row
 # bench.sh prints is discarded rather than appended to benchmarks/results.csv,
 # which is for numbers that mean something.
-row=$($SSH "$HOST" "/tmp/bench.sh -N $HOST -r gl -W 800 -H 600 -f 30 -n 1 -w 0 -m $MAP -x 'screenshot'" 2>/tmp/frame_${HOST}.err)
+row=$($SSH "$HOST" "/tmp/bench.sh -N $HOST -r gl -W 800 -H 600 -f 30 -n 1 -w 0 -m $MAP -x 'screenshot scrshots/$SHOTNAME'" 2>/tmp/frame_${HOST}.err)
 case "$row" in
 	*,ERR,ERR,ERR,*)
 		echo "!! the run itself failed, so there is no frame to check:" >&2
@@ -63,21 +66,22 @@ esac
 
 TMP=$(mktemp -d -t hlframe)
 trap 'rm -rf "$TMP"' EXIT
-if ! $SCP "$HOST:$SHOTS/*.png" "$TMP/" >/dev/null 2>&1; then
+if ! $SCP "$HOST:$SHOTS/$SHOTNAME" "$TMP/" >/dev/null 2>&1; then
 	echo "!! $HOST wrote no screenshot; the engine's screenshot command failed" >&2
 	exit 1
 fi
 
-shot=$(ls "$TMP"/*.png 2>/dev/null | head -1)
+shot="$TMP/$SHOTNAME"
 [ -n "$shot" ] || { echo "!! nothing came back from $HOST" >&2; exit 1; }
 cp "$shot" "$TMP/$HOST-$MAP.png"
 
 echo
 python3 "$ROOT/tests/frame-check.py" "$TMP/$HOST-$MAP.png"
 rc=$?
+keep="/tmp/frame-$HOST-$MAP.png"
+cp "$shot" "$keep"
+echo "Captured frame: $keep"
 if [ "$rc" != 0 ]; then
-	keep="/tmp/frame-$HOST-$MAP.png"
-	cp "$shot" "$keep"
 	echo
 	echo "The frame that failed is at $keep. Look at it: this test says the picture"
 	echo "is wrong, not what is wrong with it."
