@@ -232,6 +232,76 @@ xattr -dr com.apple.quarantine /Applications/<folder>
 PowerPC and Intel Macs running 10.3 through 10.7 have none of this and can keep
 the folder wherever you like.
 
+## Review candidate, 2026-09-06
+
+Local, unpublished candidate: `dist/Half-Life-OldMac-v1.9.16-rc1.dmg`.
+The image records port source `2a6c566` and engine `4af0ad7`.
+
+This review fixed an out-of-bounds ZIP member-name read in the Mods installer,
+reproduced with AddressSanitizer. The reader also checks directory completeness,
+member ranges, decompressed size, stream completion and final write errors.
+The regression suite passes on native arm64, the G4, and the G3 under both
+Panther and Tiger. Against the original reader it reports `9 passed, 6 failed`;
+against the fix, `15 passed, 0 failed`.
+
+Water ripple sampling now precomputes coordinates while preserving the original
+floating-point rounding. Extremely narrow textures also retain at least one
+pixel on their shorter side. No graphics defaults, filtering, resolution or
+effect update rates changed. [The decision record](docs/adr/0019-ripple-coordinates-preserve-the-original-rounding.md)
+explains the rounding constraint.
+
+The standalone CPU comparison runs the actual old and new upload functions with
+GL calls stubbed. Each run passed `1600` pixel comparisons. These are median CPU
+times for `10000` updates, across interleaved before/after pairs, using the
+release compilers and target flags for the final Intel and PowerPC results:
+
+| Machine | Before | Candidate | Less CPU time |
+|---|---:|---:|---:|
+| G3, Tiger | 76.735000 s | 27.520000 s | 64.14% |
+| Mac mini G4 | 36.575000 s | 10.215000 s | 72.07% |
+| Intel mini, 2.33 GHz | 4.901618 s | 2.852508 s | 41.80% |
+| Apple Silicon workstation | 0.244685 s | 0.160310 s | 34.48% |
+
+These are ripple CPU savings, not whole-game FPS gains or GPU upload timings.
+The normal graphics defaults remain unchanged. G5 performance and native
+Apple Silicon gameplay have not been measured in this review.
+
+Scene checks used `crossfire`, 800x600 fullscreen, vsync off, a warmup and
+three measured runs. The medians were:
+
+| Machine | Baseline FPS | Candidate FPS |
+|---|---:|---:|
+| G3, Panther | 58.786 | 58.853 |
+| G3, Tiger | 67.797 | 67.654 |
+| Mac mini G4 | 92.653 | 92.988 |
+| Intel mini, 1.83 GHz | 167.108 | 166.435 |
+
+The run ranges overlap; these scenes show no clear FPS change. They do not
+exercise water in view. PowerPC baselines are the previous installations.
+The Intel baseline was repeated with `1.9.15`: its original `1.9.8` installation
+predated the existing flashlight fix that disables single-pass rendering on
+Intel. Comparing that old configuration against the candidate would mix a
+graphics-path change into this review. Player defaults still use vsync.
+
+Other corrections: native-slice transfers use a Lion-compatible tar format;
+the mod probe reports its actual running architecture; frame checks request a
+uniquely named capture instead of deleting the player's screenshots.
+
+The complete build passed, including both Intel and both PowerPC slices and the
+native arm64 slice. The Tiger G4 produced the DMG, and its packaged binaries
+matched the staged source bytes. Repo checks report `44 passed, 0 failed`;
+artifact checks report `53 passed, 0 failed`. All mod libraries loaded in explicit
+i386 and x86_64 probes, in native arm64, and from the installed candidate on
+PowerPC: `50 loaded, 0 failed`, covering `25 mods` in each run. Finder-launch
+checks passed on the G3 under Panther and Tiger, the G4, Lion and Snow Leopard.
+Gameplay frame checks passed on the G3 under both systems, the G4 and Lion;
+the captured frames were also inspected visually.
+
+Local evidence is in `logs/review-2026-09-06/`, which is intentionally ignored by
+git. The regression tools are [test-zip.py](tests/test-zip.py) and
+[test-ripples.py](tests/test-ripples.py). The latter accepts a saved baseline
+`gl_warp.c` and can emit standalone C for the legacy build host.
+
 ## Credits
 
 - **[FWGS](https://github.com/FWGS)**: the Xash3D engine, the menu and the
