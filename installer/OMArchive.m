@@ -82,9 +82,11 @@ static BOOL om_extract_zip( NSString *archivePath, const char *root, NSString *d
 		if( err ) *err = [NSString stringWithFormat:@"cannot open %@", archivePath];
 		return NO;
 	}
-	fseeko( f, 0, SEEK_END );
-	fileSize = (long long)ftello( f );
-
+	if( fseeko( f, 0, SEEK_END ) != 0 || (fileSize = (long long)ftello( f )) < 22 )
+	{
+		if( err ) *err = @"archive is truncated or cannot be read";
+		goto done;
+	}
 	/*
 	 * Find the End Of Central Directory. It is at the very end unless the archive
 	 * carries a trailing comment, so scan back over the largest a comment can be
@@ -102,7 +104,8 @@ static BOOL om_extract_zip( NSString *archivePath, const char *root, NSString *d
 
 	for( i = tailLen - 22; i >= 0; i-- )
 	{
-		if( om_le32( tail + i ) == 0x06054b50UL )
+		if( om_le32( tail + i ) == 0x06054b50UL &&
+			i + 22 + om_le16( tail + i + 20 ) == tailLen )
 		{
 			entries  = om_le16( tail + i + 10 );
 			cdSize   = (long long)om_le32( tail + i + 12 );
@@ -115,6 +118,12 @@ static BOOL om_extract_zip( NSString *archivePath, const char *root, NSString *d
 		if( err ) *err = @"not a zip archive (no end-of-central-directory record)";
 		goto done;
 	}
+	if( om_le16( tail + i + 4 ) != 0 || om_le16( tail + i + 6 ) != 0 ||
+		om_le16( tail + i + 8 ) != entries )
+	{
+		if( err ) *err = @"multi-disk zip archives are not supported";
+		goto done;
+	}
 	/* 0xffff/0xffffffff are the zip64 escape values. None of our sources are
 	 * anywhere near 4 GB or 65535 members, so this means something unexpected
 	 * rather than something to support. */
@@ -124,6 +133,11 @@ static BOOL om_extract_zip( NSString *archivePath, const char *root, NSString *d
 		goto done;
 	}
 
+	if( cdOffset + cdSize > fileSize - tailLen + i || cdSize < (long long)entries * 46 )
+	{
+		if( err ) *err = @"archive has an invalid central directory range";
+		goto done;
+	}
 	cd = (unsigned char *)malloc( (size_t)cdSize );
 	if( cd == NULL ) { if( err ) *err = @"out of memory"; goto done; }
 	fseeko( f, cdOffset, SEEK_SET );
@@ -146,6 +160,7 @@ static BOOL om_extract_zip( NSString *archivePath, const char *root, NSString *d
 			char name[1024];
 			const char *rel;
 			NSString *outPath;
+			NSString *relativePath;
 
 			if( om_le32( cd + p ) != 0x02014b50UL )
 				break;
@@ -160,7 +175,16 @@ static BOOL om_extract_zip( NSString *archivePath, const char *root, NSString *d
 			commentLen = om_le16( cd + p + 32 );
 			localOff   = om_le32( cd + p + 42 );
 
-			if( nameLen >= sizeof( name )) { if( err ) *err = @"archive has an absurdly long member name"; goto done; }
+			if( p + 46 + nameLen + extraLen + commentLen > cdSize )
+			{
+				if( err ) *err = @"archive is truncated (central directory member)";
+				goto done;
+			}
+			if( nameLen == 0 || nameLen >= sizeof( name ) || memchr( cd + p + 46, 0, nameLen ))
+			{ if( err ) *err = @"archive has an invalid member name"; goto done; }
+			if( compSize == 0xffffffffUL || uncompSize == 0xffffffffUL || localOff == 0xffffffffUL ||
+				om_le16( cd + p + 34 ) != 0 )
+			{ if( err ) *err = @"zip64 or multi-disk member is not supported"; goto done; }
 			memcpy( name, cd + p + 46, nameLen );
 			name[nameLen] = 0;
 			p += 46 + nameLen + extraLen + commentLen;
@@ -185,12 +209,15 @@ static BOOL om_extract_zip( NSString *archivePath, const char *root, NSString *d
 			if( rel == NULL || rel[0] == 0 )
 				continue;                     /* outside the mod root */
 
-			outPath = [destDir stringByAppendingPathComponent:
-				[NSString stringWithUTF8String:rel]];
+			relativePath = [NSString stringWithUTF8String:rel];
+			if( relativePath == nil )
+			{ if( err ) *err = @"archive member name is not valid UTF-8"; goto done; }
+			outPath = [destDir stringByAppendingPathComponent:relativePath];
 
 			if( name[nameLen - 1] == '/' )    /* a directory entry */
 			{
-				om_mkdir_p( outPath );
+				if( !om_mkdir_p( outPath ))
+				{ if( err ) *err = @"cannot create archive directory"; goto done; }
 				continue;
 			}
 			if( !om_mkdir_p( [outPath stringByDeletingLastPathComponent] ))
@@ -217,17 +244,22 @@ static BOOL om_extract_zip( NSString *archivePath, const char *root, NSString *d
 				z_stream zs;
 				unsigned long crcGot = crc32( 0L, Z_NULL, 0 );
 				long long remaining = (long long)compSize;
+				long long produced = 0, dataOffset;
 				int zret = Z_OK;
 
-				fseeko( f, (off_t)localOff, SEEK_SET );
-				if( fread( lh, 1, 30, f ) != 30 || om_le32( lh ) != 0x04034b50UL )
+				if( (long long)localOff + 30 > cdOffset ||
+					fseeko( f, (off_t)localOff, SEEK_SET ) != 0 ||
+					fread( lh, 1, 30, f ) != 30 || om_le32( lh ) != 0x04034b50UL )
 				{
 					if( err ) *err = [NSString stringWithFormat:@"bad local header for '%s'", name];
 					goto done;
 				}
 				lNameLen  = om_le16( lh + 26 );
 				lExtraLen = om_le16( lh + 28 );
-				fseeko( f, (off_t)( localOff + 30 + lNameLen + lExtraLen ), SEEK_SET );
+				dataOffset = (long long)localOff + 30 + lNameLen + lExtraLen;
+				if( dataOffset + compSize > cdOffset ||
+					fseeko( f, (off_t)dataOffset, SEEK_SET ) != 0 )
+				{ if( err ) *err = @"archive member data is truncated"; goto done; }
 
 				if( method != 0 && method != 8 )
 				{
@@ -266,6 +298,8 @@ static BOOL om_extract_zip( NSString *archivePath, const char *root, NSString *d
 
 					if( method == 0 )
 					{
+						produced += got;
+						if( produced > uncompSize ) { zret = Z_DATA_ERROR; break; }
 						crcGot = crc32( crcGot, in, (unsigned)got );
 						if( fwrite( in, 1, got, of ) != got ) { zret = Z_ERRNO; break; }
 					}
@@ -281,20 +315,26 @@ static BOOL om_extract_zip( NSString *archivePath, const char *root, NSString *d
 								break;
 							{
 								size_t have = OM_ZIP_OUTBUF - zs.avail_out;
+								produced += have;
+								if( produced > uncompSize ) { zret = Z_DATA_ERROR; break; }
 								if( have > 0 )
 								{
 									crcGot = crc32( crcGot, out, (unsigned)have );
 									if( fwrite( out, 1, have, of ) != have ) { zret = Z_ERRNO; break; }
 								}
 							}
-						} while( zs.avail_out == 0 );
+						} while( zs.avail_out == 0 && zret != Z_STREAM_END );
+						if( zret == Z_STREAM_END ) break;
 						if( zret != Z_OK && zret != Z_STREAM_END ) break;
 					}
 				}
 
+				if( remaining != 0 || produced != uncompSize ||
+					(method == 8 && (zret != Z_STREAM_END || zs.avail_in != 0)))
+					zret = Z_DATA_ERROR;
 				if( method == 8 )
 					inflateEnd( &zs );
-				fclose( of );
+				if( fclose( of ) != 0 ) zret = Z_ERRNO;
 
 				if( zret != Z_OK && zret != Z_STREAM_END )
 				{
@@ -316,6 +356,8 @@ static BOOL om_extract_zip( NSString *archivePath, const char *root, NSString *d
 				written++;
 			}
 		}
+		if( done != entries || p != cdSize )
+		{ if( err ) *err = @"archive has an incomplete central directory"; goto done; }
 	}
 
 	if( written == 0 )

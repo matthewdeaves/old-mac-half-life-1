@@ -28,11 +28,29 @@
  */
 #include <dlfcn.h>
 #include <stdio.h>
+#include <string.h>
 
 int main( int argc, char **argv )
 {
 	void *h;
 	int i, bad = 0;
+
+	if( argc == 2 && strcmp( argv[1], "--arch" ) == 0 )
+	{
+#if defined(__aarch64__) || defined(__arm64__)
+		puts( "arm64" );
+#elif defined(__x86_64__)
+		puts( "x86_64" );
+#elif defined(__i386__)
+		puts( "i386" );
+#elif defined(__ppc__) || defined(__powerpc__)
+		puts( "ppc" );
+#else
+		puts( "unknown" );
+		return 2;
+#endif
+		return 0;
+	}
 
 	if( argc < 2 )
 	{

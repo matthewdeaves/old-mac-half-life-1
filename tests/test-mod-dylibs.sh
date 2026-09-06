@@ -62,7 +62,11 @@ else
 	fi
 fi
 
-arch=$(uname -m)
+arch=$( "$PROBE" --arch ) || {
+	echo "!! probe cannot identify its running slice; rebuild it with tests/make-probe.sh" >&2
+	rm -f "$BUILT" "$TMP.log"
+	exit 2
+}
 echo "mod dylibs in $DIR, loaded as $arch"
 echo "probe: $PROBE"
 echo

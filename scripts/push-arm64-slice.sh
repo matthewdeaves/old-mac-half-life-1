@@ -58,7 +58,7 @@ n="$( find "$SRC" -type f | wc -l | tr -d ' ' )"
 stamp="$( cat "$SRC/BUILD-STAMP" )"
 
 if [ "$l" = "$r" ]; then
-	echo "arm64 slice on $HOST is current ($n files, stamp ${stamp%${stamp#??????? }})"
+	echo "arm64 slice on $HOST is current ($n files, stamp $(printf '%.7s' "$stamp"))"
 	exit 0
 fi
 
@@ -76,7 +76,9 @@ ROOT=$(cd "$(dirname "$0")/.." && pwd)
 echo "==> copying the arm64 slice ($n files) to $HOST"
 # tar, not scp: one connection, it creates the directory, and it preserves the
 # executable bits that a Mach-O needs. Nothing is deleted at the far end.
-if ! ( cd "$OLDMAC/dist" && tar cf - arm64 ) | \
+# Modern macOS pax metadata is rejected by Lion's tar. These are build
+# products; carry their bytes and executable modes, without extended attributes.
+if ! ( cd "$OLDMAC/dist" && COPYFILE_DISABLE=1 tar --format=ustar -cf - arm64 ) | \
      ssh -o ConnectTimeout=10 -o BatchMode=yes "$HOST" 'mkdir -p oldmac/dist && tar xf - -C oldmac/dist'; then
 	echo "!! transfer failed" >&2
 	exit 1
