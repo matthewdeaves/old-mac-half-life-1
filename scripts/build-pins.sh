@@ -33,10 +33,12 @@ XASH_VERSION="0.21"
 # Fork of FWGS/xash3d-fwgs, branched at f0ea3a19.
 # The PPC performance work merged to oldmac on 2026-08-19, fast-forward, so the
 # commit here is the one the fleet A/Bs and the G3 hands-on pass ran against.
-# Ripple sampling coordinates are precomputed with the original float rounding.
+# d3c10eeb (2026-09-07): deferred lightmaps drawn at the single-pass overbright
+# level, fixing the dark rectangle around the flashlight on PowerPC. On top of
+# 4af0ad76, the ripple coordinate precompute.
 PIN_ENGINE_URL="https://github.com/matthewdeaves/xash3d-fwgs.git"
 PIN_ENGINE_BRANCH="oldmac"
-PIN_ENGINE_COMMIT="4af0ad76990a34133e4ed4dd29e864ce535f1b87"
+PIN_ENGINE_COMMIT="d3c10eebdb3c0208a53ec76e724e09e7681ffd2d"
 PIN_ENGINE_UPSTREAM="FWGS/xash3d-fwgs@f0ea3a19"
 
 # --- menu: submodule of the engine, re-pointed by our engine branch ----------
