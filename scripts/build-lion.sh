@@ -413,6 +413,15 @@ echo "==> [3/3] assemble self-contained play folder"
 # erased first.
 APP="${HL_APP_OUT:-$ROOT/dist/lion-play}"
 ASSETS="${HL_VALVE:-$HOME/hl-assets/valve}"   # retail valve/ (from the GOTY ISO)
+# The retail copy is a convenience for playing the raw slice here, not a build
+# input, and it is not ours to regenerate. A mini that has lost it must not fail
+# the release build over a folder nothing downstream reads. Measured 2026-09-07:
+# mini-intel had no ~/hl-assets and build-all stopped after a clean x86_64 build.
+if [ ! -d "$ASSETS" ]; then
+	echo "==> skipped: no retail valve/ at $ASSETS, so no play folder (set HL_VALVE to stage one)"
+	echo "    dist/lion-x86_64 is complete and is what make-universal.sh reads."
+	exit 0
+fi
 rm -rf "$APP"; mkdir -p "$APP"
 cp "$OUT"/xash3d "$OUT"/*.dylib "$APP/"
 cp "$SDLPREFIX/lib/libSDL2-2.0.0.dylib" "$APP/"
