@@ -8,6 +8,21 @@ not for every commit. Deep engine writeups live in
 
 ## Renderer
 
+- Flashlight beam ended in a hard line wherever a wall changed angle: the
+  face it landed on was lit right up to the fold and the neighbour got
+  nothing, on every renderer path. Cause: the Quake dynamic-light falloff
+  measures a luxel's offset inside its own face's plane and subtracts the
+  light's height above that plane, so two faces meeting at a fold give the
+  same point in space two different values. Measured on the mini G4 on the
+  `c0a0` tunnel with the frame rate capped so every capture sees the same
+  tram position: identical with `gl_singlepass 0`, unchanged by
+  `r_dlight_virtual_radius 3`. Fix: `r_dlight_spherical` (default on) makes
+  the falloff the luxel's distance from the light as one vector, so both
+  faces agree at their shared edge and the beam wraps across it. Distances
+  stay in the face's texture units as the classic form counts them, because
+  a first cut that converted to world units shrank the beam to a third on
+  the scale-3 walls that make up a third of that map. Engine `00dda492`,
+  `docs/adr/0020`.
 - Flashlight drew a dark rectangle around its beam on PowerPC: the wall it
   touched rendered at two thirds of the brightness of the walls around it, the
   size of one surface, with the beam inside. Cause: with `gl_overbright` on,
