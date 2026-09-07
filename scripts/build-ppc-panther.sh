@@ -394,7 +394,15 @@ cp "$DP"/xash3d "$DP"/*.dylib "$APP/"
 # the 4-byte big-endian field at offset 8; write 00 00 00 09. Idempotent. Dylibs stay ALL.
 printf '\000\000\000\011' | dd of="$APP/xash3d" bs=1 seek=8 count=4 conv=notrunc 2>/dev/null
 echo "    re-stamped $APP/xash3d -> $(lipo -info "$APP/xash3d" | sed 's/.*: //')"
-cp -R "$ASSETS"/. "$APP/valve/"
+# Retail content is a convenience for playing this slice on a bench box, not a
+# build input: make-universal.sh takes the code out of $APP and ships no
+# content. A mini that has lost ~/hl-assets must not fail the release build
+# over it (measured on mini-intel 2026-09-07).
+if [ -d "$ASSETS" ]; then
+	cp -R "$ASSETS"/. "$APP/valve/"
+else
+	echo "    skipped: no retail valve/ at $ASSETS (set HL_VALVE to stage one)"
+fi
 cp "$DP/valve/extras.pk3" "$APP/valve/" 2>/dev/null || true
 cp "$DH"/valve/cl_dlls/*.dylib "$APP/valve/cl_dlls/"
 cp "$DH"/valve/dlls/*.dylib    "$APP/valve/dlls/"
