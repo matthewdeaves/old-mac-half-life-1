@@ -6,6 +6,22 @@ not for every commit. Deep engine writeups live in
 `docs/port/POWERPC-FINDINGS.md`; entries below cite its numbered findings as
 `F<n>`.
 
+## Renderer
+
+- Flashlight drew a dark rectangle around its beam on PowerPC: the wall it
+  touched rendered at two thirds of the brightness of the walls around it, the
+  size of one surface, with the beam inside. Cause: with `gl_overbright` on,
+  this fork's single-pass world stage draws base x lightmap x2 and applies no
+  colour, while `R_BlendLightmaps`, which still draws every surface the
+  single-pass code defers to it (dynamically lit surfaces first among them),
+  kept the classic `GL_DST_COLOR`/`GL_SRC_COLOR` blend with its 128/192 colour,
+  so those came out at 1.333x. Measured on the mini G4 (Radeon 9200), map
+  `c0a0`: present at the defaults, absent with `gl_overbright 0` (both routes
+  x1) and with `gl_singlepass 0` (both routes classic). Fix: a shared
+  `R_SinglePassLighting()` predicate, and `R_BlendLightmaps` skips the colour
+  when it holds, so deferred surfaces land on the same x2. Intel and arm64,
+  where `gl_singlepass` is off, are unchanged. Engine `d3c10eeb`.
+
 ## Launcher and config
 
 - "macOS is blocking Half-Life" privacy dialog fired even though the game's
