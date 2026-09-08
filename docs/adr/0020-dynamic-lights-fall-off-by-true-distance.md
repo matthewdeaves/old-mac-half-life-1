@@ -1,38 +1,49 @@
 # Dynamic lights fall off by true distance
 
-The engine's dynamic light accumulation, inherited from Quake and shared with
-GoldSrc, measures each luxel's offset inside its own face's plane with a
-Manhattan-style sum and subtracts the light's height above that plane. Two
-faces that meet at a fold therefore give the same point in space two different
-values. A flashlight beam landing near a fold is drawn right up to the edge on
-the face it hits and not at all on the neighbour, so it ends in a hard line
-wherever a wall changes angle.
+The classic dynamic-light accumulator combines an in-plane texture-space offset
+with a world-space distance to the face's plane. Its value at a shared point can
+change with the face orientation and texture mapping. Taking a square root of
+those same mixed units does not make the result continuous.
 
-Measured on the mini G4 on the `c0a0` tunnel, with the frame rate capped so the
-tram sits at the same place in every capture: the line is present with the
-single-pass renderer and, frame for frame, with the classic two-pass path, and
-setting `r_dlight_virtual_radius` back to upstream's 3 changes nothing. So it
-is the light model, not this port's renderer, and Intel and arm64 show it too.
+## Decision
 
-`r_dlight_spherical`, default on, makes the falloff the luxel's true distance
-from the light: in-plane offset, converted from the face's texture units to
-world units by its lightmap vectors, and the height above the plane, taken as
-one vector. Both faces at a fold compute the same number for their shared edge,
-so the beam wraps across it. The peak at the impact point, the reach and the
-colour scaling are the classic ones, and the spherical value never exceeds the
-classic value anywhere, since a hypotenuse is never longer than the sum of its
-sides. The search bounds widen to the sphere's chord at the plane's height.
-The classic path is kept verbatim at `r_dlight_spherical 0`.
+With `r_dlight_spherical` enabled, invert each face's lightmap mapping on its
+plane. For texture axes S and T and unit plane normal N, the dual basis is
+`cross(T,N) / dot(S,cross(T,N))` and
+`cross(N,S) / dot(S,cross(T,N))`. Multiplying signed, fractional lightmap offsets
+by these vectors recovers the in-plane world displacement. Combine its squared
+length with squared plane distance to obtain the distance to the light.
 
-The cost is one square root per lit luxel per light. A flashlight touches a
-handful of faces and a few hundred luxels a frame, which is nothing beside the
-lightmap rebuild those faces already pay for.
+This handles scaled, skewed and non-tangent texture axes. Sample search bounds
+use the lengths of the texture axes projected onto the plane. Surface marking
+uses the world sphere's plane bound and skips the classic texture-space rectangle
+rejection, which can otherwise discard a surface containing lit samples.
 
-Rejected: leaving it as upstream behaviour. It is authentic to GoldSrc, but the
-hard line reads as a rendering fault on every machine, and the player who
-reported it did so twice. Also rejected: fixing it at the marking stage. The
-neighbouring face is marked and its lightmap is rebuilt; it is the per-luxel
-distance that leaves it dark.
+The flashlight chooses its world radius once from the face hit by its trace.
+For enlarged textures, the projected texture area determines a uniform scale;
+radius grows by its reciprocal and colour is reduced by that scale to retain
+peak brightness, subject to byte rounding. Unit-scale faces retain radius 80.
+Degenerate mappings and enlargement beyond 16 use the base radius. This is an
+area-based approximation to the classic footprint on skewed or unequal texture
+axes. All receiving faces use that one radius, rather than choosing their own.
+Other dynamic lights retain their supplied world radii.
 
-The software renderer keeps the classic model. It is a fallback here, not a
-target.
+`r_dlight_spherical 0` retains the classic accumulator and flashlight sizing.
+The software renderer retains its classic accumulator.
+
+## Rejected approaches
+
+- Combining texture offsets with world plane distance under a square root.
+  `tests/test-flashlight.py` demonstrates that the previous candidate gives
+  different values at a shared world point. The test executes the actual
+  accumulator with renderer dependencies stubbed.
+- Dividing by texture-vector lengths alone. Texture axes can have components
+  along the plane normal and need not be orthogonal, so lengths are not the
+  inverse of their mapping on the plane.
+- Changing every flashlight to radius 80 in world space without compensating
+  its footprint. That shrinks the beam on walls carrying enlarged textures.
+
+The geometry test verifies accumulation, not the player's complete rendered
+scene. Hardware and hand testing remain necessary, including checking static
+lightmap seams, the beam footprint and frame cost. Broader conservative surface
+marking can rebuild more lightmaps than the classic rectangle test.

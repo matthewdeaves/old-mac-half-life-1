@@ -33,14 +33,11 @@ XASH_VERSION="0.21"
 # Fork of FWGS/xash3d-fwgs, branched at f0ea3a19.
 # The PPC performance work merged to oldmac on 2026-08-19, fast-forward, so the
 # commit here is the one the fleet A/Bs and the G3 hands-on pass ran against.
-# 00dda492 (2026-09-07): r_dlight_spherical, dynamic lights fall off by true
-# distance so a flashlight beam wraps across brush folds. On top of d3c10eeb,
-# deferred lightmaps drawn at the single-pass overbright
-# level, fixing the dark rectangle around the flashlight on PowerPC. On top of
-# 4af0ad76, the ripple coordinate precompute.
+# Candidate: world-space spherical falloff with a plane-correct texture inverse.
+# Flashlight size is chosen once from the hit face. Awaiting G4 hand testing.
 PIN_ENGINE_URL="https://github.com/matthewdeaves/xash3d-fwgs.git"
 PIN_ENGINE_BRANCH="oldmac"
-PIN_ENGINE_COMMIT="00dda49255fb5454f242e34034959861dd206c3e"
+PIN_ENGINE_COMMIT="7d3a331b243e80421ca8392ff05211bc4365654c"
 PIN_ENGINE_UPSTREAM="FWGS/xash3d-fwgs@f0ea3a19"
 
 # --- menu: submodule of the engine, re-pointed by our engine branch ----------

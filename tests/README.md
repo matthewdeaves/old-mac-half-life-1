@@ -98,3 +98,17 @@ narrow what hardware testing has to look for; they do not replace it.
 
 There is also no test that a mod plays, only that its parts are present and the
 right shape.
+
+## Flashlight geometry regression
+
+`python3 tests/test-flashlight.py` compiles the engine checkout's actual
+`R_AddDynamicLights` with renderer dependencies stubbed. It compares the light
+at one shared world point across face orientations, texture scales, skew axes
+and world-luxel flags. The executable runs under address and undefined-behaviour
+sanitizers. This checks the distance calculation, not the rendered beam or its
+frame cost.
+
+To check that it detects the old fault, save `ref/gl/gl_rsurf.c` from engine
+`00dda492` and pass its path with `--source`. That baseline fails the shared-point
+cases. `--emit /tmp/flashlight-test.c` also writes the C harness for a legacy
+compiler check.
