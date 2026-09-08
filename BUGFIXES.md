@@ -8,12 +8,14 @@ not for every commit. Deep engine writeups live in
 
 ## Renderer
 
-- Flashlight hard edges at wall folds remain under investigation, issue #34.
-  The earlier spherical candidate did not fix the player's report and its
-  mixed texture/world distance was not continuous across faces. A replacement
-  uses a plane-correct inverse texture mapping and chooses one world radius
-  for the flashlight from its hit face. The accumulator regression test passes;
-  the candidate still needs G4 hand testing. `docs/adr/0020`.
+- Flashlight hard edges at wall folds, issue #34: the earlier spherical
+  candidate mixed texture-space offsets with world-space plane distance, so
+  adjoining faces still disagreed. The replacement in engine `7d3a331b` uses
+  a plane-correct inverse texture mapping, conservative world-space marking,
+  and one flashlight radius chosen from its hit face. The actual accumulator
+  passes the shared-point regression on Apple Silicon and the G4. The user
+  confirmed `v1.9.18-rc3` fixes the visible fault on this Apple Silicon Mac and
+  the G4 mini. It remains an unpublished test candidate. `docs/adr/0020`.
 - Flashlight drew a dark rectangle around its beam on PowerPC: the wall it
   touched rendered at two thirds of the brightness of the walls around it, the
   size of one surface, with the beam inside. Cause: with `gl_overbright` on,
