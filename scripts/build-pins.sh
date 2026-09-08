@@ -33,8 +33,8 @@ XASH_VERSION="0.21"
 # Fork of FWGS/xash3d-fwgs, branched at f0ea3a19.
 # The PPC performance work merged to oldmac on 2026-08-19, fast-forward, so the
 # commit here is the one the fleet A/Bs and the G3 hands-on pass ran against.
-# Candidate: world-space spherical falloff with a plane-correct texture inverse.
-# Flashlight size is chosen once from the hit face. User-tested on arm64 and G4.
+# World-space spherical falloff with a plane-correct texture inverse.
+# Flashlight size is chosen once from the hit face. User-tested on arm64, Intel, G4 and G5.
 PIN_ENGINE_URL="https://github.com/matthewdeaves/xash3d-fwgs.git"
 PIN_ENGINE_BRANCH="oldmac"
 PIN_ENGINE_COMMIT="7d3a331b243e80421ca8392ff05211bc4365654c"

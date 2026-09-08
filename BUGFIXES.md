@@ -14,8 +14,8 @@ not for every commit. Deep engine writeups live in
   a plane-correct inverse texture mapping, conservative world-space marking,
   and one flashlight radius chosen from its hit face. The actual accumulator
   passes the shared-point regression on Apple Silicon and the G4. The user
-  confirmed `v1.9.18-rc3` fixes the visible fault on this Apple Silicon Mac and
-  the G4 mini. It remains an unpublished test candidate. `docs/adr/0020`.
+  confirmed the fix in `v1.9.18-rc3` on Apple Silicon, the G4 mini, the iMac G5
+  and imac-2019. Included in v1.9.18. `docs/adr/0020`.
 - Flashlight drew a dark rectangle around its beam on PowerPC: the wall it
   touched rendered at two thirds of the brightness of the walls around it, the
   size of one surface, with the beam inside. Cause: with `gl_overbright` on,
