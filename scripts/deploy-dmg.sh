@@ -41,10 +41,13 @@ DEST_DIR="${DEST_DIR:-/Applications/Half-Life}"
 # too easily attributed to scp.
 stage() {
 	label="$1"; shift
-	if "$@"; then return 0; fi
-	rc=$?
-	echo "[deploy-dmg $HOST] FATAL: $label failed (exit $rc)" >&2
-	return "$rc"
+	if "$@"; then
+		return 0
+	else
+		rc=$?
+		echo "[deploy-dmg $HOST] FATAL: $label failed (exit $rc)" >&2
+		return "$rc"
+	fi
 }
 
 # Claim the machine for the whole run. See scripts/pick-bench-host.sh.
