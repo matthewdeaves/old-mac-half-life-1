@@ -137,7 +137,11 @@ echo "[deploy-dmg $HOST] DMG on Desktop verified intact ($RMT_MD5)"
 
 fi   # end of the non-PRESTAGE image transfer
 
-echo "[deploy-dmg $HOST] mount + install into ~/$DEST_DIR/ (preserving retail valve/ data)"
+case "$DEST_DIR" in
+  /*) DEST_LABEL="$DEST_DIR" ;;
+  *)  DEST_LABEL="~/$DEST_DIR" ;;
+esac
+echo "[deploy-dmg $HOST] mount + install into $DEST_LABEL/ (preserving retail valve/ data)"
 # The helper carries the narrow, inventory-backed rollback transaction.  It is
 # copied from this checkout for this one deploy, so old fleet trees do not need
 # a prior sync just to make a candidate installation reversible.

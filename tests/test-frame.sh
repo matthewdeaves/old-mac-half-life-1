@@ -43,7 +43,7 @@ SCP="scp -o ConnectTimeout=8 -o BatchMode=yes"
 # /Users/g5quad, where nothing would be found and the test would report the
 # engine wrote no screenshot.
 # shellcheck disable=SC2088
-SHOTS='~/Desktop/Half-Life/valve/scrshots'
+SHOTS='/Applications/Half-Life/valve/scrshots'
 SHOTNAME="hlframe-$(date +%s)-$$.png"
 
 echo "== capturing a frame on $HOST, map $MAP =="

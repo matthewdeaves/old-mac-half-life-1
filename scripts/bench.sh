@@ -131,6 +131,7 @@ esac
 # ---- locate the app bundle --------------------------------------------------
 if [ -z "$APP" ]; then
 	for cand in \
+		/Applications/Half-Life/Half-Life.app \
 		"$HOME/Desktop/Half-Life/Half-Life.app" \
 		"$HOME/Desktop/Half-Life-Universal/Half-Life.app" \
 		/Applications/Half-Life.app; do
