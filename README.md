@@ -65,6 +65,13 @@ shipped in every release like the rest; it has simply never been launched on a
 Core Solo or Core Duo. Each should take its existing slice; a report either way
 is [useful](https://github.com/matthewdeaves/old-mac-half-life-1/issues).
 
+### Manual validation record
+
+On 2026-09-12, the user played the `v1.9.18` candidate on `mini-g4` (Mac OS X
+10.4.11) and reported that Half-Life looked good, the flashlight was fixed, and
+it played well. This observation does not verify normal quit, save/load, or
+sound; those checks remain outstanding.
+
 ![Anatomy of the fat binary: three source trees build into five CPU slices that lipo fuses into one Half-Life.app](docs/img/fat-binary.svg)
 
 ## The three apps
