@@ -33,7 +33,7 @@ else
   [ -f "$DMG" ] || { echo "missing $DMG" >&2; exit 1; }
 fi
 DMG_BASE=$(basename "$DMG")
-DEST_DIR="${DEST_DIR:-Desktop/Half-Life}"   # relative to the target's home
+DEST_DIR="${DEST_DIR:-/Applications/Half-Life}"
 
 # Keep transfer failures attributable without xtrace, which would spill every
 # command argument and environment setting into a fleet log.  The deployer used
@@ -144,15 +144,24 @@ ssh "$HOST" "PRESTAGED=${PRESTAGE:-0} HELPER='$ROLLBACK_HELPER' bash -s '$DMG_BA
 set -e
 DMG_BASE="$1"; DEST_DIR="$2"
 MNT="$HOME/hlinstall-mnt"
-DEST="$HOME/$DEST_DIR"
+case "$DEST_DIR" in
+	/*) FINAL_DEST="$DEST_DIR" ;;
+	*)  FINAL_DEST="$HOME/$DEST_DIR" ;;
+esac
+DEST="$FINAL_DEST"
 HELPER="${HELPER:?missing rollback helper}"
 [ -x "$HELPER" ] || { echo "missing executable rollback helper: $HELPER" >&2; exit 1; }
 ROLLBACK=""
+STAGE=""
 finish() {
 	rc=$?
 	if [ "$rc" -ne 0 ] && [ -n "$ROLLBACK" ]; then
 		echo "DEPLOY FAILED: original owned paths remain at $ROLLBACK" >&2
-		echo "Restore with: $ROLLBACK/RESTORE.sh '$DEST'" >&2
+		echo "Restore with: $ROLLBACK/RESTORE.sh '$FINAL_DEST'" >&2
+	fi
+	if [ "$rc" -ne 0 ] && [ -n "$STAGE" ] && [ -d "$STAGE" ]; then
+		rm -rf "$STAGE"
+		echo "discarded incomplete owned staging tree: $STAGE" >&2
 	fi
 	rm -f "$HELPER"
 	exit "$rc"
@@ -197,13 +206,31 @@ fi   # end of the non-PRESTAGED attach
 [ -x "$MNT/Half-Life.app/Contents/MacOS/xash3d.bin" ] || { echo "FATAL: candidate has no engine binary" >&2; exit 1; }
 [ -d "$MNT/Half-Life.app/Contents/Resources/Half-Life/valve" ] || { echo "FATAL: candidate has no bundled game root" >&2; exit 1; }
 
+# New system-wide installs are promoted from a sibling staging tree.  The
+# Desktop game remains the source of the player's retail data, saves and mods;
+# it is copied, never renamed or modified.  Refuse an occupied final path so a
+# later deploy cannot silently merge with somebody else's /Applications install.
+case "$DEST_DIR" in
+	/Applications/*)
+		[ ! -e "$FINAL_DEST" ] || { echo "FATAL: refusing occupied destination $FINAL_DEST" >&2; exit 1; }
+		[ -w "$(dirname "$FINAL_DEST")" ] || { echo "FATAL: destination parent is not writable: $(dirname "$FINAL_DEST")" >&2; exit 1; }
+		SOURCE="${DATA_SOURCE:-$HOME/Desktop/Half-Life}"
+		[ -f "$SOURCE/valve/pak0.pak" ] || { echo "FATAL: source retail data missing: $SOURCE/valve/pak0.pak" >&2; exit 1; }
+		STAGE="${FINAL_DEST}.hl-stage-$$"
+		[ ! -e "$STAGE" ] || { echo "FATAL: staging path exists: $STAGE" >&2; exit 1; }
+		echo "staging preserved Desktop tree $SOURCE -> $STAGE"
+		ditto "$SOURCE" "$STAGE"
+		DEST="$STAGE"
+		;;
+esac
+
 # Keep the original app bundles, old port-owned valve runtime files and Finder
 # state outside the game root.  The helper's fixed inventory deliberately never
 # includes retail data, saves or mod directories.  The backup is retained after
 # success so a user can restore before a manual test if the candidate is wrong.
 ROLLBACK_ROOT="${ROLLBACK_ROOT:-$($HELPER root)}"
 ROLLBACK="$ROLLBACK_ROOT/$(date +%Y%m%d-%H%M%S)-$DMG_BASE"
-"$HELPER" backup "$DEST" "$ROLLBACK" "$DMG_BASE"
+"$HELPER" backup "$FINAL_DEST" "$ROLLBACK" "$DMG_BASE"
 
 mkdir -p "$DEST/valve"
 # Replace the app wholesale so no stale bundle files survive. ditto keeps the
@@ -386,6 +413,13 @@ rmdir "$MNT" 2>/dev/null || true
 if mount | grep -q " $MNT " 2>/dev/null; then
 	echo "WARNING: $MNT is still mounted - eject it by hand"
 fi
+fi
+
+if [ -n "$STAGE" ]; then
+	mv "$STAGE" "$FINAL_DEST"
+	DEST="$FINAL_DEST"
+	STAGE=""
+	echo "promoted staged candidate into $DEST"
 fi
 
 echo "installed into $DEST:"

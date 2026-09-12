@@ -48,7 +48,7 @@ if [ "${RETRO_BENCH_LOCK:-}" != "$HOST" ] && [ "${BENCH_NO_LOCK:-0}" != 1 ] && [
 	export RETRO_BENCH_LOCK="$HOST"
 	exec "$_PICK" --run "$HOST" "smoke-dmg" -- "$0" "$@"
 fi
-DEST_DIR="${DEST_DIR:-Desktop/Half-Life}"
+DEST_DIR="${DEST_DIR:-/Applications/Half-Life}"
 
 case "$HOST" in
   yosemite|yosemite-tiger|g3-panther|g3-tiger)
@@ -71,7 +71,11 @@ esac
 echo "[smoke $HOST] launching DMG-installed Half-Life.app via LaunchServices (open), like a Finder double-click"
 RESULT=$(ssh "$HOST" bash -s "$DEST_DIR" "$MINALIVE" "$TIMEOUT" <<'REMOTE_EOF'
 set -u
-DEST="$HOME/$1"; MINALIVE="$2"; TIMEOUT="$3"
+case "$1" in
+  /*) DEST="$1" ;;
+  *)  DEST="$HOME/$1" ;;
+esac
+MINALIVE="$2"; TIMEOUT="$3"
 BUNDLE="$DEST/Half-Life.app"
 APP="$BUNDLE/Contents/MacOS/xash3d"
 LOG="$DEST/last-run.log"
