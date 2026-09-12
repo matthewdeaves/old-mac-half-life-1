@@ -35,6 +35,18 @@ fi
 DMG_BASE=$(basename "$DMG")
 DEST_DIR="${DEST_DIR:-Desktop/Half-Life}"   # relative to the target's home
 
+# Keep transfer failures attributable without xtrace, which would spill every
+# command argument and environment setting into a fleet log.  The deployer used
+# to print its copy banner before several SSH steps, so a later silent exit was
+# too easily attributed to scp.
+stage() {
+	label="$1"; shift
+	if "$@"; then return 0; fi
+	rc=$?
+	echo "[deploy-dmg $HOST] FATAL: $label failed (exit $rc)" >&2
+	return "$rc"
+}
+
 # Claim the machine for the whole run. See scripts/pick-bench-host.sh.
 #
 # Re-exec under the picker rather than acquire-here-and-trap, matching the other
@@ -92,23 +104,31 @@ if [ "${PRESTAGE:-0}" = 1 ]; then
 else
 
 echo "[deploy-dmg $HOST] copy $DMG_BASE to ~/Desktop/"
-ssh "$HOST" 'mkdir -p ~/Desktop'
+stage "create target Desktop" ssh "$HOST" 'mkdir -p ~/Desktop'
 
 # Remove any previously-shipped release DMGs first (scoped to our own release
 # artifacts; the user's files are never touched) so stale versions don't pile up
 # and a leftover same-name image can't be silently reused after a failed scp.
-OLD=$(ssh "$HOST" 'ls -1 ~/Desktop/Half-Life-OldMac-*.dmg 2>/dev/null || true')
+if OLD=$(ssh "$HOST" 'ls -1 ~/Desktop/Half-Life-OldMac-*.dmg 2>/dev/null || true'); then :; else
+	rc=$?
+	echo "[deploy-dmg $HOST] FATAL: list prior release DMGs failed (exit $rc)" >&2
+	exit "$rc"
+fi
 if [ -n "$OLD" ]; then
-  echo "[deploy-dmg $HOST] removing old release DMG(s):"; echo "$OLD" | sed 's/^/    /'
-  ssh "$HOST" 'rm -f ~/Desktop/Half-Life-OldMac-*.dmg'
+	echo "[deploy-dmg $HOST] removing old release DMG(s):"; echo "$OLD" | sed 's/^/    /'
+	stage "remove prior release DMGs" ssh "$HOST" 'rm -f ~/Desktop/Half-Life-OldMac-*.dmg'
 fi
 
-scp -q "$DMG" "$HOST:Desktop/$DMG_BASE"
+stage "copy candidate DMG" scp -q "$DMG" "$HOST:Desktop/$DMG_BASE"
 
 # Verify the .dmg arrived intact (md5 local vs remote) - defence in depth on top
 # of make-dmg.sh's end-to-end content check.
 LCL_MD5=$(md5 -q "$DMG" 2>/dev/null || md5sum "$DMG" 2>/dev/null | awk '{print $1}')
-RMT_MD5=$(ssh "$HOST" "md5 'Desktop/$DMG_BASE' | awk '{print \$NF}'")
+if RMT_MD5=$(ssh "$HOST" "md5 'Desktop/$DMG_BASE' | awk '{print \$NF}'"); then :; else
+	rc=$?
+	echo "[deploy-dmg $HOST] FATAL: read target DMG checksum failed (exit $rc)" >&2
+	exit "$rc"
+fi
 [ "$LCL_MD5" = "$RMT_MD5" ] || { echo "[deploy-dmg $HOST] FATAL: scp corrupted the DMG ($LCL_MD5 != $RMT_MD5)" >&2; exit 1; }
 echo "[deploy-dmg $HOST] DMG on Desktop verified intact ($RMT_MD5)"
 
