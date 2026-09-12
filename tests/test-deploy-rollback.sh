@@ -6,6 +6,8 @@ HELPER="$ROOT/scripts/deploy-rollback.sh"
 TMP="$(mktemp -d -t hl-deploy-rollback)"
 trap 'rm -rf "$TMP"' EXIT HUP INT TERM
 DEST="$TMP/Half-Life"
+[ "$(HOME="$TMP/home" "$HELPER" root)" = "$TMP/home/oldmac/halflife/rollback" ] || {
+	echo "unexpected default rollback root" >&2; exit 1; }
 
 seed_old() {
 	mkdir -p "$DEST/valve/cl_dlls" "$DEST/valve/dlls" "$DEST/valve/gfx/shell/mods" "$DEST/mod-user"
@@ -54,4 +56,16 @@ assert_eq "$DEST/valve/gfx/shell/mods/banner.tga" old-art
 assert_eq "$DEST/.DS_Store" finder-state
 assert_eq "$DEST/valve/pak0.pak" player-data
 assert_eq "$DEST/mod-user/liblist.gam" player-mod
+
+# A corrupt later saved payload must fail before changing the first app bundle.
+BAD="$TMP/bad-rollback"
+"$HELPER" backup "$DEST" "$BAD" interrupted-fixture >/dev/null
+rm -f "$BAD/payload/Half-Life System Report.app"
+rm -rf "$DEST/Half-Life.app"
+echo candidate-after-failure > "$DEST/Half-Life.app"
+if "$BAD/RESTORE.sh" "$DEST" >/dev/null 2>&1; then
+	echo "restore unexpectedly accepted a missing payload" >&2; exit 1
+fi
+assert_eq "$DEST/Half-Life.app" candidate-after-failure
+assert_eq "$DEST/valve/pak0.pak" player-data
 echo "deploy rollback fixtures: promoted and restored"

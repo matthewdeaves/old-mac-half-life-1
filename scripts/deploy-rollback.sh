@@ -9,7 +9,7 @@
 set -eu
 
 usage() {
-	echo "usage: $0 backup DEST BACKUP LABEL | restore BACKUP DEST" >&2
+	echo "usage: $0 root | backup DEST BACKUP LABEL | restore BACKUP DEST" >&2
 	exit 2
 }
 
@@ -34,6 +34,11 @@ valve/last-run.log
 valve/gfx/shell/mods
 .DS_Store
 ITEMS
+}
+
+default_root() {
+	: "${HOME:?missing HOME}"
+	printf '%s\n' "$HOME/oldmac/halflife/rollback"
 }
 
 backup() {
@@ -66,26 +71,41 @@ RESTORE
 	echo "restore command: $BACKUP/RESTORE.sh '$DEST'"
 }
 
-restore() {
-	BACKUP="$1" DEST="$2"
+preflight_restore() {
+	BACKUP="$1"
 	[ -f "$BACKUP/manifest" ] || { echo "missing rollback manifest: $BACKUP/manifest" >&2; exit 1; }
 	while IFS="$(printf '\t')" read -r state rel; do
 		owned_path "$rel" || { echo "refusing unowned rollback path: $rel" >&2; exit 1; }
 		case "$state" in
 			present)
-				[ -e "$BACKUP/payload/$rel" ] || { echo "missing saved path: $rel" >&2; exit 1; }
+				[ -e "$BACKUP/payload/$rel" ] || [ -L "$BACKUP/payload/$rel" ] || { echo "missing saved path: $rel" >&2; exit 1; }
+				;;
+			absent) ;;
+			*) echo "bad rollback manifest state: $state" >&2; exit 1 ;;
+		esac
+	done < "$BACKUP/manifest"
+}
+
+restore() {
+	BACKUP="$1" DEST="$2"
+	# Validate every later input before the first rm -rf. An incomplete backup
+	# must fail as a no-op, rather than leaving a half-restored player install.
+	preflight_restore "$BACKUP"
+	while IFS="$(printf '\t')" read -r state rel; do
+		case "$state" in
+			present)
 				rm -rf "${DEST:?}/$rel"
 				mkdir -p "$(dirname "${DEST:?}/$rel")"
 				ditto "$BACKUP/payload/$rel" "${DEST:?}/$rel"
 				;;
 			absent) rm -rf "${DEST:?}/$rel" ;;
-			*) echo "bad rollback manifest state: $state" >&2; exit 1 ;;
 		esac
 	done < "$BACKUP/manifest"
 	echo "rollback restored into $DEST; retail valve data and mod directories were not touched"
 }
 
 case "${1:-}" in
+	root) [ "$#" = 1 ] || usage; default_root ;;
 	backup) [ "$#" = 4 ] || usage; backup "$2" "$3" "$4" ;;
 	restore) [ "$#" = 3 ] || usage; restore "$2" "$3" ;;
 	*) usage ;;

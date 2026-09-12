@@ -181,7 +181,7 @@ fi   # end of the non-PRESTAGED attach
 # state outside the game root.  The helper's fixed inventory deliberately never
 # includes retail data, saves or mod directories.  The backup is retained after
 # success so a user can restore before a manual test if the candidate is wrong.
-ROLLBACK_ROOT="${ROLLBACK_ROOT:-$HOME/.oldmac-half-life-rollback}"
+ROLLBACK_ROOT="${ROLLBACK_ROOT:-$($HELPER root)}"
 ROLLBACK="$ROLLBACK_ROOT/$(date +%Y%m%d-%H%M%S)-$DMG_BASE"
 "$HELPER" backup "$DEST" "$ROLLBACK" "$DMG_BASE"
 
