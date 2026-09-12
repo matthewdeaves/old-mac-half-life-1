@@ -73,9 +73,13 @@ if [ "${RETRO_BENCH_LOCK:-}" != "$HOST" ] && [ "${BENCH_NO_LOCK:-0}" != 1 ] && [
 	export RETRO_BENCH_LOCK="$HOST"
 	exec "$_PICK" --run "$HOST" "test-text-input" -- "$0" "$@"
 fi
-DEST_DIR="${DEST_DIR:-Desktop/Half-Life}"
-CFG="\$HOME/$DEST_DIR/valve/config.cfg"
-LOG="\$HOME/$DEST_DIR/last-run.log"
+DEST_DIR="${DEST_DIR:-/Applications/Half-Life}"
+case "$DEST_DIR" in
+  /*) DEST="$DEST_DIR" ;;
+  *)  DEST="\$HOME/$DEST_DIR" ;;
+esac
+CFG="$DEST/valve/config.cfg"
+LOG="$DEST/last-run.log"
 
 osa()   { ssh "$HOST" "osascript -e 'tell application \"System Events\" to $1'" >/dev/null 2>&1 || true; }
 # grep -c prints 0 AND exits 1 when nothing matches, so the fallback has to be
@@ -99,7 +103,7 @@ echo "[text-input $HOST] forcing the introduce dialog (name -> Player)"
 ssh "$HOST" "cp $CFG $CFG.testbak && sed -e 's/^name \".*\"/name \"Player\"/' $CFG.testbak > $CFG"
 
 echo "[text-input $HOST] launching via LaunchServices"
-ssh "$HOST" "open \$HOME/$DEST_DIR/Half-Life.app"
+ssh "$HOST" "open $DEST/Half-Life.app"
 
 # Wait for the menu, not a fixed sleep. Match the filename alone: the engine
 # colours it, so the log holds "execing ESC[1;32mmainui.cfg ESC[0m" and a grep
