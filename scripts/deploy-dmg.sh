@@ -115,11 +115,29 @@ echo "[deploy-dmg $HOST] DMG on Desktop verified intact ($RMT_MD5)"
 fi   # end of the non-PRESTAGE image transfer
 
 echo "[deploy-dmg $HOST] mount + install into ~/$DEST_DIR/ (preserving retail valve/ data)"
-ssh "$HOST" "PRESTAGED=${PRESTAGE:-0} bash -s '$DMG_BASE' '$DEST_DIR'" <<'REMOTE_EOF'
+# The helper carries the narrow, inventory-backed rollback transaction.  It is
+# copied from this checkout for this one deploy, so old fleet trees do not need
+# a prior sync just to make a candidate installation reversible.
+ROLLBACK_HELPER="/tmp/hl-deploy-rollback-$$.sh"
+scp -q "$REPO_ROOT/scripts/deploy-rollback.sh" "$HOST:$ROLLBACK_HELPER"
+ssh "$HOST" "PRESTAGED=${PRESTAGE:-0} HELPER='$ROLLBACK_HELPER' bash -s '$DMG_BASE' '$DEST_DIR'" <<'REMOTE_EOF'
 set -e
 DMG_BASE="$1"; DEST_DIR="$2"
 MNT="$HOME/hlinstall-mnt"
 DEST="$HOME/$DEST_DIR"
+HELPER="${HELPER:?missing rollback helper}"
+[ -x "$HELPER" ] || { echo "missing executable rollback helper: $HELPER" >&2; exit 1; }
+ROLLBACK=""
+finish() {
+	rc=$?
+	if [ "$rc" -ne 0 ] && [ -n "$ROLLBACK" ]; then
+		echo "DEPLOY FAILED: original owned paths remain at $ROLLBACK" >&2
+		echo "Restore with: $ROLLBACK/RESTORE.sh '$DEST'" >&2
+	fi
+	rm -f "$HELPER"
+	exit "$rc"
+}
+trap finish EXIT
 
 # PRESTAGED=1 means the caller could not mount the image on this machine and has
 # already put the image's CONTENTS at $MNT by other means. Skip the attach and
@@ -151,6 +169,21 @@ ATTACH_OUT=$(hdiutil attach -nobrowse -readonly -mountpoint "$MNT" "$HOME/Deskto
 DEV=$(echo "$ATTACH_OUT" | awk '/^\/dev\/disk/ { print $1; exit }')
 
 fi   # end of the non-PRESTAGED attach
+
+# Do not even inventory the old install until the mounted candidate has the
+# executable shape we are about to promote.  This catches a bad/mixed staging
+# directory before a single installed file is replaced.
+[ -x "$MNT/Half-Life.app/Contents/MacOS/xash3d" ] || { echo "FATAL: candidate has no executable launcher" >&2; exit 1; }
+[ -x "$MNT/Half-Life.app/Contents/MacOS/xash3d.bin" ] || { echo "FATAL: candidate has no engine binary" >&2; exit 1; }
+[ -d "$MNT/Half-Life.app/Contents/Resources/Half-Life/valve" ] || { echo "FATAL: candidate has no bundled game root" >&2; exit 1; }
+
+# Keep the original app bundles, old port-owned valve runtime files and Finder
+# state outside the game root.  The helper's fixed inventory deliberately never
+# includes retail data, saves or mod directories.  The backup is retained after
+# success so a user can restore before a manual test if the candidate is wrong.
+ROLLBACK_ROOT="${ROLLBACK_ROOT:-$HOME/.oldmac-half-life-rollback}"
+ROLLBACK="$ROLLBACK_ROOT/$(date +%Y%m%d-%H%M%S)-$DMG_BASE"
+"$HELPER" backup "$DEST" "$ROLLBACK" "$DMG_BASE"
 
 mkdir -p "$DEST/valve"
 # Replace the app wholesale so no stale bundle files survive. ditto keeps the
