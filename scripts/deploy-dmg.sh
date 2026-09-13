@@ -219,21 +219,24 @@ fi   # end of the non-PRESTAGED attach
 [ -x "$MNT/Half-Life.app/Contents/MacOS/xash3d.bin" ] || { echo "FATAL: candidate has no engine binary" >&2; exit 1; }
 [ -d "$MNT/Half-Life.app/Contents/Resources/Half-Life/valve" ] || { echo "FATAL: candidate has no bundled game root" >&2; exit 1; }
 
-# New system-wide installs are promoted from a sibling staging tree.  The
-# Desktop game remains the source of the player's retail data, saves and mods;
-# it is copied, never renamed or modified.  Refuse an occupied final path so a
-# later deploy cannot silently merge with somebody else's /Applications install.
+# A first move onto /Applications is promoted from a sibling staging tree built
+# from the Desktop game, so the player's retail data, saves and mods are copied
+# in rather than lost - the Desktop source is copied, never renamed or
+# modified. An /Applications install that already exists is a later upgrade of
+# an already-migrated host, not a second migration: it goes through the same
+# backup-then-replace path as any other destination, below. issue #35.
 case "$DEST_DIR" in
 	/Applications/*)
-		[ ! -e "$FINAL_DEST" ] || { echo "FATAL: refusing occupied destination $FINAL_DEST" >&2; exit 1; }
 		[ -w "$(dirname "$FINAL_DEST")" ] || { echo "FATAL: destination parent is not writable: $(dirname "$FINAL_DEST")" >&2; exit 1; }
-		SOURCE="${DATA_SOURCE:-$HOME/Desktop/Half-Life}"
-		[ -f "$SOURCE/valve/pak0.pak" ] || { echo "FATAL: source retail data missing: $SOURCE/valve/pak0.pak" >&2; exit 1; }
-		STAGE="${FINAL_DEST}.hl-stage-$$"
-		[ ! -e "$STAGE" ] || { echo "FATAL: staging path exists: $STAGE" >&2; exit 1; }
-		echo "staging preserved Desktop tree $SOURCE -> $STAGE"
-		ditto "$SOURCE" "$STAGE"
-		DEST="$STAGE"
+		if [ ! -e "$FINAL_DEST" ]; then
+			SOURCE="${DATA_SOURCE:-$HOME/Desktop/Half-Life}"
+			[ -f "$SOURCE/valve/pak0.pak" ] || { echo "FATAL: source retail data missing: $SOURCE/valve/pak0.pak" >&2; exit 1; }
+			STAGE="${FINAL_DEST}.hl-stage-$$"
+			[ ! -e "$STAGE" ] || { echo "FATAL: staging path exists: $STAGE" >&2; exit 1; }
+			echo "staging preserved Desktop tree $SOURCE -> $STAGE"
+			ditto "$SOURCE" "$STAGE"
+			DEST="$STAGE"
+		fi
 		;;
 esac
 
