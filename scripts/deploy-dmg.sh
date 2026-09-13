@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Install the release DMG onto a target Mac the way an end user would: copy the
-# .dmg to the Desktop, mount it, copy its contents into the game folder, unmount.
-# This is deliberately the DMG path (not a direct rsync) so the test loop
-# exercises the exact artifact and install steps a human performs - that is where
-# a corrupt-image bug would hide (a direct deploy can be clean while the DMG is not).
+# .dmg into this port's own staging directory, mount it, copy its contents into
+# the game folder, unmount. This is deliberately the DMG path (not a direct
+# rsync) so the test loop exercises the exact artifact and install steps a
+# human performs - that is where a corrupt-image bug would hide (a direct
+# deploy can be clean while the DMG is not). The staging directory is
+# ~/oldmac/halflife, never the Desktop or another home-root path: that scratch
+# belongs to this port, not the player's install. issue #35.
 #
 # usage: scripts/deploy-dmg.sh <machine> [version]
 #   machine: yosemite | sawtooth | quicksilver | mini-g4 | imac-g5
@@ -90,7 +93,7 @@ if [ "${PRESTAGE:-0}" = 1 ]; then
 	hdiutil attach -nobrowse -readonly -mountpoint "$LMNT" "$DMG" >/dev/null
 	trap 'hdiutil detach "$LMNT" >/dev/null 2>&1 || hdiutil detach -force "$LMNT" >/dev/null 2>&1 || true; rmdir "$LMNT" 2>/dev/null || true' EXIT
 	[ -d "$LMNT/Half-Life.app" ] || { echo "[deploy-dmg $HOST] FATAL: local mount has no Half-Life.app" >&2; exit 1; }
-	ssh "$HOST" 'rm -rf "$HOME/hlinstall-mnt" && mkdir -p "$HOME/hlinstall-mnt"'
+	ssh "$HOST" 'rm -rf "$HOME/oldmac/halflife/hlinstall-mnt" && mkdir -p "$HOME/oldmac/halflife/hlinstall-mnt"'
 	# -E preserves the resource forks the icons live in, the way ditto does.
 	#
 	# The excludes are HFS volume housekeeping, not payload, and .Trashes is not
@@ -102,38 +105,41 @@ if [ "${PRESTAGE:-0}" = 1 ]; then
 	rsync -aE --delete \
 		--exclude '.Trashes' --exclude '.fseventsd' --exclude '.Spotlight-V100' \
 		--exclude '.DS_Store' --exclude '.TemporaryItems' --exclude '.VolumeIcon.icns' \
-		"$LMNT"/ "$HOST:hlinstall-mnt/"
-	echo "[deploy-dmg $HOST] contents staged at ~/hlinstall-mnt"
+		"$LMNT"/ "$HOST:oldmac/halflife/hlinstall-mnt/"
+	echo "[deploy-dmg $HOST] contents staged at ~/oldmac/halflife/hlinstall-mnt"
 else
 
-echo "[deploy-dmg $HOST] copy $DMG_BASE to ~/Desktop/"
-stage "create target Desktop" ssh "$HOST" 'mkdir -p ~/Desktop'
+# Transfer staging lives under ~/oldmac/halflife, not ~/Desktop or the home
+# root: it is scratch this port owns for the length of one deploy, not part of
+# the player's installed game. issue #35.
+echo "[deploy-dmg $HOST] copy $DMG_BASE to ~/oldmac/halflife/deploy-stage/"
+stage "create staging directory" ssh "$HOST" 'mkdir -p ~/oldmac/halflife/deploy-stage'
 
 # Remove any previously-shipped release DMGs first (scoped to our own release
 # artifacts; the user's files are never touched) so stale versions don't pile up
 # and a leftover same-name image can't be silently reused after a failed scp.
-if OLD=$(ssh "$HOST" 'ls -1 ~/Desktop/Half-Life-OldMac-*.dmg 2>/dev/null || true'); then :; else
+if OLD=$(ssh "$HOST" 'ls -1 ~/oldmac/halflife/deploy-stage/Half-Life-OldMac-*.dmg 2>/dev/null || true'); then :; else
 	rc=$?
 	echo "[deploy-dmg $HOST] FATAL: list prior release DMGs failed (exit $rc)" >&2
 	exit "$rc"
 fi
 if [ -n "$OLD" ]; then
 	echo "[deploy-dmg $HOST] removing old release DMG(s):"; echo "$OLD" | sed 's/^/    /'
-	stage "remove prior release DMGs" ssh "$HOST" 'rm -f ~/Desktop/Half-Life-OldMac-*.dmg'
+	stage "remove prior release DMGs" ssh "$HOST" 'rm -f ~/oldmac/halflife/deploy-stage/Half-Life-OldMac-*.dmg'
 fi
 
-stage "copy candidate DMG" scp -q "$DMG" "$HOST:Desktop/$DMG_BASE"
+stage "copy candidate DMG" scp -q "$DMG" "$HOST:oldmac/halflife/deploy-stage/$DMG_BASE"
 
 # Verify the .dmg arrived intact (md5 local vs remote) - defence in depth on top
 # of make-dmg.sh's end-to-end content check.
 LCL_MD5=$(md5 -q "$DMG" 2>/dev/null || md5sum "$DMG" 2>/dev/null | awk '{print $1}')
-if RMT_MD5=$(ssh "$HOST" "md5 'Desktop/$DMG_BASE' | awk '{print \$NF}'"); then :; else
+if RMT_MD5=$(ssh "$HOST" "md5 'oldmac/halflife/deploy-stage/$DMG_BASE' | awk '{print \$NF}'"); then :; else
 	rc=$?
 	echo "[deploy-dmg $HOST] FATAL: read target DMG checksum failed (exit $rc)" >&2
 	exit "$rc"
 fi
 [ "$LCL_MD5" = "$RMT_MD5" ] || { echo "[deploy-dmg $HOST] FATAL: scp corrupted the DMG ($LCL_MD5 != $RMT_MD5)" >&2; exit 1; }
-echo "[deploy-dmg $HOST] DMG on Desktop verified intact ($RMT_MD5)"
+echo "[deploy-dmg $HOST] staged DMG verified intact ($RMT_MD5)"
 
 fi   # end of the non-PRESTAGE image transfer
 
@@ -150,7 +156,7 @@ scp -q "$REPO_ROOT/scripts/deploy-rollback.sh" "$HOST:$ROLLBACK_HELPER"
 ssh "$HOST" "PRESTAGED=${PRESTAGE:-0} HELPER='$ROLLBACK_HELPER' bash -s '$DMG_BASE' '$DEST_DIR'" <<'REMOTE_EOF'
 set -e
 DMG_BASE="$1"; DEST_DIR="$2"
-MNT="$HOME/hlinstall-mnt"
+MNT="$HOME/oldmac/halflife/hlinstall-mnt"
 case "$DEST_DIR" in
 	/*) FINAL_DEST="$DEST_DIR" ;;
 	*)  FINAL_DEST="$HOME/$DEST_DIR" ;;
@@ -201,7 +207,7 @@ mkdir -p "$MNT"
 # directory") even for a mountpoint we just asked for, while detaching the device
 # node works. Measured on the G3 under Panther, where this script was silently
 # leaving the image mounted after every deploy.
-ATTACH_OUT=$(hdiutil attach -nobrowse -readonly -mountpoint "$MNT" "$HOME/Desktop/$DMG_BASE")
+ATTACH_OUT=$(hdiutil attach -nobrowse -readonly -mountpoint "$MNT" "$HOME/oldmac/halflife/deploy-stage/$DMG_BASE")
 DEV=$(echo "$ATTACH_OUT" | awk '/^\/dev\/disk/ { print $1; exit }')
 
 fi   # end of the non-PRESTAGED attach
@@ -440,18 +446,19 @@ if [ -f "$DEST/valve/pak0.pak" ]; then echo "retail valve/ game data present (pa
 else echo "NOTE: no valve/pak0.pak yet - add your retail Half-Life data to $DEST/valve before launching."; fi
 REMOTE_EOF
 
-# The DMG on Desktop has now been fully extracted into $DEST_DIR - remove it,
-# so a manual test/deploy round doesn't leave its own source image behind
-# forever. Scoped to our own named release artifact, same as the pre-copy
-# cleanup above; never touches anything of the player's. old-mac-build-host's
-# own fleet sweep (issue #26) found this leftover on 8 of 9 reachable hosts:
-# every deploy up to this fix installed cleanly and then left the .dmg it was
-# installed from sitting on the Desktop, since nothing ever removed it after
-# use. PRESTAGE mode never copies a .dmg to the target at all, so there is
-# nothing to remove there.
+# The staged DMG has now been fully extracted into $DEST_DIR - remove it, so a
+# manual test/deploy round doesn't leave its own source image behind forever.
+# Scoped to our own named release artifact, same as the pre-copy cleanup above;
+# never touches anything of the player's. old-mac-build-host's own fleet sweep
+# (issue #26) found this leftover on 8 of 9 reachable hosts, back when the
+# staging path was ~/Desktop: every deploy up to that fix installed cleanly and
+# then left the .dmg it was installed from sitting there, since nothing ever
+# removed it after use. Moved under ~/oldmac/halflife (issue #35); the failure
+# mode and the fix are the same either way. PRESTAGE mode never copies a .dmg to
+# the target at all, so there is nothing to remove there.
 if [ "${PRESTAGE:-0}" != 1 ]; then
-	ssh "$HOST" "rm -f ~/Desktop/$DMG_BASE"
-	echo "[deploy-dmg $HOST] removed ~/Desktop/$DMG_BASE (installed copy is at ~/$DEST_DIR)"
+	ssh "$HOST" "rm -f ~/oldmac/halflife/deploy-stage/$DMG_BASE"
+	echo "[deploy-dmg $HOST] removed staged $DMG_BASE (installed copy is at ~/$DEST_DIR)"
 fi
 
 echo "[deploy-dmg $HOST] done - installed from $DMG_BASE"

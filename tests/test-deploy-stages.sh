@@ -8,9 +8,9 @@ trap 'rm -rf "$TMP"' EXIT HUP INT TERM
 cat > "$TMP/ssh" <<'SH'
 #!/bin/sh
 case "${MOCK_FAIL:-}" in
-  mkdir) case "$*" in *'mkdir -p ~/Desktop'*) exit 23;; esac ;;
-  list) case "$*" in *'ls -1 ~/Desktop/Half-Life-OldMac-'*) exit 24;; esac ;;
-  md5) case "$*" in *"md5 'Desktop/Half-Life-OldMac-v1.9.18.dmg'"*) exit 26;; esac ;;
+  mkdir) case "$*" in *'mkdir -p ~/oldmac/halflife/deploy-stage'*) exit 23;; esac ;;
+  list) case "$*" in *'ls -1 ~/oldmac/halflife/deploy-stage/Half-Life-OldMac-'*) exit 24;; esac ;;
+  md5) case "$*" in *"md5 'oldmac/halflife/deploy-stage/Half-Life-OldMac-v1.9.18.dmg'"*) exit 26;; esac ;;
 esac
 exit 0
 SH
@@ -35,7 +35,7 @@ expect_fail() {
     echo "missing stage label for $kind" >&2; cat "$log" >&2; exit 1; }
 }
 
-expect_fail mkdir 23 "create target Desktop"
+expect_fail mkdir 23 "create staging directory"
 expect_fail list 24 "list prior release DMGs"
 expect_fail scp 25 "copy candidate DMG"
 expect_fail md5 26 "read target DMG checksum"
