@@ -38,6 +38,14 @@ fi
 DMG_BASE=$(basename "$DMG")
 DEST_DIR="${DEST_DIR:-/Applications/Half-Life}"
 
+# `workstation` is this arm64 dev box itself (scripts/pick-bench-host.sh's
+# LOCAL_ALIASES: "ONE HOST NEEDS NO SSH AT ALL"). Every step below that would
+# otherwise ssh/scp to $HOST runs directly on this machine instead.
+case "$HOST" in
+	workstation) LOCAL=1 ;;
+	*)           LOCAL=0 ;;
+esac
+
 # Keep transfer failures attributable without xtrace, which would spill every
 # command argument and environment setting into a fleet log.  The deployer used
 # to print its copy banner before several SSH steps, so a later silent exit was
@@ -86,6 +94,14 @@ fi
 # that mounts fine everywhere else (old-mac-build-host#41). Everything after the
 # mount is the same code, so this is a different way to reach the install, not a
 # second install path to keep in sync.
+#
+# Meaningless on the local workstation target: there is no second machine to
+# rsync the mount to, and this box's hdiutil is not the thing PRESTAGE exists
+# to route around.
+if [ "$LOCAL" = 1 ] && [ "${PRESTAGE:-0}" = 1 ]; then
+	echo "[deploy-dmg $HOST] FATAL: PRESTAGE is meaningless for the local workstation target" >&2
+	exit 1
+fi
 if [ "${PRESTAGE:-0}" = 1 ]; then
 	echo "[deploy-dmg $HOST] PRESTAGE: mounting the image locally and rsyncing its contents"
 	LMNT="$(mktemp -d -t hl-prestage)"
@@ -107,6 +123,27 @@ if [ "${PRESTAGE:-0}" = 1 ]; then
 		--exclude '.DS_Store' --exclude '.TemporaryItems' --exclude '.VolumeIcon.icns' \
 		"$LMNT"/ "$HOST:oldmac/halflife/hlinstall-mnt/"
 	echo "[deploy-dmg $HOST] contents staged at ~/oldmac/halflife/hlinstall-mnt"
+elif [ "$LOCAL" = 1 ]; then
+
+# Same staging path and same by-name DMG cleanup as the remote leg, just with
+# a plain cp instead of scp+ssh - there is no second machine to reach.
+echo "[deploy-dmg $HOST] copy $DMG_BASE to ~/oldmac/halflife/deploy-stage/ (local)"
+mkdir -p "$HOME/oldmac/halflife/deploy-stage"
+OLD=$(ls -1 "$HOME"/oldmac/halflife/deploy-stage/Half-Life-OldMac-*.dmg 2>/dev/null || true)
+if [ -n "$OLD" ]; then
+	echo "[deploy-dmg $HOST] removing old release DMG(s):"; echo "$OLD" | sed 's/^/    /'
+	rm -f "$HOME"/oldmac/halflife/deploy-stage/Half-Life-OldMac-*.dmg
+fi
+
+stage "copy candidate DMG" cp "$DMG" "$HOME/oldmac/halflife/deploy-stage/$DMG_BASE"
+
+# Verify the copy landed intact - defence in depth on top of make-dmg.sh's
+# end-to-end content check, matching the remote leg's md5 compare.
+LCL_MD5=$(md5 -q "$DMG" 2>/dev/null || md5sum "$DMG" 2>/dev/null | awk '{print $1}')
+DST_MD5=$(md5 -q "$HOME/oldmac/halflife/deploy-stage/$DMG_BASE" 2>/dev/null || md5sum "$HOME/oldmac/halflife/deploy-stage/$DMG_BASE" 2>/dev/null | awk '{print $1}')
+[ "$LCL_MD5" = "$DST_MD5" ] || { echo "[deploy-dmg $HOST] FATAL: local copy corrupted the DMG ($LCL_MD5 != $DST_MD5)" >&2; exit 1; }
+echo "[deploy-dmg $HOST] staged DMG verified intact ($DST_MD5)"
+
 else
 
 # Transfer staging lives under ~/oldmac/halflife, not ~/Desktop or the home
@@ -148,12 +185,10 @@ case "$DEST_DIR" in
   *)  DEST_LABEL="~/$DEST_DIR" ;;
 esac
 echo "[deploy-dmg $HOST] mount + install into $DEST_LABEL/ (preserving retail valve/ data)"
-# The helper carries the narrow, inventory-backed rollback transaction.  It is
-# copied from this checkout for this one deploy, so old fleet trees do not need
-# a prior sync just to make a candidate installation reversible.
-ROLLBACK_HELPER="/tmp/hl-deploy-rollback-$$.sh"
-scp -q "$REPO_ROOT/scripts/deploy-rollback.sh" "$HOST:$ROLLBACK_HELPER"
-ssh "$HOST" "PRESTAGED=${PRESTAGE:-0} HELPER='$ROLLBACK_HELPER' bash -s '$DMG_BASE' '$DEST_DIR'" <<'REMOTE_EOF'
+# Captured into a variable, not piped straight into ssh/bash as a literal
+# heredoc, so the exact same install logic runs either over ssh or directly on
+# this box - one script body, not two copies to keep in sync.
+INSTALL_SCRIPT=$(cat <<'REMOTE_EOF'
 set -e
 DMG_BASE="$1"; DEST_DIR="$2"
 MNT="$HOME/oldmac/halflife/hlinstall-mnt"
@@ -448,6 +483,24 @@ fi
 if [ -f "$DEST/valve/pak0.pak" ]; then echo "retail valve/ game data present (pak0.pak) - ready to launch."
 else echo "NOTE: no valve/pak0.pak yet - add your retail Half-Life data to $DEST/valve before launching."; fi
 REMOTE_EOF
+)
+
+if [ "$LOCAL" = 1 ]; then
+	# Still a throwaway copy, not the checkout's real deploy-rollback.sh: the
+	# install script's own EXIT trap does `rm -f "$HELPER"` once it is done,
+	# and that must never delete the copy this repo actually uses.
+	ROLLBACK_HELPER="$(mktemp -t hl-deploy-rollback)"
+	cp "$REPO_ROOT/scripts/deploy-rollback.sh" "$ROLLBACK_HELPER"
+	chmod +x "$ROLLBACK_HELPER"
+	env PRESTAGED="${PRESTAGE:-0}" HELPER="$ROLLBACK_HELPER" bash -s "$DMG_BASE" "$DEST_DIR" <<<"$INSTALL_SCRIPT"
+else
+	# The helper carries the narrow, inventory-backed rollback transaction.  It
+	# is copied from this checkout for this one deploy, so old fleet trees do
+	# not need a prior sync just to make a candidate installation reversible.
+	ROLLBACK_HELPER="/tmp/hl-deploy-rollback-$$.sh"
+	scp -q "$REPO_ROOT/scripts/deploy-rollback.sh" "$HOST:$ROLLBACK_HELPER"
+	ssh "$HOST" "PRESTAGED=${PRESTAGE:-0} HELPER='$ROLLBACK_HELPER' bash -s '$DMG_BASE' '$DEST_DIR'" <<<"$INSTALL_SCRIPT"
+fi
 
 # The staged DMG has now been fully extracted into $DEST_DIR - remove it, so a
 # manual test/deploy round doesn't leave its own source image behind forever.
@@ -460,7 +513,11 @@ REMOTE_EOF
 # mode and the fix are the same either way. PRESTAGE mode never copies a .dmg to
 # the target at all, so there is nothing to remove there.
 if [ "${PRESTAGE:-0}" != 1 ]; then
-	ssh "$HOST" "rm -f ~/oldmac/halflife/deploy-stage/$DMG_BASE"
+	if [ "$LOCAL" = 1 ]; then
+		rm -f "$HOME/oldmac/halflife/deploy-stage/$DMG_BASE"
+	else
+		ssh "$HOST" "rm -f ~/oldmac/halflife/deploy-stage/$DMG_BASE"
+	fi
 	echo "[deploy-dmg $HOST] removed staged $DMG_BASE (installed copy is at ~/$DEST_DIR)"
 fi
 

@@ -50,6 +50,13 @@ if [ "${RETRO_BENCH_LOCK:-}" != "$HOST" ] && [ "${BENCH_NO_LOCK:-0}" != 1 ] && [
 fi
 DEST_DIR="${DEST_DIR:-/Applications/Half-Life}"
 
+# `workstation` is this arm64 dev box itself (scripts/pick-bench-host.sh's
+# LOCAL_ALIASES: "ONE HOST NEEDS NO SSH AT ALL"). See scripts/deploy-dmg.sh.
+case "$HOST" in
+	workstation) LOCAL=1 ;;
+	*)           LOCAL=0 ;;
+esac
+
 case "$HOST" in
   yosemite|yosemite-tiger|g3-panther|g3-tiger)
                           MINALIVE=14; TIMEOUT=90 ;;   # G3, slowest. Both partitions.
@@ -65,11 +72,14 @@ case "$HOST" in
   mini-intel|mini-intel2) MINALIVE=6;  TIMEOUT=40 ;;    # Intel Lion (both minis: same Macmini2,1)
   mini-sl|snow-build1)    MINALIVE=6;  TIMEOUT=40 ;;    # Intel Snow Leopard (Macmini3,1), the 10.6 floor
   imac-2019|imac|sequoia-build) MINALIVE=6; TIMEOUT=40 ;; # 2019 Intel 5K iMac (macOS 15.7 Sequoia)
+  workstation)            MINALIVE=6;  TIMEOUT=40 ;;    # this box, native arm64
   *) echo "unknown machine: $HOST" >&2; exit 2 ;;
 esac
 
 echo "[smoke $HOST] launching DMG-installed Half-Life.app via LaunchServices (open), like a Finder double-click"
-RESULT=$(ssh "$HOST" bash -s "$DEST_DIR" "$MINALIVE" "$TIMEOUT" <<'REMOTE_EOF'
+# Captured into a variable so the identical check runs either over ssh or
+# directly on this box - see scripts/deploy-dmg.sh for the same pattern.
+SMOKE_SCRIPT=$(cat <<'REMOTE_EOF'
 set -u
 case "$1" in
   /*) DEST="$1" ;;
@@ -148,6 +158,12 @@ echo "----LOGTAIL----"
 [ -f "$LOG" ] && tail -15 "$LOG" 2>/dev/null || true
 REMOTE_EOF
 )
+
+if [ "$LOCAL" = 1 ]; then
+	RESULT=$(bash -s "$DEST_DIR" "$MINALIVE" "$TIMEOUT" <<<"$SMOKE_SCRIPT")
+else
+	RESULT=$(ssh "$HOST" bash -s "$DEST_DIR" "$MINALIVE" "$TIMEOUT" <<<"$SMOKE_SCRIPT")
+fi
 
 echo "$RESULT" | sed 's/^/  /'
 
