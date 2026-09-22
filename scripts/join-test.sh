@@ -42,8 +42,8 @@ HOLD="${HOLD:-60}"
 # that open blocks on a permission prompt with nobody there to answer it:
 # measured on imac-2019 2026-09-22, the log stops at "voice: before capture
 # open" and never loads the map. That is a headless-method confound, not a
-# server fault. voice_enable is FCVAR_ARCHIVE, so config.cfg is backed up and
-# put back afterwards. VOICE=1 keeps the player's own voice setting.
+# server fault. voice_enable is FCVAR_ARCHIVE, so the run edits config.cfg and
+# the original is put back afterwards. VOICE=1 keeps the player's own voice setting.
 VOICE="${VOICE:-0}"
 
 case "$HOST" in
@@ -111,10 +111,14 @@ restore_autoexec() {
 	return 0
 }
 trap restore_autoexec EXIT
-{
-	[ "$VOICE" = 0 ] && echo "voice_enable 0"
-	echo "connect $ADDR"
-} > "$AUTOEXEC"
+# autoexec.cfg runs BEFORE config.cfg (measured: the log execs them in that
+# order), so a voice_enable 0 written there is overridden by the player's saved
+# voice_enable "1" and the microphone opens anyway. Edit the backed-up
+# config.cfg for this run instead; restore_autoexec puts the original back.
+if [ "$VOICE" = 0 ] && [ "$HAD_CONFIG" = 1 ]; then
+	sed 's/^voice_enable .*/voice_enable "0"/' "$CONFIG.join-test-backup" > "$CONFIG"
+fi
+echo "connect $ADDR" > "$AUTOEXEC"
 echo "VOICE=$VOICE"
 
 # What infra needs to match this run against the server journal: the engines
