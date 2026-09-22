@@ -112,6 +112,22 @@ not for every commit. Deep engine writeups live in
 
 ## Scripts and harness
 
+- `make-dmg.sh` refused a correct five-slice fuse as "missing ppc7400" once the
+  dev box moved to Xcode 27, whose `lipo -archs` drops both PowerPC slices and
+  whose `-detailed_info` calls them "unknown cputype". The mod-dylib checks
+  would have refused every mod next, and `test-artifact.sh`'s guard against a
+  generic `ppc (ALL)` executable slice could no longer fail. Both now read the
+  names from the Mach-O header with `scripts/macho-archs.py`. Control:
+  `test-artifact.sh` on the published v1.9.18 image, 53 passed; a copy of
+  `xash3d.bin` re-stamped to generic ppc trips the guard. Found on #37.
+- `join-test.sh` counted "Server info" as a join and killed the game at once,
+  so every Half-Life row on retro-server-infra#27 was "info only". It now
+  requires the client to parse the server's serverdata and then stay alive
+  for `HOLD` seconds (default 60) with no drop, prints the UTC window, host and
+  binary md5, and exits 3 for "confirm the spawn from the server journal": the
+  client log has no spawn line (a client the user played in on imac-g5 logged
+  nothing after connect). `VOICE=0`, the default, keeps a headless 10.14+ host
+  off the microphone prompt that blocked imac-2019 mid-connect.
 - `deploy-dmg.sh` copied its source `.dmg` to the target's Desktop, installed
   from it, and never removed it: every manual test/deploy round left its own
   release image sitting there permanently. Found by old-mac-build-host's own
