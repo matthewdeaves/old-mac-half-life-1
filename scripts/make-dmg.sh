@@ -224,7 +224,14 @@ BIN="$IMG/Half-Life.app/Contents/MacOS/xash3d.bin"
 # naming ppc750, ppc7400 and i386 happily while showing x86_64 as a number, and
 # Lion does the same for arm64. So match on the name first and fall back to the
 # cputype for the ones a given lipo predates.
-ARCHS="$(lipo -info "$BIN" 2>/dev/null | sed 's/.*: //')"
+#
+# And NEW lipo cannot name them either. Xcode 27's `lipo -archs` drops both
+# PowerPC slices and `-info` calls them "unknown" (measured 2026-09-22 on the
+# dev box), which failed this check on a correct five-slice binary. So the
+# slice names now come from the Mach-O header itself, which no toolchain
+# update can change: scripts/macho-archs.py.
+archs_of () { "$REPO_ROOT/scripts/macho-archs.py" "$1" 2>/dev/null || echo; }
+ARCHS="$(archs_of "$BIN")"
 echo "[make-dmg] fat slices: ${ARCHS:-<none>}"
 
 has_arch () {
@@ -818,14 +825,14 @@ fi
 if [ "$SHIP_SR_APP" = yes ]; then
   SRBIN="$IMG/Half-Life System Report.app/Contents/MacOS/HalfLifeSystemReport"
   [ -f "$SRBIN" ] || { echo "[make-dmg] system report app has no executable" >&2; exit 1; }
-  echo "[make-dmg] system report slices: $(lipo -archs "$SRBIN")"
+  echo "[make-dmg] system report slices: $(archs_of "$SRBIN")"
   echo "Half-Life System Report.app/Contents/MacOS/HalfLifeSystemReport" >> "$SHIP_LIST"
 fi
 
 if [ "$SHIP_MODS_APP" = yes ]; then
   MODSBIN="$IMG/Half-Life Mods.app/Contents/MacOS/HalfLifeMods"
   [ -f "$MODSBIN" ] || { echo "[make-dmg] mod installer has no executable - check SRC_MODS_APP" >&2; exit 1; }
-  MODARCHS=$(lipo -archs "$MODSBIN" 2>/dev/null || echo)
+  MODARCHS=$(archs_of "$MODSBIN")
   case " $MODARCHS " in
     *" ppc "*) ;; *) echo "[make-dmg] mod installer missing its ppc slice (got: ${MODARCHS:-none})" >&2; exit 1;;
   esac
@@ -842,7 +849,7 @@ if [ "$SHIP_MODS_APP" = yes ]; then
     for role in server client; do
       f="$d$role.dylib"
       [ -f "$f" ] || { echo "[make-dmg] mod $b is missing $role.dylib" >&2; exit 1; }
-      a=$(lipo -archs "$f" 2>/dev/null || echo)
+      a=$(archs_of "$f")
       case " $a " in *" ppc "*) ;; *) echo "[make-dmg] mod $b $role.dylib is not fat ppc (got: ${a:-none})" >&2; exit 1;; esac
       case " $a " in *" i386 "*) ;; *) echo "[make-dmg] mod $b $role.dylib is not fat i386 (got: ${a:-none})" >&2; exit 1;; esac
       case " $a " in *" x86_64 "*) ;; *) echo "[make-dmg] mod $b $role.dylib is not fat x86_64 (got: ${a:-none})" >&2; exit 1;; esac

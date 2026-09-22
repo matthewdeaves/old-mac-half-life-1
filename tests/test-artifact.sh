@@ -41,8 +41,12 @@ bad()  { FAILED=$((FAILED + 1)); echo "  FAIL  $1"; [ -n "${2:-}" ] && echo "   
 is()   { # is <name> <expected> <actual>
 	if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "expected [$2], got [$3]"; fi
 }
-# lipo does not promise an order, so compare arch SETS rather than strings.
-archs() { lipo -archs "$1" 2>/dev/null | tr ' ' '\n' | sort | tr '\n' ' ' | sed 's/ *$//'; }
+# Slice names come from the Mach-O header (scripts/macho-archs.py), not lipo:
+# Xcode 27's lipo drops both PowerPC slices from -archs and calls them
+# "unknown" in -detailed_info (measured 2026-09-22), so a lipo-based check
+# fails a correct binary, or, for the generic-ppc check below, passes a wrong
+# one. Compare arch SETS rather than strings, since file order is not a rule.
+archs() { "$REPO/scripts/macho-archs.py" "$1" 2>/dev/null | tr ' ' '\n' | sort | tr '\n' ' ' | sed 's/ *$//'; }
 setis() { # setis <name> <expected-space-separated> <file>
 	want="$(printf '%s\n' $2 | sort | tr '\n' ' ' | sed 's/ *$//')"
 	is "$1" "$want" "$(archs "$3")"
@@ -86,9 +90,9 @@ setis "engine executable is ppc750 ppc7400 i386 x86_64 arm64" "ppc750 ppc7400 i3
 # $(printf '\n') strips its own trailing newline and collapses to the empty
 # string, and grep is line-oriented anyway, so the check reported "ok" on every
 # image ever tested, including ones that genuinely carry CPU_SUBTYPE_POWERPC_ALL.
-# lipo prints one "architecture <name>" line per slice, and the name for a generic
-# ppc slice is exactly "ppc", so ask for that.
-if lipo -detailed_info "$BIN" 2>/dev/null | awk '/^architecture ppc$/ { found = 1 } END { exit !found }'; then
+# macho-archs.py names a generic (SUBTYPE_ALL) PowerPC slice exactly "ppc", and
+# the exact subtypes ppc750 / ppc7400, so ask for that word.
+if case " $(archs "$BIN") " in *" ppc "*) true ;; *) false ;; esac; then
 	bad "executable carries a generic ppc (ALL) slice"
 else
 	ok "executable carries no generic ppc (ALL) slice"
@@ -205,7 +209,7 @@ done
 
 # ---- BUILD-INFO agrees with the binary ------------------------------------
 DECLARED="$(sed -n 's/^Fat slices *: *//p' "$MNT/BUILD-INFO.txt" | sed 's/ *\. */ /g; s/ *$//')"
-is "BUILD-INFO slice line matches lipo" "$(archs "$BIN")" "$(printf '%s\n' $DECLARED | sort | tr '\n' ' ' | sed 's/ *$//')"
+is "BUILD-INFO slice line matches the binary" "$(archs "$BIN")" "$(printf '%s\n' $DECLARED | sort | tr '\n' ' ' | sed 's/ *$//')"
 if grep -q '+dirty' "$MNT/BUILD-INFO.txt"; then
 	bad "BUILD-INFO records a dirty tree" "a release must be reproducible from a commit"
 else
