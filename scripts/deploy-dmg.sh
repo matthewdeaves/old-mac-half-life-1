@@ -182,7 +182,8 @@ fi   # end of the non-PRESTAGE image transfer
 
 case "$DEST_DIR" in
   /*) DEST_LABEL="$DEST_DIR" ;;
-  *)  DEST_LABEL="~/$DEST_DIR" ;;
+  *)  # shellcheck disable=SC2088 # a label for the log line only; the path is relative to the TARGET's home, not this one
+      DEST_LABEL="~/$DEST_DIR" ;;
 esac
 echo "[deploy-dmg $HOST] mount + install into $DEST_LABEL/ (preserving retail valve/ data)"
 # Captured into a variable, not piped straight into ssh/bash as a literal
