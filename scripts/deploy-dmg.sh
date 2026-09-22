@@ -409,7 +409,7 @@ if [ -n "$SPILL" ]; then
 	echo "WARNING: engine files are loose in $DEST and SHADOW the ones inside the app:"
 	for f in $SPILL; do echo "    $f"; done
 	echo "  These are build spill, not part of any release. Move them out by hand, e.g."
-	echo "    mkdir -p ~/old-build-spill && (cd '$DEST' && mv$SPILL ~/old-build-spill/)"
+	echo "    mkdir -p ~/oldmac/halflife/build-spill && (cd '$DEST' && mv$SPILL ~/oldmac/halflife/build-spill/)"
 	echo "  Nothing has been deleted. Your valve/ and mods are untouched."
 fi
 
@@ -483,6 +483,17 @@ if [ -d "$DEST/Half-Life Mods.app" ]; then
 fi
 if [ -f "$DEST/valve/pak0.pak" ]; then echo "retail valve/ game data present (pak0.pak) - ready to launch."
 else echo "NOTE: no valve/pak0.pak yet - add your retail Half-Life data to $DEST/valve before launching."; fi
+
+# Keep ONE rollback: the one this deploy just wrote, so the previous build can
+# still be restored before a manual test. Every older one is a superseded
+# build and goes, or they pile up forever (old-mac-build-host's tidy removed 11
+# from one host). Matched by the name backup() gives them, so nothing else
+# under the rollback root is ever touched.
+for old in "$ROLLBACK_ROOT"/*-Half-Life-OldMac-*.dmg; do
+	[ -d "$old" ] || continue
+	[ "$old" = "$ROLLBACK" ] && continue
+	rm -rf "$old" && echo "pruned superseded rollback $(basename "$old")"
+done
 REMOTE_EOF
 )
 

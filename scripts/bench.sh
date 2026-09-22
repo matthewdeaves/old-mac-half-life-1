@@ -132,8 +132,6 @@ esac
 if [ -z "$APP" ]; then
 	for cand in \
 		/Applications/Half-Life/Half-Life.app \
-		"$HOME/Desktop/Half-Life/Half-Life.app" \
-		"$HOME/Desktop/Half-Life-Universal/Half-Life.app" \
 		/Applications/Half-Life.app; do
 		[ -d "$cand" ] && APP="$cand" && break
 	done
@@ -238,6 +236,8 @@ restore_cfg () {
 		[ -f "$SAVED_CFG_DIR/$f" ] && cp -p "$SAVED_CFG_DIR/$f" "$VALVE/$f" 2>/dev/null
 	done
 	rm -rf "$SAVED_CFG_DIR" 2>/dev/null
+	# The generated exec cfg is ours, not the player's: leave valve/ as found.
+	rm -f "$CFG" 2>/dev/null
 }
 
 # ---- launch -----------------------------------------------------------------

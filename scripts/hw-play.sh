@@ -39,6 +39,7 @@ engines() {
 }
 
 cleanup() {
+	rm -f valve/hw-play.cfg 2>/dev/null   # ours, not the player's
 	for p in $( engines ); do kill    "$p" 2>/dev/null; done
 	killall xash3d.bin xash3d 2>/dev/null
 	sleep 2
