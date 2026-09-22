@@ -43,7 +43,8 @@ case "$SCREENMODE" in
 esac
 
 if [ -z "$APP" ]; then
-	for cand in "$HOME/Desktop/Half-Life/Half-Life.app" \
+	for cand in /Applications/Half-Life/Half-Life.app \
+		"$HOME/Desktop/Half-Life/Half-Life.app" \
 		"$HOME/Desktop/Half-Life-Universal/Half-Life.app" \
 		/Applications/Half-Life.app; do
 		[ -d "$cand" ] && APP="$cand" && break
