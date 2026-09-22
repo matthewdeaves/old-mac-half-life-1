@@ -519,7 +519,7 @@ if [ "${PRESTAGE:-0}" != 1 ]; then
 	else
 		ssh "$HOST" "rm -f ~/oldmac/halflife/deploy-stage/$DMG_BASE"
 	fi
-	echo "[deploy-dmg $HOST] removed staged $DMG_BASE (installed copy is at ~/$DEST_DIR)"
+	echo "[deploy-dmg $HOST] removed staged $DMG_BASE (installed copy is at $DEST_LABEL)"
 fi
 
 echo "[deploy-dmg $HOST] done - installed from $DMG_BASE"
