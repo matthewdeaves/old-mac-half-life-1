@@ -71,11 +71,12 @@ PIN_HLSDK_COMMIT="28380b10e62dab6673e02b98e0234926bf5fbebb"
 PIN_HLSDK_UPSTREAM="FWGS/hlsdk-portable@8c5b2846"
 
 # --- SDL: PowerPC only, linked statically ------------------------------------
-# Fork of alex-free/panther-sdl2 (SDL 2.0.3, targeting 10.3 and 10.4). The Intel
-# slice builds stock SDL 2.0.22 as a dylib and needs none of this. docs/adr/0004.
-PIN_SDL_URL="https://github.com/matthewdeaves/panther-sdl2.git"
-PIN_SDL_BRANCH="oldmac"
-PIN_SDL_COMMIT="3c721fce79159ecbd888b9b07d81eaf3b1404351"
+# alex-free/panther-sdl2 (SDL 2.0.3, targeting 10.3 and 10.4), carried on the
+# fleet's shared SDL fork (tag retro/panther-ppc-sdl1-fix-v2). The Intel slice
+# builds stock SDL 2.0.22 as a dylib and needs none of this. docs/adr/0004.
+PIN_SDL_URL="https://github.com/matthewdeaves/SDL.git"
+PIN_SDL_BRANCH="retro/panther-ppc-v2"
+PIN_SDL_COMMIT="1b299830ce15b9d4e8bf7bee3c14436ed5376506"
 PIN_SDL_UPSTREAM="alex-free/panther-sdl2@bd33187"
 
 # --- installer-only third-party libraries ------------------------------------
@@ -148,7 +149,7 @@ commits on those branches, not as edits made to a tree at build time.
   miniutl        matthewdeaves/MiniUTL       @ $(short "$PIN_MINIUTL_COMMIT")   ${PIN_MINIUTL_UPSTREAM}
   libbacktrace   matthewdeaves/libbacktrace  @ $(short "$PIN_LIBBACKTRACE_COMMIT")   ${PIN_LIBBACKTRACE_UPSTREAM}
   game           matthewdeaves/hlsdk-portable @ $(short "$PIN_HLSDK_COMMIT")   ${PIN_HLSDK_UPSTREAM}
-  SDL (PowerPC)  matthewdeaves/panther-sdl2  @ $(short "$PIN_SDL_COMMIT")   ${PIN_SDL_UPSTREAM}
+  SDL (PowerPC)  matthewdeaves/SDL           @ $(short "$PIN_SDL_COMMIT")   ${PIN_SDL_UPSTREAM}
 
 To see exactly what this port changes, in any of them:
     git log --oneline <upstream>..oldmac
