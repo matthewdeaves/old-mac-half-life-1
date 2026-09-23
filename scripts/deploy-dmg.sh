@@ -1,517 +1,319 @@
 #!/usr/bin/env bash
-# Install the release DMG onto a target Mac the way an end user would: copy the
-# .dmg into this port's own staging directory, mount it, copy its contents into
-# the game folder, unmount. This is deliberately the DMG path (not a direct
-# rsync) so the test loop exercises the exact artifact and install steps a
-# human performs - that is where a corrupt-image bug would hide (a direct
-# deploy can be clean while the DMG is not). The staging directory is
-# ~/oldmac/halflife, never the Desktop or another home-root path: that scratch
-# belongs to this port, not the player's install. issue #35.
+# deploy-dmg.sh -- install a port's release DMG onto a fleet Mac, the way a
+# player would get it: the same .dmg, mounted, its app copied into
+# /Applications/<Game>/. CANONICAL copy lives in old-mac-build-host (#96) and is
+# synced byte-identical into each port; never edit a port's copy. Per-port
+# differences live in that port's scripts/dmg-port.conf (and, rarely,
+# scripts/dmg-hooks.sh), which are the port's own files and never synced.
 #
-# usage: scripts/deploy-dmg.sh <machine> [version]
-#   machine: yosemite | sawtooth | quicksilver | mini-g4 | imac-g5
-#            | mini-intel | mini-intel2   (ssh alias)
-#   version: e.g. v0.21  (default: newest dist/Half-Life-OldMac-*.dmg)
+# usage: scripts/deploy-dmg.sh <host> [version | path/to.dmg]
+#        scripts/deploy-dmg.sh --update <host> <version>   (same as the above)
+#   host     any fleet alias, or `workstation` (this Mac, no ssh)
+#   version  e.g. v1.2.0 -> dist/<DMG_PREFIX>v1.2.0.dmg; default: newest in dist/
 #
-# Preserves your game data: the retail files in the target's valve/ (pak0.pak,
-# *.wad, maps/, models/, sound/, ...) are left untouched. From v1.2.0 the image
-# carries no valve/ at all - our game code rides inside Half-Life.app - so this
-# only installs the two apps, and then REMOVES the game code an older release left
-# in valve/. That cleanup is not optional: the player's valve/ is a higher-priority
-# searchpath than the app's read-only root, so a leftover hl_ppc.dylib from the
-# previous release would silently keep being loaded in place of the new one.
-set -euo pipefail
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# What it guarantees, each taken from the port that already did it best:
+#  - claims the host for the whole run (re-exec under pick-bench-host.sh --run)
+#  - md5-checks the DMG after transfer, and each VERIFY file after install
+#  - keeps ALL its state under ~/oldmac/<port>/deploy/ (incoming, mount.<pid>,
+#    stage), and removes it when done: one directory a port's build mirror can exclude: on the
+#    Lion minis ~/oldmac/<port> is also an rsync --delete build tree (quake2#81)
+#  - mounts read-only at a unique deploy/mount.<pid>, and detaches BY
+#    DEVICE: Panther's hdiutil ignores a mount path, so path detaches leaked an
+#    image per deploy there (quake3 eb3a4eb7, measured on g5-panther)
+#  - replaces ONLY the OWNED paths. Game data (DATA_DIR) and anything other
+#    scripts put in the install folder are never touched. An optional OWNED
+#    path missing from the new image is removed, so a stale BUILD-INFO or README
+#    does not outlive its release (halflife 4175fcf).
+#  - keeps NO rollback. User rule, 2026-09-23: "we dont need roll backs we
+#    should take a fix forward approach". The replaced files are deleted in the
+#    same run, and a bad install is fixed by deploying a fixed build.
+#
+# PRESTAGE=1 mounts the image on THIS Mac and rsyncs its contents across,
+# for a host whose own hdiutil attach fails (quad-tiger, DI_kextDriveActivate
+# after a fresh boot: halflife 2d46f0f). Everything after the mount is the same.
+#
+# Exit: 0 ok, 1 failed, 2 usage/config, 6 image would not mount,
+#       7 installed files failed verification (fix forward: redeploy),
+#       9 the game is running there (FORCE=1 overrides)
+set -uo pipefail
 
-HOST="${1:?usage: $0 <machine> [version]}"
-VERSION="${2:-}"
-if [ -z "$VERSION" ]; then
-  # `|| true` is required, not defensive: under `set -o pipefail` a failing ls
-  # makes the whole substitution non-zero and `set -e` exits right here, so the
-  # "no dmg found" message below could never print.
-  DMG=$(ls -t "$REPO_ROOT"/dist/Half-Life-OldMac-*.dmg 2>/dev/null | head -1) || true
-  [ -n "$DMG" ] || { echo "no dist/Half-Life-OldMac-*.dmg found - run scripts/make-dmg.sh" >&2; exit 1; }
-else
-  DMG="$REPO_ROOT/dist/Half-Life-OldMac-$VERSION.dmg"
-  [ -f "$DMG" ] || { echo "missing $DMG" >&2; exit 1; }
-fi
-DMG_BASE=$(basename "$DMG")
-DEST_DIR="${DEST_DIR:-/Applications/Half-Life}"
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SELF_DIR/.." && pwd)"
+usage() { sed -n '9,13p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//' >&2; exit 2; }
 
-# `workstation` is this arm64 dev box itself (scripts/pick-bench-host.sh's
-# LOCAL_ALIASES: "ONE HOST NEEDS NO SSH AT ALL"). Every step below that would
-# otherwise ssh/scp to $HOST runs directly on this machine instead.
-case "$HOST" in
-	workstation) LOCAL=1 ;;
-	*)           LOCAL=0 ;;
+MODE=install
+case "${1:-}" in
+	--update)   shift ;;
+	--rollback) echo "deploy-dmg: there are no rollbacks (user rule 2026-09-23: fix forward). Deploy a fixed build." >&2; exit 2 ;;
+	-h|--help|'') usage ;;
 esac
+HOST="${1:-}"; [ -n "$HOST" ] || usage
+ARG="${2:-}"
 
-# Keep transfer failures attributable without xtrace, which would spill every
-# command argument and environment setting into a fleet log.  The deployer used
-# to print its copy banner before several SSH steps, so a later silent exit was
-# too easily attributed to scp.
-stage() {
-	label="$1"; shift
-	if "$@"; then
-		return 0
-	else
-		rc=$?
-		echo "[deploy-dmg $HOST] FATAL: $label failed (exit $rc)" >&2
-		return "$rc"
-	fi
-}
+# --- port config ----------------------------------------------------------------
+CONF="${DMG_PORT_CONF:-$SELF_DIR/dmg-port.conf}"
+[ -r "$CONF" ] || { echo "deploy-dmg: no port config at $CONF (see old-mac-build-host#96)" >&2; exit 2; }
+IMAGE_ROOT=.; DATA_DIR=; FIRST_SEED=(); PROC=; OWNED=(); VERIFY=(); REMOVE=()
+REMOTE_POST_STAGE=; REMOTE_POST_INSTALL=
+# shellcheck source=/dev/null
+. "$CONF"
+[ -r "$SELF_DIR/dmg-hooks.sh" ] && . "$SELF_DIR/dmg-hooks.sh"
+for v in PORT DMG_PREFIX INSTALL_DIR; do
+	[ -n "${!v:-}" ] || { echo "deploy-dmg: $CONF must set $v" >&2; exit 2; }
+done
+[ "${#OWNED[@]}" -gt 0 ] || { echo "deploy-dmg: $CONF must list OWNED paths" >&2; exit 2; }
+INSTALL_DIR="${DEST_DIR:-$INSTALL_DIR}"   # halflife's DEST_DIR still works
+case "$PORT" in *[!a-z0-9-]*|'') echo "deploy-dmg: PORT must be [a-z0-9-]" >&2; exit 2 ;; esac
 
-# Claim the machine for the whole run. See scripts/pick-bench-host.sh.
-#
-# Re-exec under the picker rather than acquire-here-and-trap, matching the other
-# three ports: bash traps REPLACE rather than compose, so a release trap set here
-# would be silently discarded by any trap installed later. `--run` makes the lock
-# a property of the INVOCATION, released however this exits.
-#
-# This matters here specifically because the script deletes and replaces three
-# .app bundles in the player's game folder. Doing that while another session is
-# mid-bench swaps the binary out from under a running engine, and the numbers
-# that come back look like a real measurement of a build that was never fully
-# installed. The picker also refuses a host booted into an OS its alias does not
-# name, so `deploy-dmg.sh quad-tiger` cannot silently install onto Leopard.
-#
-# RETRO_BENCH_LOCK names the host that is ALREADY claimed, and the test compares
-# it to the host we want. A bare -z test used to mean "am I inside my own
-# re-exec"; since the picker's --run started exporting the variable it would mean
-# "am I inside ANY claim", so this script called from inside a claim on another
-# machine would skip claiming THIS one and drive it unclaimed. Issue #13.
-# BENCH_NO_LOCK=1 skips the lock, for debugging the picker itself.
-_PICK="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/pick-bench-host.sh"
+# --- claim the host for the whole run -------------------------------------------
+# Re-exec under the picker, so the lock belongs to the invocation and is
+# released however this exits. RETRO_BENCH_LOCK names the host already held, so
+# a nested call on the SAME host does not deadlock on its own claim.
+_PICK="$SELF_DIR/pick-bench-host.sh"
 if [ "${RETRO_BENCH_LOCK:-}" != "$HOST" ] && [ "${BENCH_NO_LOCK:-0}" != 1 ] && [ -x "$_PICK" ]; then
-  export RETRO_BENCH_LOCK="$HOST"
-  exec "$_PICK" --run "$HOST" "deploy-dmg" -- "$0" "$@"
+	export RETRO_BENCH_LOCK="$HOST"
+	exec "$_PICK" --run "$HOST" "$PORT deploy-dmg $MODE" -- "$0" "$@"
 fi
 
-# PRESTAGE=1: mount the image HERE and rsync its contents over, instead of
-# shipping the .dmg and mounting it on the target. For a machine whose DiskImages
-# stack cannot attach anything at all - quad-tiger fails every attach with
-# DI_kextDriveActivate error 0xE00002C9 on a freshly booted box, with an image
-# that mounts fine everywhere else (old-mac-build-host#41). Everything after the
-# mount is the same code, so this is a different way to reach the install, not a
-# second install path to keep in sync.
-#
-# Meaningless on the local workstation target: there is no second machine to
-# rsync the mount to, and this box's hdiutil is not the thing PRESTAGE exists
-# to route around.
-if [ "$LOCAL" = 1 ] && [ "${PRESTAGE:-0}" = 1 ]; then
-	echo "[deploy-dmg $HOST] FATAL: PRESTAGE is meaningless for the local workstation target" >&2
-	exit 1
-fi
-if [ "${PRESTAGE:-0}" = 1 ]; then
-	echo "[deploy-dmg $HOST] PRESTAGE: mounting the image locally and rsyncing its contents"
-	LMNT="$(mktemp -d -t hl-prestage)"
-	hdiutil detach "$LMNT" >/dev/null 2>&1 || true
-	hdiutil attach -nobrowse -readonly -mountpoint "$LMNT" "$DMG" >/dev/null
-	trap 'hdiutil detach "$LMNT" >/dev/null 2>&1 || hdiutil detach -force "$LMNT" >/dev/null 2>&1 || true; rmdir "$LMNT" 2>/dev/null || true' EXIT
-	[ -d "$LMNT/Half-Life.app" ] || { echo "[deploy-dmg $HOST] FATAL: local mount has no Half-Life.app" >&2; exit 1; }
-	ssh "$HOST" 'rm -rf "$HOME/oldmac/halflife/hlinstall-mnt" && mkdir -p "$HOME/oldmac/halflife/hlinstall-mnt"'
-	# -E preserves the resource forks the icons live in, the way ditto does.
-	#
-	# The excludes are HFS volume housekeeping, not payload, and .Trashes is not
-	# readable even by the user who mounted the image: without excluding it rsync
-	# fails the whole transfer with "opendir .Trashes: Permission denied" and
-	# exit 23, having skipped the deletion pass. None of these are part of the
-	# release and none are copied by the hdiutil path either, which only ever
-	# ditto's the three .app bundles by name.
-	rsync -aE --delete \
-		--exclude '.Trashes' --exclude '.fseventsd' --exclude '.Spotlight-V100' \
-		--exclude '.DS_Store' --exclude '.TemporaryItems' --exclude '.VolumeIcon.icns' \
-		"$LMNT"/ "$HOST:oldmac/halflife/hlinstall-mnt/"
-	echo "[deploy-dmg $HOST] contents staged at ~/oldmac/halflife/hlinstall-mnt"
-elif [ "$LOCAL" = 1 ]; then
-
-# Same staging path and same by-name DMG cleanup as the remote leg, just with
-# a plain cp instead of scp+ssh - there is no second machine to reach.
-echo "[deploy-dmg $HOST] copy $DMG_BASE to ~/oldmac/halflife/deploy-stage/ (local)"
-mkdir -p "$HOME/oldmac/halflife/deploy-stage"
-OLD=$(ls -1 "$HOME"/oldmac/halflife/deploy-stage/Half-Life-OldMac-*.dmg 2>/dev/null || true)
-if [ -n "$OLD" ]; then
-	echo "[deploy-dmg $HOST] removing old release DMG(s):"; echo "$OLD" | sed 's/^/    /'
-	rm -f "$HOME"/oldmac/halflife/deploy-stage/Half-Life-OldMac-*.dmg
-fi
-
-stage "copy candidate DMG" cp "$DMG" "$HOME/oldmac/halflife/deploy-stage/$DMG_BASE"
-
-# Verify the copy landed intact - defence in depth on top of make-dmg.sh's
-# end-to-end content check, matching the remote leg's md5 compare.
-LCL_MD5=$(md5 -q "$DMG" 2>/dev/null || md5sum "$DMG" 2>/dev/null | awk '{print $1}')
-DST_MD5=$(md5 -q "$HOME/oldmac/halflife/deploy-stage/$DMG_BASE" 2>/dev/null || md5sum "$HOME/oldmac/halflife/deploy-stage/$DMG_BASE" 2>/dev/null | awk '{print $1}')
-[ "$LCL_MD5" = "$DST_MD5" ] || { echo "[deploy-dmg $HOST] FATAL: local copy corrupted the DMG ($LCL_MD5 != $DST_MD5)" >&2; exit 1; }
-echo "[deploy-dmg $HOST] staged DMG verified intact ($DST_MD5)"
-
+say()  { echo "[deploy-dmg $HOST] $*"; }
+die()  { echo "[deploy-dmg $HOST] FATAL: $1" >&2; exit "${2:-1}"; }
+lmd5() { md5 -q "$1" 2>/dev/null || md5sum "$1" | cut -d' ' -f1; }
+SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=15)
+if [ "$HOST" = workstation ]; then
+	run_host() { bash -s; }
+	put()      { cp "$1" "$HOME/$2"; }
 else
-
-# Transfer staging lives under ~/oldmac/halflife, not ~/Desktop or the home
-# root: it is scratch this port owns for the length of one deploy, not part of
-# the player's installed game. issue #35.
-echo "[deploy-dmg $HOST] copy $DMG_BASE to ~/oldmac/halflife/deploy-stage/"
-stage "create staging directory" ssh "$HOST" 'mkdir -p ~/oldmac/halflife/deploy-stage'
-
-# Remove any previously-shipped release DMGs first (scoped to our own release
-# artifacts; the user's files are never touched) so stale versions don't pile up
-# and a leftover same-name image can't be silently reused after a failed scp.
-if OLD=$(ssh "$HOST" 'ls -1 ~/oldmac/halflife/deploy-stage/Half-Life-OldMac-*.dmg 2>/dev/null || true'); then :; else
-	rc=$?
-	echo "[deploy-dmg $HOST] FATAL: list prior release DMGs failed (exit $rc)" >&2
-	exit "$rc"
-fi
-if [ -n "$OLD" ]; then
-	echo "[deploy-dmg $HOST] removing old release DMG(s):"; echo "$OLD" | sed 's/^/    /'
-	stage "remove prior release DMGs" ssh "$HOST" 'rm -f ~/oldmac/halflife/deploy-stage/Half-Life-OldMac-*.dmg'
+	run_host() { ssh "${SSH_OPTS[@]}" "$HOST" bash -s; }
+	put()      { scp -q "${SSH_OPTS[@]}" "$1" "$HOST:$2"; }
 fi
 
-stage "copy candidate DMG" scp -q "$DMG" "$HOST:oldmac/halflife/deploy-stage/$DMG_BASE"
-
-# Verify the .dmg arrived intact (md5 local vs remote) - defence in depth on top
-# of make-dmg.sh's end-to-end content check.
-LCL_MD5=$(md5 -q "$DMG" 2>/dev/null || md5sum "$DMG" 2>/dev/null | awk '{print $1}')
-if RMT_MD5=$(ssh "$HOST" "md5 'oldmac/halflife/deploy-stage/$DMG_BASE' | awk '{print \$NF}'"); then :; else
-	rc=$?
-	echo "[deploy-dmg $HOST] FATAL: read target DMG checksum failed (exit $rc)" >&2
-	exit "$rc"
-fi
-[ "$LCL_MD5" = "$RMT_MD5" ] || { echo "[deploy-dmg $HOST] FATAL: scp corrupted the DMG ($LCL_MD5 != $RMT_MD5)" >&2; exit 1; }
-echo "[deploy-dmg $HOST] staged DMG verified intact ($RMT_MD5)"
-
-fi   # end of the non-PRESTAGE image transfer
-
-case "$DEST_DIR" in
-  /*) DEST_LABEL="$DEST_DIR" ;;
-  *)  # shellcheck disable=SC2088 # a label for the log line only; the path is relative to the TARGET's home, not this one
-      DEST_LABEL="~/$DEST_DIR" ;;
-esac
-echo "[deploy-dmg $HOST] mount + install into $DEST_LABEL/ (preserving retail valve/ data)"
-# Captured into a variable, not piped straight into ssh/bash as a literal
-# heredoc, so the exact same install logic runs either over ssh or directly on
-# this box - one script body, not two copies to keep in sync.
-INSTALL_SCRIPT=$(cat <<'REMOTE_EOF'
-set -e
-DMG_BASE="$1"; DEST_DIR="$2"
-MNT="$HOME/oldmac/halflife/hlinstall-mnt"
-case "$DEST_DIR" in
-	/*) FINAL_DEST="$DEST_DIR" ;;
-	*)  FINAL_DEST="$HOME/$DEST_DIR" ;;
-esac
-DEST="$FINAL_DEST"
-STAGE=""
-finish() {
-	rc=$?
-	# Fix forward (user, 2026-09-23): no rollback copy is kept anywhere. A
-	# failed install is repaired by redeploying a good build.
-	[ "$rc" -ne 0 ] && echo "DEPLOY FAILED: redeploy a good build to repair $FINAL_DEST" >&2
-	if [ "$rc" -ne 0 ] && [ -n "$STAGE" ] && [ -d "$STAGE" ]; then
-		rm -rf "$STAGE"
-		echo "discarded incomplete owned staging tree: $STAGE" >&2
-	fi
-	exit "$rc"
+# Everything the remote body needs, as quoted assignments ahead of it, so paths
+# with spaces ("Half-Life Mods.app") survive and nothing is re-parsed.
+qarr() { local n="$1"; shift; printf '%s=(' "$n"; [ $# -gt 0 ] && printf ' %q' "$@"; printf ' )\n'; }
+header() {
+	printf 'MODE=%q HOST=%q PORT=%q DEST=%q IMAGE_ROOT=%q DATA_DIR=%q PROC=%q FORCE=%q DMG_BASE=%q PRESTAGE=%q\n' \
+		"$MODE" "$HOST" "$PORT" "$INSTALL_DIR" "$IMAGE_ROOT" "$DATA_DIR" "$PROC" "${FORCE:-0}" "${DMG_BASE:-}" "${PRESTAGE:-0}"
+	qarr FIRST_SEED ${FIRST_SEED[@]+"${FIRST_SEED[@]}"}
+	qarr OWNED "${OWNED[@]}"
+	qarr VERIFY ${VERIFY[@]+"${VERIFY[@]}"}
+	qarr REMOVE ${REMOVE[@]+"${REMOVE[@]}"}
+	qarr EXPECT ${EXPECT[@]+"${EXPECT[@]}"}
+	printf 'POST_STAGE=%q\nPOST_INSTALL=%q\n' "$REMOTE_POST_STAGE" "$REMOTE_POST_INSTALL"
 }
-trap finish EXIT
 
-# PRESTAGED=1 means the caller could not mount the image on this machine and has
-# already put the image's CONTENTS at $MNT by other means. Skip the attach and
-# use what is there; everything after this point is identical, which is the whole
-# point of doing it this way rather than hand-rolling a second install path.
-#
-# quad-tiger needs this: its DiskImages kext fails every attach with
-# DI_kextDriveActivate error 0xE00002C9 / "timed out waiting for IOService to
-# become quiescent", on a freshly booted machine, with an image that mounts fine
-# on every other host in the fleet. That is a kernel-level fault on that box, not
-# a bad image. old-mac-build-host#41.
-if [ "${PRESTAGED:-0}" = 1 ]; then
-	[ -d "$MNT/Half-Life.app" ] || { echo "PRESTAGED=1 but $MNT holds no Half-Life.app" >&2; exit 1; }
-	echo "prestaged: using image contents already at $MNT (no hdiutil on this host)"
-	DEV=""
-else
+# --- the DMG ----------------------------------------------------------------------
+if [ "$MODE" = install ]; then
+	if [ -n "$ARG" ] && [ -f "$ARG" ]; then DMG="$ARG"
+	elif [ -n "$ARG" ]; then DMG="$REPO_ROOT/dist/${DMG_PREFIX}${ARG}.dmg"
+	else DMG="$(ls -t "$REPO_ROOT"/dist/"${DMG_PREFIX}"*.dmg 2>/dev/null | head -1)"
+	fi
+	[ -n "$DMG" ] && [ -f "$DMG" ] || die "no DMG (${ARG:-newest dist/${DMG_PREFIX}*.dmg})" 2
+	DMG_BASE="$(basename "$DMG")"
 
-# fresh mountpoint - detach any stale attach, then rmdir (never rm -rf a path
-# that might still be a mounted read-only volume).
-hdiutil detach "$MNT" >/dev/null 2>&1 || hdiutil detach -force "$MNT" >/dev/null 2>&1 || true
-rmdir "$MNT" 2>/dev/null || true
-mkdir -p "$MNT"
-# Keep the attach output: we need the /dev/diskN out of it. On 10.3
-# `hdiutil detach <mountpoint>` fails unconditionally ("No such file or
-# directory") even for a mountpoint we just asked for, while detaching the device
-# node works. Measured on the G3 under Panther, where this script was silently
-# leaving the image mounted after every deploy.
-ATTACH_OUT=$(hdiutil attach -nobrowse -readonly -mountpoint "$MNT" "$HOME/oldmac/halflife/deploy-stage/$DMG_BASE")
-DEV=$(echo "$ATTACH_OUT" | awk '/^\/dev\/disk/ { print $1; exit }')
+	# A port's local checks run on a PRIVATE clone of the image, never the
+	# shared dist/ file: two updates from one Mac used to collide on one mount
+	# (quake2 9a387c0a).
+	if declare -F preflight_local >/dev/null; then
+		CLONE="$(mktemp -d "${TMPDIR:-/tmp}/buildhost-dmgpre.XXXXXX")" || die "mktemp"
+		cp "$DMG" "$CLONE/img.dmg" && mkdir "$CLONE/mnt" || die "clone for preflight"
+		PDEV="$(hdiutil attach -nobrowse -readonly -mountpoint "$CLONE/mnt" "$CLONE/img.dmg" | awk '/^\/dev\//{sub(/s[0-9]+$/,"",$1); print $1; exit}')"
+		[ -n "$PDEV" ] || { rm -rf "$CLONE"; die "preflight: image would not mount locally" 6; }
+		preflight_local "$CLONE/mnt"; prc=$?
+		hdiutil detach "$PDEV" >/dev/null 2>&1 || hdiutil detach -force "$PDEV" >/dev/null 2>&1
+		rm -rf "$CLONE"
+		[ $prc -eq 0 ] || die "preflight_local refused $DMG_BASE (rc=$prc)" 1
+	fi
 
-fi   # end of the non-PRESTAGED attach
-
-# Do not even inventory the old install until the mounted candidate has the
-# executable shape we are about to promote.  This catches a bad/mixed staging
-# directory before a single installed file is replaced.
-[ -x "$MNT/Half-Life.app/Contents/MacOS/xash3d" ] || { echo "FATAL: candidate has no executable launcher" >&2; exit 1; }
-[ -x "$MNT/Half-Life.app/Contents/MacOS/xash3d.bin" ] || { echo "FATAL: candidate has no engine binary" >&2; exit 1; }
-[ -d "$MNT/Half-Life.app/Contents/Resources/Half-Life/valve" ] || { echo "FATAL: candidate has no bundled game root" >&2; exit 1; }
-
-# A first move onto /Applications is promoted from a sibling staging tree built
-# from the Desktop game, so the player's retail data, saves and mods are copied
-# in rather than lost - the Desktop source is copied, never renamed or
-# modified. An /Applications install that already exists is a later upgrade of
-# an already-migrated host, not a second migration: it goes through the same
-# backup-then-replace path as any other destination, below. issue #35.
-case "$DEST_DIR" in
-	/Applications/*)
-		[ -w "$(dirname "$FINAL_DEST")" ] || { echo "FATAL: destination parent is not writable: $(dirname "$FINAL_DEST")" >&2; exit 1; }
-		if [ ! -e "$FINAL_DEST" ]; then
-			SOURCE="${DATA_SOURCE:-$HOME/Desktop/Half-Life}"
-			[ -f "$SOURCE/valve/pak0.pak" ] || { echo "FATAL: source retail data missing: $SOURCE/valve/pak0.pak" >&2; exit 1; }
-			STAGE="${FINAL_DEST}.hl-stage-$$"
-			[ ! -e "$STAGE" ] || { echo "FATAL: staging path exists: $STAGE" >&2; exit 1; }
-			echo "staging preserved Desktop tree $SOURCE -> $STAGE"
-			ditto "$SOURCE" "$STAGE"
-			DEST="$STAGE"
+	echo "mkdir -p \"\$HOME/oldmac/$PORT/deploy/incoming\"" | run_host || die "cannot reach $HOST"
+	EXPECT=()
+	if [ "${PRESTAGE:-0}" = 1 ]; then
+		CLONE="$(mktemp -d "${TMPDIR:-/tmp}/buildhost-prestage.XXXXXX")" || die "mktemp"
+		cp "$DMG" "$CLONE/img.dmg" && mkdir "$CLONE/mnt" || die "clone for prestage"
+		PDEV="$(hdiutil attach -nobrowse -readonly -mountpoint "$CLONE/mnt" "$CLONE/img.dmg" | awk '/^\/dev\//{sub(/s[0-9]+$/,"",$1); print $1; exit}')"
+		[ -n "$PDEV" ] || { rm -rf "$CLONE"; die "prestage: image would not mount locally" 6; }
+		# The host checks what it received against hashes taken from the image here.
+		for v in ${VERIFY[@]+"${VERIFY[@]}"}; do
+			if [ "$IMAGE_ROOT" = '*' ]; then EXPECT[${#EXPECT[@]}]=-
+			elif [ -e "$CLONE/mnt/$IMAGE_ROOT/$v" ]; then EXPECT[${#EXPECT[@]}]="$(lmd5 "$CLONE/mnt/$IMAGE_ROOT/$v")"
+			else EXPECT[${#EXPECT[@]}]=-; fi
+		done
+		say "PRESTAGE: copying the mounted image's contents to ~/oldmac/$PORT/deploy/prestage"
+		if [ "$HOST" = workstation ]; then
+			rsync -a --delete "$CLONE/mnt/" "$HOME/oldmac/$PORT/deploy/prestage/"; prc=$?
+		else
+			rsync -a --delete -e "ssh ${SSH_OPTS[*]}" "$CLONE/mnt/" "$HOST:oldmac/$PORT/deploy/prestage/"; prc=$?
 		fi
-		;;
-esac
-
-
-mkdir -p "$DEST/valve"
-# Replace the app wholesale so no stale bundle files survive. ditto keeps the
-# bundle bit, perms (+x on the launcher) and resource forks (the icon).
-rm -rf "$DEST/Half-Life.app"
-ditto "$MNT/Half-Life.app" "$DEST/Half-Life.app"
-# The mod installer, when the image carries one (v1.2.0+). Replaced wholesale for
-# the same reason as the engine app. Optional: engine-only images are still valid,
-# and an older DMG must keep deploying cleanly.
-if [ -d "$MNT/Half-Life Mods.app" ]; then
-	rm -rf "$DEST/Half-Life Mods.app"
-	ditto "$MNT/Half-Life Mods.app" "$DEST/Half-Life Mods.app"
-	echo "mod installer: installed"
-else
-	echo "mod installer: not on this image (engine-only release)"
-fi
-
-# The system report app. Optional in the same way the installer is: an older image
-# will not have it, and that is not a reason to fail the deploy.
-if [ -d "$MNT/Half-Life System Report.app" ]; then
-	rm -rf "$DEST/Half-Life System Report.app"
-	ditto "$MNT/Half-Life System Report.app" "$DEST/Half-Life System Report.app"
-	echo "installed: Half-Life System Report.app"
-fi
-
-# The loose files beside the apps on the image. Without this an upgrade kept
-# whatever copies the first install brought: measured 2026-09-23 on the
-# workstation, a v1.9.19 deploy left BUILD-INFO.txt reading 1.9.16-rc1. Named
-# one by one, never a sweep of the image root, for the same reason the apps are.
-for loose in "BUILD-INFO.txt" "README.txt" "Fix Launch Problems.command"; do
-	[ -f "$MNT/$loose" ] || continue
-	rm -f "$DEST/$loose"
-	ditto "$MNT/$loose" "$DEST/$loose"
-	echo "installed: $loose"
-done
-
-# Strip com.apple.quarantine on every installed bundle. ditto/scp from our own
-# pipeline never sets it, but the image this script installs from can arrive by
-# a route that does (AirDrop, a browser download, a Mail attachment), and a
-# quarantined ad-hoc-signed app is exactly what Gatekeeper blocks on a real
-# Finder double-click while a direct exec (our old smoke path) never notices.
-# Defence in depth: cheap, idempotent, never fatal if the flag was never set.
-#
-# `xattr -d -r` (recursive), not `-dr`: Leopard's xattr has no -r at all
-# ("usage: xattr [-l] file ... / -p / -w / -d"), so `-dr` was an unrecognized
-# option that printed usage and did nothing - harmless here since our own
-# pipeline never sets the flag, but silently no-op on the one OS that most
-# needs a working fallback. `find | xargs` works on every OS back to 10.3,
-# with or without -r.
-for app in "$DEST/Half-Life.app" "$DEST/Half-Life Mods.app" "$DEST/Half-Life System Report.app"; do
-	[ -d "$app" ] || continue
-	find "$app" -print0 2>/dev/null | xargs -0 xattr -d com.apple.quarantine 2>/dev/null || true
-done
-
-# Verify the signature survived the install byte-for-byte. make-dmg.sh ad-hoc
-# signs every bundle and checks it there; this catches corruption introduced
-# between the image and the installed copy (issue #19: found genuinely broken
-# on imac-2019 - ditto alone was clean in isolation, so something about that
-# machine's prior install state broke it, not this script). A signature that
-# fails codesign -v also fails spctl and is refused by LaunchServices on a
-# real double-click, so this must be fatal - ON A PLATFORM WHERE IT MEANS
-# ANYTHING.
-#
-# The ad-hoc signature is written by THIS dev box's current codesign, and an
-# old enough codesign cannot parse a format that far ahead of it: measured
-# FATAL false positives on g5-desktop (10.5.8, PowerPC, Darwin 9 - codesign
-# itself debuted in Leopard) and mini-sl (10.6.8, Intel, Darwin 10) - both
-# report "code or signature modified" on a bundle `ditto` had just produced
-# seconds earlier. Not CPU-specific: mini-sl is Intel. Gated on Darwin major
-# instead: >= 15 (El Capitan, when SIP and the modern codesign format had
-# landed) is the only class of machine this check can trust either way, and
-# the only one where Gatekeeper enforcement is real enough to reject a bad
-# signature on a double-click. Below that, a warning, never a failed deploy.
-DARWIN_MAJOR=$(uname -r | cut -d. -f1)
-if command -v codesign >/dev/null 2>&1 && [ "${DARWIN_MAJOR:-0}" -ge 15 ] 2>/dev/null; then
-	for app in "$DEST/Half-Life.app" "$DEST/Half-Life Mods.app" "$DEST/Half-Life System Report.app"; do
-		[ -d "$app" ] || continue
-		codesign -v "$app" 2>&1 || { echo "FATAL: $(basename "$app") signature is invalid after install" >&2; exit 1; }
-	done
-	echo "signatures verified on the installed bundles"
-elif command -v codesign >/dev/null 2>&1; then
-	for app in "$DEST/Half-Life.app" "$DEST/Half-Life Mods.app" "$DEST/Half-Life System Report.app"; do
-		[ -d "$app" ] || continue
-		codesign -v "$app" >/dev/null 2>&1 || echo "note: codesign -v disagrees on $(basename "$app") - not trusted below Darwin 15, continuing"
-	done
-fi
-
-# Old releases put our game code, default config and mod artwork INSIDE the
-# player's valve/. All of that now ships inside Half-Life.app, and valve/ outranks
-# the app's read-only root in the search path, so anything left behind would shadow
-# what we just installed - the player would keep running the previous release's
-# game code with no sign anything was wrong. Remove exactly the files we ever put
-# there, by name, and nothing else: retail data (pak0.pak, *.wad, maps/, models/,
-# the Windows client.dll and hl.dll) is never touched.
-if [ -d "$MNT/valve" ]; then
-	# Pre-v1.2.0 image: it still carries a valve payload, so install it as before.
-	ditto "$MNT/valve/cl_dlls" "$DEST/valve/cl_dlls"
-	ditto "$MNT/valve/dlls"    "$DEST/valve/dlls"
-	[ -f "$MNT/valve/userconfig.cfg" ] && cp -p "$MNT/valve/userconfig.cfg" "$DEST/valve/userconfig.cfg" || true
-else
-	REMOVED=0
-	for f in valve/cl_dlls/client_ppc.dylib valve/cl_dlls/client_amd64.dylib \
-	         valve/dlls/hl_ppc.dylib valve/dlls/hl_amd64.dylib \
-	         valve/userconfig.cfg valve/last-run.log; do
-		if [ -f "$DEST/$f" ]; then rm -f "$DEST/$f"; REMOVED=$(( REMOVED + 1 )); fi
-	done
-	# Mod banners/blurbs the old installer staged; all 25 now ship inside the app.
-	if [ -d "$DEST/valve/gfx/shell/mods" ]; then
-		rm -rf "$DEST/valve/gfx/shell/mods"
-		REMOVED=$(( REMOVED + 1 ))
-	fi
-	# Only prune directories we may have created, and only while empty.
-	rmdir "$DEST/valve/gfx/shell" "$DEST/valve/gfx" "$DEST/valve/cl_dlls" "$DEST/valve/dlls" 2>/dev/null || true
-	echo "valve/: removed $REMOVED leftover item(s) from previous releases; retail data untouched"
-fi
-
-# Report engine build spill sitting loose beside the bundle, and do NOT delete it.
-#
-# Everything named here has lived inside Half-Life.app/Contents/MacOS since v1.2.0.
-# A loose copy at the root of the game folder is left over from a raw build staged
-# there, and it is not inert: the engine loads the renderer and the menu with
-# directpath=true, which falls through FS_FindFile's fs_ext_path branch to
-# fs_rootdir/<name>, and fs_rootdir is XASH3D_BASEDIR, this very folder. The stale
-# copy wins over the one in the bundle, with nothing in the log to say so.
-#
-# We name it and stop. This folder is the player's: the retail valve/, every mod
-# they installed, saves. A blanket sweep here is how installed mods got destroyed
-# once already, and no amount of pattern-matching makes it safe to run unattended.
-SPILL=""
-for f in xash3d xash3d.bin libxash.dylib libmenu.dylib libref_gl.dylib \
-         libref_soft.dylib filesystem_stdio.dylib libSDL2-2.0.0.dylib; do
-	[ -e "$DEST/$f" ] && SPILL="$SPILL $f"
-done
-if [ -n "$SPILL" ]; then
-	echo "WARNING: engine files are loose in $DEST and SHADOW the ones inside the app:"
-	for f in $SPILL; do echo "    $f"; done
-	echo "  These are build spill, not part of any release. Move them out by hand, e.g."
-	echo "    mkdir -p ~/oldmac/halflife/build-spill && (cd '$DEST' && mv$SPILL ~/oldmac/halflife/build-spill/)"
-	echo "  Nothing has been deleted. Your valve/ and mods are untouched."
-fi
-
-# Make the Finder notice a changed icon.
-#
-# Replacing a bundle in place is not enough: the Finder caches an app's icon
-# against the bundle, and on Tiger/Leopard it will happily keep drawing the OLD
-# one indefinitely. Bumping the bundle's and the Info.plist's modification time
-# invalidates that, which is the least invasive nudge available - it does not
-# touch the user's other windows or restart anything.
-for app in "$DEST/Half-Life.app" "$DEST/Half-Life Mods.app" "$DEST/Half-Life System Report.app"; do
-	[ -d "$app" ] || continue
-	touch "$app/Contents/Info.plist" "$app/Contents" "$app" 2>/dev/null || true
-done
-# The touch above is not always enough. On Panther it kept drawing the GENERIC
-# application icon for the System Report app after v1.4.3 changed which .icns
-# file that bundle carries: the icon file and CFBundleIconFile were both correct
-# on disk, and Finder still ignored them. Re-registering the bundle with
-# LaunchServices is what actually clears it. The tool has lived at this path
-# since 10.3, and this is best-effort: if it is missing or fails, the touch above
-# still stands and a wrong icon is not worth failing a deploy over.
-LSREG=/System/Library/Frameworks/ApplicationServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
-if [ -x "$LSREG" ]; then
-	for app in "$DEST/Half-Life.app" "$DEST/Half-Life Mods.app" "$DEST/Half-Life System Report.app"; do
-		[ -d "$app" ] || continue
-		"$LSREG" -f "$app" >/dev/null 2>&1 || true
-	done
-	echo "re-registered the three bundles with LaunchServices (icon cache)"
-fi
-# ...and drop the per-folder .DS_Store, which is where the stale icon position
-# and cached badge actually live for this directory.
-rm -f "$DEST/.DS_Store" 2>/dev/null || true
-
-# detach - retry until the slow-disk flush completes; only then rmdir the now-
-# empty mountpoint.
-# Every detach here is best-effort and must not abort the script under `set -e`:
-# by this point the install has already succeeded, and a stubborn image is worth a
-# warning, not a failed deploy.
-if [ "${PRESTAGED:-0}" = 1 ]; then
-	# Nothing was ever mounted, so there is nothing to detach. $MNT is an
-	# ordinary directory the caller rsynced; remove it rather than leaving a
-	# second full copy of the payload on the machine's disk.
-	rm -rf "$MNT"
-else
-for k in 1 2 3 4 5; do
-	if [ -n "$DEV" ] && hdiutil detach "$DEV" >/dev/null 2>&1; then break; fi
-	if hdiutil detach "$MNT" >/dev/null 2>&1; then break; fi
-	sleep 2
-done
-if [ -n "$DEV" ]; then hdiutil detach -force "$DEV" >/dev/null 2>&1 || true; fi
-hdiutil detach -force "$MNT" >/dev/null 2>&1 || true
-rmdir "$MNT" 2>/dev/null || true
-if mount | grep -q " $MNT " 2>/dev/null; then
-	echo "WARNING: $MNT is still mounted - eject it by hand"
-fi
-fi
-
-if [ -n "$STAGE" ]; then
-	mv "$STAGE" "$FINAL_DEST"
-	DEST="$FINAL_DEST"
-	STAGE=""
-	echo "promoted staged candidate into $DEST"
-fi
-
-echo "installed into $DEST:"
-ls -1 "$DEST" | sed 's/^/    /'
-echo "app binary archs:"
-file "$DEST/Half-Life.app/Contents/MacOS/xash3d.bin" 2>/dev/null | sed 's/.*: /    /' || true
-if [ -d "$DEST/Half-Life Mods.app" ]; then
-	echo "mod installer: $(ls "$DEST/Half-Life Mods.app/Contents/Resources/mods" 2>/dev/null | wc -l | tr -d ' ') mod builds bundled"
-fi
-if [ -f "$DEST/valve/pak0.pak" ]; then echo "retail valve/ game data present (pak0.pak) - ready to launch."
-else echo "NOTE: no valve/pak0.pak yet - add your retail Half-Life data to $DEST/valve before launching."; fi
-
-# Older versions of this script kept a rollback copy here. Fix forward means
-# none is kept (user, 2026-09-23), so remove what they left.
-rm -rf "$HOME/oldmac/halflife/rollback"
-REMOTE_EOF
-)
-
-if [ "$LOCAL" = 1 ]; then
-	env PRESTAGED="${PRESTAGE:-0}" bash -s "$DMG_BASE" "$DEST_DIR" <<<"$INSTALL_SCRIPT"
-else
-	ssh "$HOST" "PRESTAGED=${PRESTAGE:-0} bash -s '$DMG_BASE' '$DEST_DIR'" <<<"$INSTALL_SCRIPT"
-fi
-
-# The staged DMG has now been fully extracted into $DEST_DIR - remove it, so a
-# manual test/deploy round doesn't leave its own source image behind forever.
-# Scoped to our own named release artifact, same as the pre-copy cleanup above;
-# never touches anything of the player's. old-mac-build-host's own fleet sweep
-# (issue #26) found this leftover on 8 of 9 reachable hosts, back when the
-# staging path was ~/Desktop: every deploy up to that fix installed cleanly and
-# then left the .dmg it was installed from sitting there, since nothing ever
-# removed it after use. Moved under ~/oldmac/halflife (issue #35); the failure
-# mode and the fix are the same either way. PRESTAGE mode never copies a .dmg to
-# the target at all, so there is nothing to remove there.
-if [ "${PRESTAGE:-0}" != 1 ]; then
-	if [ "$LOCAL" = 1 ]; then
-		rm -f "$HOME/oldmac/halflife/deploy-stage/$DMG_BASE"
+		hdiutil detach "$PDEV" >/dev/null 2>&1 || hdiutil detach -force "$PDEV" >/dev/null 2>&1
+		rm -rf "$CLONE"
+		[ $prc -eq 0 ] || die "prestage copy failed (rsync rc=$prc)"
 	else
-		ssh "$HOST" "rm -f ~/oldmac/halflife/deploy-stage/$DMG_BASE"
+		LMD5="$(lmd5 "$DMG")"
+		say "copy $DMG_BASE ($LMD5) to ~/oldmac/$PORT/deploy/incoming"
+		put "$DMG" "oldmac/$PORT/deploy/incoming/$DMG_BASE" || die "copy failed"
+		RMD5="$(printf 'f=%q\n%s\n' "oldmac/$PORT/deploy/incoming/$DMG_BASE" \
+			'cd; md5 -q "$f" 2>/dev/null || md5sum "$f" | cut -d" " -f1' | run_host)"
+		[ "$LMD5" = "$RMD5" ] || die "DMG damaged in transfer ($LMD5 != ${RMD5:-none})"
+		say "DMG arrived intact"
 	fi
-	echo "[deploy-dmg $HOST] removed staged $DMG_BASE (installed copy is at $DEST_LABEL)"
 fi
 
-echo "[deploy-dmg $HOST] done - installed from $DMG_BASE"
+# --- on the host --------------------------------------------------------------------
+{ header; cat <<'REMOTE'
+set -u
+ROOT="$HOME/oldmac/$PORT/deploy"
+case "$DEST" in "~/"*) DEST="$HOME/${DEST#"~/"}" ;; esac   # tests install under ~, never /Applications
+say()  { echo "  $*"; }
+die()  { echo "  FATAL: $1" >&2; exit "${2:-1}"; }
+hmd5() { md5 -q "$1" 2>/dev/null || md5sum "$1" 2>/dev/null | cut -d' ' -f1; }
+# By device, never by path (Panther ignores a path). 5 tries, then force, then say so.
+detach() {
+	local d="$1" i=0
+	[ -n "$d" ] || return 0
+	while [ $i -lt 5 ]; do hdiutil detach "$d" >/dev/null 2>&1 && return 0; i=$((i+1)); sleep 1; done
+	hdiutil detach -force "$d" >/dev/null 2>&1 && return 0
+	echo "  WARN: $d is still attached" >&2; return 1
+}
+running() {
+	[ -n "$PROC" ] || return 1
+	ps -axco command 2>/dev/null | grep -qx "$PROC"
+}
+if running && [ "$FORCE" != 1 ]; then
+	die "$PROC is running on this Mac; not replacing it under a live game (FORCE=1 overrides)" 9
+fi
+mkdir -p "$ROOT"
+
+# Our own mounts left by an interrupted run: detach them by device first.
+mount | while read -r line; do
+	mp="${line#* on }"; mp="${mp% (*}"
+	d="${line%% on *}"; d="${d%s[0-9]*}"   # the whole disk, not the mounted slice
+	case "$mp" in "$ROOT"/mount.*) detach "$d"; rmdir "$mp" 2>/dev/null ;; esac
+done
+
+# OLD holds the replaced files only while the swap runs; it is deleted either way.
+MNT="$ROOT/mount.$$"; STAGE="$ROOT/stage.$$"; OLD="$ROOT/old.$$"
+DEV=
+cleanup() { detach "$DEV"; rmdir "$MNT" 2>/dev/null; rm -rf "$STAGE" "$OLD"; rmdir "$ROOT/incoming" "$ROOT" 2>/dev/null; }
+trap cleanup EXIT
+if [ "$PRESTAGE" = 1 ]; then
+	MNT="$ROOT/prestage"; [ -d "$MNT" ] || die "no prestaged image contents" 1
+else
+	mkdir -p "$MNT"
+	DEV="$(hdiutil attach -nobrowse -readonly -mountpoint "$MNT" "$ROOT/incoming/$DMG_BASE" 2>/dev/null | awk '/^\/dev\//{sub(/s[0-9]+$/,"",$1); print $1; exit}')"
+	[ -n "$DEV" ] || die "hdiutil attach gave no device for $DMG_BASE" 6
+fi
+# The hash a VERIFY file must have: from this Mac's mount, or (PRESTAGE) the
+# invoking Mac's, so a damaged rsync cannot vouch for itself.
+want() { local i=0 v; for v in ${VERIFY[@]+"${VERIFY[@]}"}; do
+	if [ "$v" = "$1" ]; then [ -n "${EXPECT[$i]:-}" ] && [ "${EXPECT[$i]}" != - ] && { echo "${EXPECT[$i]}"; return; }; break; fi
+	i=$((i+1)); done; hmd5 "$SRC/$1"; }
+
+# Units: normally one (IMAGE_ROOT -> DEST). IMAGE_ROOT='*' installs each
+# top-level folder of the image as /Applications-style sibling under DEST.
+UNITS=()
+if [ "$IMAGE_ROOT" = '*' ]; then
+	for d in "$MNT"/*; do
+		[ -d "$d" ] && [ ! -L "$d" ] && UNITS[${#UNITS[@]}]="$(basename "$d")"
+	done
+	[ ${#UNITS[@]} -gt 0 ] || die "image has no top-level folders to install" 1
+else
+	[ -d "$MNT/$IMAGE_ROOT" ] || die "image has no $IMAGE_ROOT" 1
+	UNITS[0]=.
+fi
+
+# Staging must be on the same volume as the install, so the final step is a
+# rename. ~/oldmac normally is; if not, stage hidden beside the install.
+vol() { df "$1" 2>/dev/null | awk 'NR==2{print $1}'; }
+mkdir -p "$DEST" || die "cannot create $DEST"
+[ "$(vol "$ROOT")" = "$(vol "$DEST")" ] || { STAGE="$(dirname "$DEST")/.$PORT.stage.$$"; OLD="$(dirname "$DEST")/.$PORT.old.$$"; }
+rm -rf "$STAGE" "$OLD"; mkdir -p "$STAGE" "$OLD" || die "cannot stage"
+
+for u in "${UNITS[@]}"; do
+	if [ "$u" = . ]; then SRC="$MNT/$IMAGE_ROOT"; UD="$DEST"; else SRC="$MNT/$u"; UD="$DEST/$u"; fi
+	un="$u"; [ "$u" = . ] && un=_main      # a real directory name for the one-unit case
+	ST="$STAGE/$un"; OU="$OLD/$un"; mkdir -p "$ST" "$OU" "$UD"
+
+	# What this unit owns: OWNED, with '*' meaning every top-level entry.
+	NAMES=()
+	for p in "${OWNED[@]}"; do
+		if [ "$p" = '*' ]; then
+			for e in "$SRC"/* "$SRC"/.[!.]*; do [ -e "$e" ] && NAMES[${#NAMES[@]}]="$(basename "$e")"; done
+		else NAMES[${#NAMES[@]}]="$p"
+		fi
+	done
+
+	for p in "${NAMES[@]}"; do
+		opt=no; case "$p" in *\?) opt=yes; p="${p%\?}" ;; esac
+		if [ -e "$SRC/$p" ]; then
+			mkdir -p "$(dirname "$ST/$p")"; ditto "$SRC/$p" "$ST/$p" || die "copy of $p failed"
+		elif [ $opt = no ]; then
+			die "the image lacks $p (listed in OWNED)"
+		fi
+	done
+
+	# Byte-for-byte check of what will run; re-copy up to 3 times (old disks
+	# and RAM do flip bytes: quake2/quake3 retry loops).
+	for v in ${VERIFY[@]+"${VERIFY[@]}"}; do
+		[ -e "$SRC/$v" ] || continue
+		k=1
+		while [ "$(hmd5 "$ST/$v")" != "$(want "$v")" ]; do
+			[ $k -ge 4 ] && die "$v still differs from the image after $k copies" 7
+			top="${v%%/*}"; rm -rf "$ST/$top"; ditto "$SRC/$top" "$ST/$top"; k=$((k+1))
+		done
+	done
+
+	# Hooks see HOST (quake2 merges cfg lines on the workstation only), SRC, DEST.
+	if [ -n "$POST_STAGE" ]; then ( cd "$ST" && SRC="$SRC" DEST="$UD" eval "$POST_STAGE" ) || die "post_stage hook failed"; fi
+
+	# An empty DATA_DIR is seeded from the first FIRST_SEED (relative to ~) that
+	# exists. Before the swap: an OWNED file may live inside DATA_DIR
+	# (quake2's baseq2/game.so), and after the swap the dir is never empty.
+	if [ -n "$DATA_DIR" ] && [ -z "$(ls -A "$UD/$DATA_DIR" 2>/dev/null)" ]; then
+		for fs in ${FIRST_SEED[@]+"${FIRST_SEED[@]}"}; do
+			[ -d "$HOME/$fs" ] || continue
+			mkdir -p "$UD/$DATA_DIR"; ditto "$HOME/$fs" "$UD/$DATA_DIR" && say "seeded $DATA_DIR from ~/$fs"; break
+		done
+	fi
+
+	# Swap: old OWNED paths aside (deleted below), staged ones into place.
+	for p in "${NAMES[@]}"; do
+		p="${p%\?}"
+		if [ -e "$UD/$p" ] || [ -L "$UD/$p" ]; then mkdir -p "$(dirname "$OU/$p")"; mv "$UD/$p" "$OU/$p"; fi
+		if [ -e "$ST/$p" ]; then mkdir -p "$(dirname "$UD/$p")"; mv "$ST/$p" "$UD/$p"; fi
+	done
+
+	bad=
+	for v in ${VERIFY[@]+"${VERIFY[@]}"}; do
+		[ -e "$SRC/$v" ] || continue
+		[ "$(hmd5 "$UD/$v")" = "$(want "$v")" ] || bad="$v"
+	done
+	rm -rf "$OU"
+	[ -z "$bad" ] || die "installed $bad does not match the image. Fix forward: redeploy (no rollback is kept)" 7
+
+	for r in ${REMOVE[@]+"${REMOVE[@]}"}; do
+		case "$r" in /*|*..*|'') continue ;; esac
+		for f in "$UD"/$r; do [ -e "$f" ] && rm -rf "$f" && say "removed legacy $r"; done
+	done
+	for p in "${NAMES[@]}"; do
+		p="${p%\?}"; [ -e "$UD/$p" ] || continue
+		find "$UD/$p" -name .DS_Store -exec rm -f {} \; 2>/dev/null
+		command -v xattr >/dev/null 2>&1 && xattr -dr com.apple.quarantine "$UD/$p" 2>/dev/null
+		case "$p" in *.app)
+			touch "$UD/$p"   # with lsregister below: Panther otherwise keeps the generic icon
+			for ls in /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister \
+			          /System/Library/Frameworks/ApplicationServices.framework/Frameworks/LaunchServices.framework/Support/lsregister; do
+				[ -x "$ls" ] && { "$ls" -f "$UD/$p" >/dev/null 2>&1; break; }
+			done ;;
+		esac
+	done
+	if [ -n "$POST_INSTALL" ]; then ( cd "$UD" && DEST="$UD" eval "$POST_INSTALL" ) || die "post_install hook failed"; fi
+	say "installed $UD"
+done
+
+rm -f "$ROOT/incoming/$DMG_BASE"; [ "$PRESTAGE" = 1 ] && rm -rf "$ROOT/prestage"
+rm -rf "$ROOT/rollback"   # left by an earlier version of this script
+say "verified; the replaced files are deleted (no rollback is kept)"
+REMOTE
+} | run_host
+rc=$?
+[ $rc -eq 0 ] && say "done ($MODE)" || echo "[deploy-dmg $HOST] FAILED ($MODE, rc=$rc)" >&2
+exit $rc
