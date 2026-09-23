@@ -168,7 +168,7 @@ not mistaken for a bug and "fixed" back.
 ## The installer app
 
 `installer/` builds **Half-Life Mods.app**: native Cocoa, fat `ppc` + `i386` +
-`x86_64` + `arm64`, `LSMinimumSystemVersion 10.3.0`. What kind of program it is
+`x86_64` + `arm64`, `LSMinimumSystemVersion 10.3.9`. What kind of program it is
 and why is `docs/adr/0009`; where it fetches from is `docs/adr/0011`; the
 networking and the 10.3-era Cocoa rules are `installer/README.md`. Only what
 bears on the mod dylibs is repeated here:

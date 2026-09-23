@@ -91,9 +91,9 @@ defaults on every launch, and the console is available everywhere without
 developer mode.
 
 Effects follow the GPU, checked at launch: model shadows and 2x multisampling
-on the G4 and G5 Radeons, water ripples on the G5 only. The Mac mini G4's
-Radeon 9200 gets no multisampling: with it, the frame rate you see fell from a
-locked 60 to 42 fps ([#41](https://github.com/matthewdeaves/old-mac-half-life-1/issues/41)).
+on the G4 and G5 Radeons, water ripples on the G5 only. From v1.9.20 the Mac
+mini G4's Radeon 9200 gets no multisampling: with it, the frame rate you see
+fell from a locked 60 to 42 fps ([#41](https://github.com/matthewdeaves/old-mac-half-life-1/issues/41)).
 
 LAN multiplayer works across the endian boundary: PowerPC and Intel machines
 host and join each other.
@@ -215,6 +215,7 @@ The only setups this has run on.
 | Power Mac G5 (dual 2.7 GHz) | 2x PowerPC 970 @ 2.7 GHz | ATI Radeon 9650 | 10.3.9, 10.4.11 and 10.5.8, three partitions |
 | Mac mini (Intel) | Core 2 Duo @ 2.33 GHz | Intel GMA 950 | 10.7.5 |
 | Mac mini (Intel) | Core 2 Duo @ 2.26 GHz | NVIDIA GeForce 9400 | 10.6.8 |
+| iMac (Retina 5K, 2019) | Core i5 @ 3.7 GHz | AMD Radeon Pro 580X | 15.7.9 |
 | MacBook Air (M5) | Apple M5 | Apple integrated | macOS 26, native `arm64` |
 
 Benchmarks and per-machine notes: [docs/BENCHMARKING.md](docs/BENCHMARKING.md).
