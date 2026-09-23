@@ -502,7 +502,12 @@ def test_no_script_calls_a_helper_that_is_gone():
         for name in set(re.findall(r'scripts/([a-z0-9][a-z0-9._-]*\.(?:py|sh))\b', body)):
             if name in present or name == sh:
                 continue
-            if invocation_line(cmds, name) >= 0:
+            i = invocation_line(cmds, name)
+            # An optional helper, read only when present: `[ -r X ] && . X`, as
+            # the shared deploy/smoke scripts do with a port's dmg-hooks.sh.
+            if i >= 0 and re.search(r'\[ -[rfex] [^]]*%s"? \] &&' % re.escape(name), cmds[i]):
+                continue
+            if i >= 0:
                 dangling.append("scripts/%s invokes %s, which does not exist" % (sh, name))
     check("no script invokes a helper that has been deleted", not dangling,
           "\n".join(dangling))
