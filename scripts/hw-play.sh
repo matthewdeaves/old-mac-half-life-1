@@ -3,7 +3,9 @@
 #
 #   ./hw-play.sh [map] [seconds] [extra engine args...]
 #
-# Run this ON the bench machine, from the folder holding Half-Life.app.
+# Run this ON the bench machine, from ~/oldmac/halflife/, never from inside the
+# game folder: /Applications/Half-Life holds the build and game data and nothing
+# else (issue #40). It changes into the game folder itself; HL_DIR overrides it.
 #
 # WHY THIS EXISTS ALONGSIDE hw-shot.sh
 #
@@ -29,6 +31,7 @@ MAP="${1:-c1a0}"
 SECS="${1:-180}"
 [ $# -gt 0 ] && shift
 
+cd "${HL_DIR:-/Applications/Half-Life}" || exit 2
 GAME="./Half-Life.app/Contents/MacOS/xash3d"
 [ -x "$GAME" ] || { echo "no Half-Life.app here ($(pwd))"; exit 2; }
 [ -f "valve/maps/$MAP.bsp" ] || echo "warning: valve/maps/$MAP.bsp not found, the engine will say so"
