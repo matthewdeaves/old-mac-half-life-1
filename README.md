@@ -27,6 +27,8 @@ Downloads: `/Applications` or your home folder both work. Those three folders
 are privacy-gated per app, and an unsigned app has its writes silently denied
 there, so the game cannot save. The launcher explains this if it happens. On
 Mac OS X 10.3 through 10.14 any folder works, the Desktop included.
+If macOS refuses to open the app the first time, clear the download flag with
+`xattr -dr com.apple.quarantine /Applications/<folder>`.
 
 On macOS 10.14 and later the game asks for microphone access the first time it
 runs. That is for in-game voice chat and nothing else, and declining is fine:
@@ -65,13 +67,6 @@ shipped in every release like the rest; it has simply never been launched on a
 Core Solo or Core Duo. Each should take its existing slice; a report either way
 is [useful](https://github.com/matthewdeaves/old-mac-half-life-1/issues).
 
-### Manual validation record
-
-On 2026-09-12, the user played the `v1.9.18` candidate on `mini-g4` (Mac OS X
-10.4.11) and reported that Half-Life looked good, the flashlight was fixed, and
-it played well. This observation does not verify normal quit, save/load, or
-sound; those checks remain outstanding.
-
 ![Anatomy of the fat binary: three source trees build into five CPU slices that lipo fuses into one Half-Life.app](docs/img/fat-binary.svg)
 
 ## The three apps
@@ -94,6 +89,11 @@ its desktop resolution; Intel and Apple Silicon get exclusive fullscreen at the
 desktop resolution. A config shipped inside the app re-applies renderer-safe
 defaults on every launch, and the console is available everywhere without
 developer mode.
+
+Effects follow the GPU, checked at launch: model shadows and 2x multisampling
+on the G4 and G5 Radeons, water ripples on the G5 only. The Mac mini G4's
+Radeon 9200 gets no multisampling: with it, the frame rate you see fell from a
+locked 60 to 42 fps ([#41](https://github.com/matthewdeaves/old-mac-half-life-1/issues/41)).
 
 LAN multiplayer works across the endian boundary: PowerPC and Intel machines
 host and join each other.
@@ -218,68 +218,6 @@ The only setups this has run on.
 | MacBook Air (M5) | Apple M5 | Apple integrated | macOS 26, native `arm64` |
 
 Benchmarks and per-machine notes: [docs/BENCHMARKING.md](docs/BENCHMARKING.md).
-
-### Where to put it on Apple Silicon and modern macOS
-
-Put the game folder in **`/Applications`**, not on the Desktop.
-
-macOS asks an app for permission before it may read files in Desktop, Documents
-or Downloads, and it asks **every launch** for an app it cannot identify
-consistently. A game that lives in `/Applications` is outside those protected
-locations, so it never triggers the prompt and can read its own game data
-without being interrupted.
-
-So: drag the whole folder (the `.app` **and** the game data beside it) into
-`/Applications`, keeping them together. On first run, clear Gatekeeper with:
-
-```sh
-xattr -dr com.apple.quarantine /Applications/<folder>
-```
-
-PowerPC and Intel Macs running 10.3 through 10.7 have none of this and can keep
-the folder wherever you like.
-
-## Water ripple CPU cost, v1.9.16
-
-The GL renderer's ripple texture update precomputes its sampling coordinates
-once per upload instead of dividing per pixel, keeping the original float
-division and truncation so the pixels are identical.
-[ADR 0019](docs/adr/0019-ripple-coordinates-preserve-the-original-rounding.md)
-explains the rounding constraint. Only the G5 is seeded with `r_ripple` on;
-every other machine runs this code only if the player turns "Water ripples" on.
-
-[test-ripples.py](tests/test-ripples.py) runs the previous and current upload
-functions with GL calls stubbed and compares `1600` pixels per run; every run
-matched, on native arm64, the Intel mini, the G4 and the G3. Median CPU time
-for `10000` updates across interleaved before/after pairs, using the release
-compilers and target flags:
-
-| Machine | Before | After | Less CPU time |
-|---|---:|---:|---:|
-| G3, Tiger | 76.735000 s | 27.520000 s | 64.14% |
-| Mac mini G4 | 36.575000 s | 10.215000 s | 72.07% |
-| Intel mini, 2.33 GHz | 4.901618 s | 2.852508 s | 41.80% |
-| Apple Silicon workstation | 0.244685 s | 0.160310 s | 34.48% |
-
-These are ripple CPU savings, not whole-game FPS gains or GPU upload timings.
-No graphics defaults, filtering, resolution or effect update rates changed.
-Whole-game checks on `crossfire`, 800x600 fullscreen, vsync off, a warmup and
-three measured runs, median FPS:
-
-| Machine | Before | After |
-|---|---:|---:|
-| G3, Panther | 58.786 | 58.853 |
-| G3, Tiger | 67.797 | 67.654 |
-| Mac mini G4 | 92.653 | 92.988 |
-| Intel mini, 1.83 GHz | 167.108 | 166.435 |
-
-The run ranges overlap, so these scenes show no FPS change, and they have no
-water in view. G5 and native Apple Silicon gameplay were not measured.
-
-The same release fixed an out-of-bounds member-name read in the Mods app's ZIP
-reader, reproduced with AddressSanitizer. [test-zip.py](tests/test-zip.py)
-exercises it with valid and damaged archives; against the previous reader it
-reports `9 passed, 6 failed`, against the fix `15 passed, 0 failed`.
 
 ## Credits
 

@@ -101,6 +101,29 @@ vsynced average, because it moves more frames across the deadline.
 So quote both numbers whenever a decision turns on them, and never infer the
 on-cap figure by taking a ceiling of the off-cap one.
 
+### MSAA per GPU, measured on-cap (#41)
+
+2026-09-23, v1.9.19, `crossfire`, 300 frames, median of 3, each machine at its
+shipping resolution borderless, MSAA 0 and 2 interleaved over two rounds, the
+effective values read back from the engine log:
+
+| machine | MSAA | vsync 0 | vsync 1 |
+| --- | --- | --- | --- |
+| mini-g4 Radeon 9200, 1024x768 | 0 | 112.7 | 59.9 |
+| | 2 | 62.4 | 42.18 |
+| g5-tiger Radeon 9650, 1680x1050 | 0 | 118.6 | 60.008 |
+| | 2 | 71.1 | 60.008 |
+
+2x is free on the G5 and costs the mini G4 a locked 60, so the launcher forces
+0 on the Radeon 9200 (RV280) only.
+
+### Ripple upload CPU cost (v1.9.16, ADR 0019)
+
+`tests/test-ripples.py`, median CPU time for 10000 updates, before/after, same
+pixels: G3 76.7 s to 27.5 s, mini G4 36.6 s to 10.2 s, Intel mini 4.90 s to
+2.85 s, Apple Silicon 0.245 s to 0.160 s. Whole-game fps on `crossfire` (no
+water in view) did not move outside run-to-run spread.
+
 ### `scripts/fleet-bench.sh`, from the dev box
 
 Ships `bench.sh` to each reachable machine over SSH, runs it, appends one
