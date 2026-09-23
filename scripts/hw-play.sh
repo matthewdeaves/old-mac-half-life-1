@@ -63,7 +63,9 @@ trap 'cleanup' EXIT INT TERM HUP
 
 rm -f last-run.log
 mkdir -p valve/scrshots
-rm -f valve/scrshots/*.png valve/scrshots/*.bmp valve/scrshots/*.tga 2>/dev/null
+# The player's own screenshots live here too, so nothing is deleted: note what
+# is already there and report only what this run adds (issue #40).
+BEFORE=$( ls -1 valve/scrshots/ 2>/dev/null )
 
 # `wait` is one FRAME, not one second, so none of these tick while the map is
 # loading. That is what makes the same counts work on a 450 MHz G3 and on a G5:
@@ -90,7 +92,9 @@ LEFT=$( engines | wc -l | tr -d ' ' )
 echo "map: $MAP"
 echo "engine processes left: $LEFT"
 echo "screenshots:"
-ls -1 valve/scrshots/ 2>/dev/null | head -5
+ls -1 valve/scrshots/ 2>/dev/null | while read -r f; do
+	echo "$BEFORE" | grep -qx "$f" || echo "$f"
+done | head -5
 echo "log tail:"
 sed 's/\x1b\[[0-9;]*m//g' last-run.log 2>/dev/null | tail -8
 
