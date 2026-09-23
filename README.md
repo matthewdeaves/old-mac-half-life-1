@@ -178,12 +178,9 @@ tree. Exact pins: [`scripts/build-pins.sh`](scripts/build-pins.sh) and
 
 ## How it is built
 
-Development is an automated AI loop, Claude Code under my direction: implement,
-build, deploy to real hardware, run it there, iterate. Every change is compiled
-on an Intel Lion mini, where all the PowerPC and Intel slices cross-compile,
-plus an Apple Silicon box for `arm64`, fused with `lipo` and tested on the
-machines below rather than on an emulator. Findings that turned out wrong are
-recorded as wrong in
+The PowerPC and Intel slices cross-compile on an Intel Lion mini and `arm64`
+on an Apple Silicon Mac; `lipo` fuses them, and each build is tested on the
+machines below, not an emulator. Porting findings:
 [docs/port/POWERPC-FINDINGS.md](docs/port/POWERPC-FINDINGS.md).
 
 ![Repo map: public upstream repos are cloned at pinned commits into a git-ignored vendor directory and built into one universal app; this repo tracks only the glue](docs/img/repo-map.svg)
