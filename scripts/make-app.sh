@@ -286,6 +286,15 @@ else
 		if ioreg -l 2>/dev/null | grep -qE 'ATY,R[V0-9][0-9A-Za-z]*'; then
 			PROFILE="\$PROFILE +r_shadows 1"
 			MSAA_DEFAULT=2   # measured, issue #8
+			# Radeon 9200 (RV280, the mini G4): 2x MSAA halves its fill rate, and
+			# at 1024x768 that took the vsynced rate a player sees from a locked
+			# 60 to 42.2 (62.4 fps rendered, just above the refresh, so frames
+			# miss vblank). Forced, not seeded: there is no menu control for it,
+			# and a seed never reaches an install that already archived the 2.
+			# The G5's RV351 keeps 2: 60.008 vsynced either way. Issue #41.
+			if ioreg -l 2>/dev/null | grep -q 'ATY,RV280'; then
+				MSAA_FORCE=0
+			fi
 			# G5 only, by CPU subtype: 100 is the 970, 10 and 11 are the 7400
 			# and 7450. The G5 is the one machine measured to have headroom to
 			# spend at its own refresh rate, so it is the only one that gets
