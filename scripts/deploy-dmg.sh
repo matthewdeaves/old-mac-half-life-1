@@ -198,21 +198,16 @@ case "$DEST_DIR" in
 	*)  FINAL_DEST="$HOME/$DEST_DIR" ;;
 esac
 DEST="$FINAL_DEST"
-HELPER="${HELPER:?missing rollback helper}"
-[ -x "$HELPER" ] || { echo "missing executable rollback helper: $HELPER" >&2; exit 1; }
-ROLLBACK=""
 STAGE=""
 finish() {
 	rc=$?
-	if [ "$rc" -ne 0 ] && [ -n "$ROLLBACK" ]; then
-		echo "DEPLOY FAILED: original owned paths remain at $ROLLBACK" >&2
-		echo "Restore with: $ROLLBACK/RESTORE.sh '$FINAL_DEST'" >&2
-	fi
+	# Fix forward (user, 2026-09-23): no rollback copy is kept anywhere. A
+	# failed install is repaired by redeploying a good build.
+	[ "$rc" -ne 0 ] && echo "DEPLOY FAILED: redeploy a good build to repair $FINAL_DEST" >&2
 	if [ "$rc" -ne 0 ] && [ -n "$STAGE" ] && [ -d "$STAGE" ]; then
 		rm -rf "$STAGE"
 		echo "discarded incomplete owned staging tree: $STAGE" >&2
 	fi
-	rm -f "$HELPER"
 	exit "$rc"
 }
 trap finish EXIT
@@ -276,13 +271,6 @@ case "$DEST_DIR" in
 		;;
 esac
 
-# Keep the original app bundles, old port-owned valve runtime files and Finder
-# state outside the game root.  The helper's fixed inventory deliberately never
-# includes retail data, saves or mod directories.  The backup is retained after
-# success so a user can restore before a manual test if the candidate is wrong.
-ROLLBACK_ROOT="${ROLLBACK_ROOT:-$($HELPER root)}"
-ROLLBACK="$ROLLBACK_ROOT/$(date +%Y%m%d-%H%M%S)-$DMG_BASE"
-"$HELPER" backup "$FINAL_DEST" "$ROLLBACK" "$DMG_BASE"
 
 mkdir -p "$DEST/valve"
 # Replace the app wholesale so no stale bundle files survive. ditto keeps the
@@ -495,34 +483,16 @@ fi
 if [ -f "$DEST/valve/pak0.pak" ]; then echo "retail valve/ game data present (pak0.pak) - ready to launch."
 else echo "NOTE: no valve/pak0.pak yet - add your retail Half-Life data to $DEST/valve before launching."; fi
 
-# Keep ONE rollback: the one this deploy just wrote, so the previous build can
-# still be restored before a manual test. Every older one is a superseded
-# build and goes, or they pile up forever (old-mac-build-host's tidy removed 11
-# from one host). Matched by the name backup() gives them, so nothing else
-# under the rollback root is ever touched.
-for old in "$ROLLBACK_ROOT"/*-Half-Life-OldMac-*.dmg; do
-	[ -d "$old" ] || continue
-	[ "$old" = "$ROLLBACK" ] && continue
-	rm -rf "$old" && echo "pruned superseded rollback $(basename "$old")"
-done
+# Older versions of this script kept a rollback copy here. Fix forward means
+# none is kept (user, 2026-09-23), so remove what they left.
+rm -rf "$HOME/oldmac/halflife/rollback"
 REMOTE_EOF
 )
 
 if [ "$LOCAL" = 1 ]; then
-	# Still a throwaway copy, not the checkout's real deploy-rollback.sh: the
-	# install script's own EXIT trap does `rm -f "$HELPER"` once it is done,
-	# and that must never delete the copy this repo actually uses.
-	ROLLBACK_HELPER="$(mktemp -t hl-deploy-rollback)"
-	cp "$REPO_ROOT/scripts/deploy-rollback.sh" "$ROLLBACK_HELPER"
-	chmod +x "$ROLLBACK_HELPER"
-	env PRESTAGED="${PRESTAGE:-0}" HELPER="$ROLLBACK_HELPER" bash -s "$DMG_BASE" "$DEST_DIR" <<<"$INSTALL_SCRIPT"
+	env PRESTAGED="${PRESTAGE:-0}" bash -s "$DMG_BASE" "$DEST_DIR" <<<"$INSTALL_SCRIPT"
 else
-	# The helper carries the narrow, inventory-backed rollback transaction.  It
-	# is copied from this checkout for this one deploy, so old fleet trees do
-	# not need a prior sync just to make a candidate installation reversible.
-	ROLLBACK_HELPER="/tmp/hl-deploy-rollback-$$.sh"
-	scp -q "$REPO_ROOT/scripts/deploy-rollback.sh" "$HOST:$ROLLBACK_HELPER"
-	ssh "$HOST" "PRESTAGED=${PRESTAGE:-0} HELPER='$ROLLBACK_HELPER' bash -s '$DMG_BASE' '$DEST_DIR'" <<<"$INSTALL_SCRIPT"
+	ssh "$HOST" "PRESTAGED=${PRESTAGE:-0} bash -s '$DMG_BASE' '$DEST_DIR'" <<<"$INSTALL_SCRIPT"
 fi
 
 # The staged DMG has now been fully extracted into $DEST_DIR - remove it, so a

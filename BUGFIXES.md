@@ -116,8 +116,7 @@ not for every commit. Deep engine writeups live in
   so the loose `BUILD-INFO.txt`, `README.txt` and `Fix Launch Problems.command`
   kept whatever copies the first install brought: a v1.9.19 deploy on the
   workstation left `BUILD-INFO.txt` reading 1.9.16-rc1. It now installs each of
-  the three by name when the image carries it, and `deploy-rollback.sh` saves
-  them with the apps. Control: the same redeploy reads 1.9.19 in all three
+  the three by name when the image carries it. Control: the same redeploy reads 1.9.19 in all three
   places, and `valve/config.cfg` and the retail data are untouched.
 - `make-dmg.sh` refused a correct five-slice fuse as "missing ppc7400" once the
   dev box moved to Xcode 27, whose `lipo -archs` drops both PowerPC slices and
