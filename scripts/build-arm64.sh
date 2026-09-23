@@ -76,6 +76,9 @@ OUT="$OLDMAC/dist/arm64"
 # branch builds against both the old and the new SDL, so a newer SDL here is
 # exactly the case they exist for.
 SDL_VER="${OLDMAC_ARM64_SDL:-2.32.4}"
+# sha256 of the signed libsdl.org tarball; it equals matthewdeaves/SDL tag
+# retro/arm64-base (upstream release-2.32.4). Bumping SDL_VER needs this too.
+SDL_SHA256="${OLDMAC_ARM64_SDL_SHA256:-f15b478253e1ff6dac62257ded225ff4e7d0c5230204ac3450f1144ee806f934}"
 
 if [ "$(uname -m)" != "arm64" ]; then
 	echo "!! build-arm64.sh must run on an Apple Silicon Mac (uname -m says $(uname -m))" >&2
@@ -124,7 +127,11 @@ if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
 	rm -rf "$SDLPREFIX"
 	SRC="/tmp/SDL2-arm64-$SDL_VER"
 	if [ ! -d "$SRC" ]; then
-		curl -fsSL "https://www.libsdl.org/release/SDL2-$SDL_VER.tar.gz" | tar xz -C /tmp
+		TGZ="/tmp/SDL2-$SDL_VER.tar.gz"
+		curl -fsSL -o "$TGZ" "https://www.libsdl.org/release/SDL2-$SDL_VER.tar.gz"
+		echo "$SDL_SHA256  $TGZ" | shasum -a 256 -c - >/dev/null || {
+			echo "!! $TGZ is not sha256 $SDL_SHA256" >&2; rm -f "$TGZ"; exit 1; }
+		tar xzf "$TGZ" -C /tmp && rm -f "$TGZ"
 		mv "/tmp/SDL2-$SDL_VER" "$SRC"
 	fi
 	( cd "$SRC"
