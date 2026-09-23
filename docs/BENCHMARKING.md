@@ -186,6 +186,7 @@ direct runs until jobs grow to cover them.
 | `mini-intel`     | Mac mini, Core 2 T7600 2.33 GHz, 4 GB | Intel GMA 950 | 10.7.5 | yes |
 | `mini-intel2`    | Mac mini, Core 2 T5600 1.83 GHz, 2 GB | Intel GMA 950 | 10.7.5 | yes |
 | `mini-sl`        | Mac mini (Macmini3,1)      | NVIDIA GeForce 9400  | 10.6.8  | **no**|
+| `imac-2019`      | iMac 5K 2019, i5-9600K     | AMD Radeon Pro 580X  | 15.7.9  | yes   |
 | `g5-leopard`     | the same partition as `g5-desktop`, under its other name | ATI Radeon 9650 | 10.5.8 | yes |
 | `quad-leopard`   | Power Mac G5 quad, partition 1 | -                | 10.5    | -     |
 | `quad-tiger`     | Power Mac G5 quad, partition 2 | -                | 10.4    | -     |
