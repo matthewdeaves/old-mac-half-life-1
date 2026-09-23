@@ -159,6 +159,9 @@ ENGINE="$ROOT/vendor/xash3d-fwgs"             # our branch of FWGS/xash3d-fwgs
 HLSDK="$ROOT/vendor/hlsdk-portable"           # our branch of FWGS/hlsdk-portable
 OUT="$ROOT/dist/lion-$INTEL_ARCH"
 SDL_VER=2.0.22
+# sha256 of the signed libsdl.org SDL2-2.0.22 tarball (SDL#9, GPG-verified by
+# deps). Bumping SDL_VER needs this too.
+SDL_SHA256=fe7cbf3127882e3fc7259a75a0cb585620272c51745d3852ab9dd87960697f2e
 
 echo "==> Intel slice: $INTEL_ARCH, floor $INTEL_MIN, C++ runtime $CXXLIB"
 
@@ -240,7 +243,12 @@ if [ ! -x "$SDLPREFIX/bin/sdl2-config" ] || \
 	if [ ! -d "$SRC" ]; then
 		rm -rf "/tmp/sdl2-extract.$$"
 		mkdir -p "/tmp/sdl2-extract.$$"
-		curl -fsSL "https://www.libsdl.org/release/SDL2-$SDL_VER.tar.gz" | tar xz -C "/tmp/sdl2-extract.$$"
+		TGZ="/tmp/sdl2-extract.$$/SDL2-$SDL_VER.tar.gz"
+		curl -fsSL -o "$TGZ" "https://www.libsdl.org/release/SDL2-$SDL_VER.tar.gz"
+		# Compare the digest, not `shasum -c -`: Lion's shasum reads no stdin list.
+		[ "$(shasum -a 256 "$TGZ" | cut -d' ' -f1)" = "$SDL_SHA256" ] || {
+			echo "!! $TGZ is not sha256 $SDL_SHA256" >&2; rm -rf "/tmp/sdl2-extract.$$"; exit 1; }
+		tar xzf "$TGZ" -C "/tmp/sdl2-extract.$$" && rm -f "$TGZ"
 		mv "/tmp/sdl2-extract.$$/SDL2-$SDL_VER" "$SRC"
 		rmdir "/tmp/sdl2-extract.$$"
 	fi
