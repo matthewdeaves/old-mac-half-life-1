@@ -308,6 +308,17 @@ if [ -d "$MNT/Half-Life System Report.app" ]; then
 	echo "installed: Half-Life System Report.app"
 fi
 
+# The loose files beside the apps on the image. Without this an upgrade kept
+# whatever copies the first install brought: measured 2026-09-23 on the
+# workstation, a v1.9.19 deploy left BUILD-INFO.txt reading 1.9.16-rc1. Named
+# one by one, never a sweep of the image root, for the same reason the apps are.
+for loose in "BUILD-INFO.txt" "README.txt" "Fix Launch Problems.command"; do
+	[ -f "$MNT/$loose" ] || continue
+	rm -f "$DEST/$loose"
+	ditto "$MNT/$loose" "$DEST/$loose"
+	echo "installed: $loose"
+done
+
 # Strip com.apple.quarantine on every installed bundle. ditto/scp from our own
 # pipeline never sets it, but the image this script installs from can arrive by
 # a route that does (AirDrop, a browser download, a Mail attachment), and a

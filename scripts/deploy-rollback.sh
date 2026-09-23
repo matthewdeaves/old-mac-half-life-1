@@ -16,6 +16,7 @@ usage() {
 owned_path() {
 	case "$1" in
 		"Half-Life.app"|"Half-Life Mods.app"|"Half-Life System Report.app"|\
+		"BUILD-INFO.txt"|"README.txt"|"Fix Launch Problems.command"|\
 		"valve/cl_dlls"|"valve/dlls"|"valve/userconfig.cfg"|\
 		"valve/last-run.log"|"valve/gfx/shell/mods"|".DS_Store") return 0 ;;
 		*) return 1 ;;
@@ -27,6 +28,9 @@ items() {
 Half-Life.app
 Half-Life Mods.app
 Half-Life System Report.app
+BUILD-INFO.txt
+README.txt
+Fix Launch Problems.command
 valve/cl_dlls
 valve/dlls
 valve/userconfig.cfg
