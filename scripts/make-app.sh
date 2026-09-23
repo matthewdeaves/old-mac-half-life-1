@@ -358,6 +358,19 @@ else
 		else
 			PROFILE="-ref gl -fullscreen +gl_singlepass 0"
 		fi
+		# A discrete GPU with 4 GB or more (ioreg's VRAM,totalMB, 0.15 s, fast
+		# where system_profiler is not) gets model shadows and 4x MSAA. Measured
+		# on imac-2019's Radeon Pro 580X 8 GB at 5120x2880: shadows free, both
+		# together 233 -> 199 fps, 3.3x the 60 Hz refresh. Only that class was
+		# measured: the GMA 950 and GeForce 9400 report no VRAM,totalMB, and
+		# Apple Silicon none at all, so they are unchanged until measured.
+		# MSAA is forced, not seeded: no menu control, and a seed never reaches
+		# an install that already archived 0 (issue #41). Issue #43.
+		VRAM_MB="\$(ioreg -l 2>/dev/null | sed -n 's/.*"VRAM,totalMB" = \([0-9][0-9]*\).*/\1/p' | sort -n | tail -1)"
+		if [ -n "\$VRAM_MB" ] && [ "\$VRAM_MB" -ge 4096 ] 2>/dev/null; then
+			PROFILE="\$PROFILE +r_shadows 1"
+			MSAA_FORCE=4
+		fi
 		# gl_singlepass OFF here, deliberately, and said rather than implied -
 		# this whole branch is everything that is not PowerPC (arm64 included:
 		# uname -p there is "arm", not "powerpc", so it lands here too). The
