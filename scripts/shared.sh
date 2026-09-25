@@ -34,7 +34,7 @@
 #    `git show <pin>:scripts/<script>` into a cache directory keyed by the
 #    pin, so two different pins (two ports on different revisions, or one
 #    port mid-bump) never collide and a pin's cached content is immutable
-#    once fetched — no atomic-replace-under-a-running-shell hazard like
+#    once fetched, no atomic-replace-under-a-running-shell hazard like
 #    sync-shared-scripts.sh's direct-copy install, because nothing here ever
 #    overwrites a path a previous fetch already wrote.
 # 4. exec the cached copy with the remaining arguments.
