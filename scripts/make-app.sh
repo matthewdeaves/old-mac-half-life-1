@@ -366,14 +366,24 @@ else
 		# where system_profiler is not) gets model shadows and 4x MSAA. Measured
 		# on imac-2019's Radeon Pro 580X 8 GB at 5120x2880: shadows free, both
 		# together 233 -> 199 fps, 3.3x the 60 Hz refresh. Only that class was
-		# measured: the GMA 950 and GeForce 9400 report no VRAM,totalMB, and
-		# Apple Silicon none at all, so they are unchanged until measured.
-		# MSAA is forced, not seeded: no menu control, and a seed never reaches
-		# an install that already archived 0 (issue #41). Issue #43.
+		# measured: the GeForce 9400 (mini-sl) reports no VRAM,totalMB, cannot
+		# even produce a valid GL bench as currently wired (no display,
+		# BENCHMARKING.md), and Apple Silicon reports none at all, so both stay
+		# unchanged until measured. MSAA is forced, not seeded: no menu
+		# control, and a seed never reaches an install that already archived 0
+		# (issue #41). Issue #43.
 		VRAM_MB="\$(ioreg -l 2>/dev/null | sed -n 's/.*"VRAM,totalMB" = \([0-9][0-9]*\).*/\1/p' | sort -n | tail -1)"
 		if [ -n "\$VRAM_MB" ] && [ "\$VRAM_MB" -ge 4096 ] 2>/dev/null; then
 			PROFILE="\$PROFILE +r_shadows 1"
 			MSAA_FORCE=4
+		elif ioreg -l 2>/dev/null | grep -q '"model" = "GMA 950"'; then
+			# GMA 950 (mini-intel/mini-intel2), issue #50: fresh bench-evidence
+			# baseline on mini-intel (v1.9.20, 800x600, c0a0, vsync off), 3
+			# VALID rounds each side, r_shadows on vs off: 104.34 -> 103.74
+			# mean, WORSE by 0.61 fps (noise band 0.097, real), about -0.58%.
+			# Off-cap headroom alone (100+ fps) is 4x the 25fps floor, so
+			# turned on; no on-cap number taken, same as the G3 decision above.
+			PROFILE="\$PROFILE +r_shadows 1"
 		fi
 		# gl_singlepass OFF here, deliberately, and said rather than implied -
 		# this whole branch is everything that is not PowerPC (arm64 included:
