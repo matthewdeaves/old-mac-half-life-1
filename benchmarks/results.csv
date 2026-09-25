@@ -204,3 +204,10 @@ timestamp,label,host,renderer,resolution,screenmode,map,frames,fps_min,fps_med,f
 2026-09-23T14:38:26,rc2pass-r2-1080nodetail-vsync1-r1,mini-intel2,gl,1920x1080,fullscreen,crossfire,300,55.759,56.671,56.817,55.759|56.817|56.671
 2026-09-23T14:38:48,rc2pass-r2-720base-vsync0-r1,mini-intel2,gl,1280x720,fullscreen,crossfire,300,138.967,139.237,139.726,139.237|139.726|138.967
 2026-09-23T14:39:18,rc2pass-r2-720base-vsync1-r1,mini-intel2,gl,1280x720,fullscreen,crossfire,300,59.847,59.848,59.882,59.847|59.848|59.882
+2026-09-25T08:41:07,g5headroom-baseline,imac-g5,gl,1440x900,borderless,crossfire,300,69.470,69.824,70.242,69.824|70.242|69.470
+2026-09-25T08:43:17,g5headroom-baseline-vsync1,imac-g5,gl,1440x900,borderless,crossfire,300,37.805,38.124,38.615,38.124|38.615|37.805
+2026-09-25T08:44:29,g5headroom-alloff-vsync0,imac-g5,gl,1440x900,borderless,crossfire,300,67.455,67.471,67.807,67.455|67.807|67.471
+2026-09-25T08:45:07,g5headroom-alloff-vsync1,imac-g5,gl,1440x900,borderless,crossfire,300,38.608,38.695,44.186,38.695|44.186|38.608
+2026-09-25T08:48:00,g5headroom-1024x768-vsync0,imac-g5,gl,1024x768,borderless,crossfire,300,69.933,70.090,70.101,70.090|69.933|70.101
+2026-09-25T08:49:39,g5headroom-1024x768-vsync1,imac-g5,gl,1024x768,borderless,crossfire,300,38.037,38.121,38.282,38.037|38.282|38.121
+2026-09-25T08:51:23,g5headroom-fullscreen-vsync1,imac-g5,gl,1440x900,fullscreen,crossfire,300,42.340,42.443,44.106,42.340|44.106|42.443
