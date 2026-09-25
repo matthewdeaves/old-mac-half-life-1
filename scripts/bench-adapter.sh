@@ -40,6 +40,9 @@ BENCH_RUNS="${BENCH_RUNS:-3}"
 BENCH_WARMUPS="${BENCH_WARMUPS:-1}"
 BENCH_SCREENMODE="${BENCH_SCREENMODE:-fullscreen}"
 BENCH_TIMEOUT="${BENCH_TIMEOUT:-300}"
+# bench.sh's -x: console cvars run after map settle, before warmup, e.g.
+# "r_shadows 1". Empty by default (bench.sh's own default).
+BENCH_EXTRA="${BENCH_EXTRA:-}"
 
 # Half-Life's last-run.log path, per host: the launcher writes it beside the
 # app (scripts/bench.sh's $BASE), which is the install dir itself here.
@@ -54,13 +57,13 @@ bench_launch() {
 		cp "$self_dir/bench.sh" /tmp/bench.sh && chmod +x /tmp/bench.sh
 		out="$(/tmp/bench.sh -N "$host" -r "$BENCH_REND" -W "$BENCH_W" -H "$BENCH_H" \
 			-f "$BENCH_FRAMES" -n "$BENCH_RUNS" -w "$BENCH_WARMUPS" -t "$BENCH_TIMEOUT" \
-			-m "$BENCH_MAP" -s "$BENCH_SCREENMODE" 2>&1)"
+			-m "$BENCH_MAP" -s "$BENCH_SCREENMODE" ${BENCH_EXTRA:+-x "$BENCH_EXTRA"} 2>&1)"
 		rc=$?
 	else
 		scp -q -o BatchMode=yes -o ConnectTimeout=15 "$self_dir/bench.sh" "$host:/tmp/bench.sh" 2>/dev/null
 		ssh -o BatchMode=yes -o ConnectTimeout=15 "$host" 'chmod +x /tmp/bench.sh' 2>/dev/null
 		out="$(ssh -o BatchMode=yes -o ConnectTimeout=90 "$host" \
-			"/tmp/bench.sh -N $host -r $BENCH_REND -W $BENCH_W -H $BENCH_H -f $BENCH_FRAMES -n $BENCH_RUNS -w $BENCH_WARMUPS -t $BENCH_TIMEOUT -m $BENCH_MAP -s $BENCH_SCREENMODE" 2>&1)"
+			"/tmp/bench.sh -N $host -r $BENCH_REND -W $BENCH_W -H $BENCH_H -f $BENCH_FRAMES -n $BENCH_RUNS -w $BENCH_WARMUPS -t $BENCH_TIMEOUT -m $BENCH_MAP -s $BENCH_SCREENMODE${BENCH_EXTRA:+ -x \"$BENCH_EXTRA\"}" 2>&1)"
 		rc=$?
 	fi
 	printf '%s\n' "$out" > "$workdir/log.txt"
