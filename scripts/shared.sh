@@ -118,6 +118,7 @@ fi
 # before the exec below); export it so those two scripts can prefer it over
 # their own path-derived guess. Every other script this wrapper runs ignores
 # an env var it doesn't read, so this is a no-op for them.
-export RETRO_SHARED_CALLER_REPO="$(basename "$REPO_ROOT")"
+RETRO_SHARED_CALLER_REPO="$(basename "$REPO_ROOT")"
+export RETRO_SHARED_CALLER_REPO
 
 exec "$DST" "$@"
