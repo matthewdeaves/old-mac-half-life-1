@@ -5,6 +5,13 @@
 # edited there. Contract: old-mac-build-host/docs/bench-evidence.md. Sourced
 # by scripts/bench-evidence.sh.
 #
+# #49 (build-host#105 pin migration): bench-evidence.sh now runs from the pin
+# cache (~/.cache/retro-shared/<sha>/), not from this repo's scripts/ next to
+# this file, so its own default lookup for this file
+# ($SELF_DIR/bench-adapter.sh) can no longer find it. Always invoke it as:
+#   BENCH_ADAPTER="$REPO_ROOT/scripts/bench-adapter.sh" \
+#     scripts/shared.sh bench-evidence.sh <host> <round> [--requested ...]
+#
 # Wraps scripts/bench.sh, which already IS this port's evidence harness
 # (docs/BENCHMARKING.md): launcher-only launch, the five run assertions
 # (bundled root present, dylib loaded, requested renderer actually loaded, no

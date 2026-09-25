@@ -197,9 +197,10 @@ REMOTE_EOF
 
 # A GUI launch into a locked console is untested, not a result
 # (old-mac-build-host#88): gui-precondition.sh wakes the display and refuses a
-# session that is still locked. Canonical shared script; see its header.
-_GUI="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/gui-precondition.sh"
-if [ "$LOCAL" = 1 ]; then GUIRC=0; "$_GUI" || GUIRC=$?; else GUIRC=0; "$_GUI" "$HOST" || GUIRC=$?; fi
+# session that is still locked. build-host#105 pin (shared-scripts.pin), not
+# a copied file any more.
+_GUI=("$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/shared.sh" gui-precondition.sh)
+if [ "$LOCAL" = 1 ]; then GUIRC=0; "${_GUI[@]}" || GUIRC=$?; else GUIRC=0; "${_GUI[@]}" "$HOST" || GUIRC=$?; fi
 if [ "$GUIRC" -ne 0 ]; then
 	echo "[join-test $HOST] UNTESTED - gui-precondition.sh exit $GUIRC (3 = screen locked, 2 = could not probe)" >&2
 	exit 1

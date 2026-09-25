@@ -3,6 +3,36 @@
 The build drivers run **locally on a build mini** and do no ssh of their own, so
 claim a host first, then run them there. The repo is at `~/oldmac` on both minis.
 
+## Shared fleet scripts (build-host#105 pin, #49)
+
+This repo no longer carries full copies of `bench-evidence.sh`,
+`bench-compare.sh`, `gui-precondition.sh` or `clear-launch-quarantine.sh`.
+`shared-scripts.pin` (repo root) names the `old-mac-build-host` revision they
+come from; run them as `scripts/shared.sh <name>.sh [args...]` (needs a
+sibling `../old-mac-build-host` checkout, or `OLDMAC_BUILDHOST_REPO` set).
+`bench-evidence.sh` needs `BENCH_ADAPTER="$REPO_ROOT/scripts/bench-adapter.sh"`
+set explicitly (see that file's own header): it looks for the adapter next to
+itself, which is the pin's read-only cache once fetched, not this repo.
+
+`pick-build-host.sh`, `pick-bench-host.sh`, `deploy-dmg.sh` and
+`smoke-dmg.sh` stay at their usual paths and every command below still works
+unchanged: each is now a thin shim that execs the pin, kept path-stable
+because `old-mac-build-host`'s generated Jenkins jobs
+(`jenkins/generated/job-*-halflife*.xml`, `job-fleet-status.xml`) invoke them
+by fixed path, `"$REPO/scripts/<name>.sh"`, something alephone's own #105
+pilot never hit since it has no generated jobs yet. Deleting them outright,
+as the ADR's own migration steps describe, would have broken every one of
+those jobs the next time buildhost ran them. The `deploy-dmg.sh` shim also
+resolves the newest `dist/*.dmg` itself and always passes a full path
+through, since buildhost's jobs call it with no version arg and the pinned
+script's own no-arg default looks in the wrong directory once wrapped.
+
+`bench-evidence.sh`'s bundle `meta.json` now reads `"commit": "unknown"`: it
+stamps the commit by `git rev-parse HEAD` next to its own location, which is
+the read-only pin cache, not this repo, once wrapped. Harmless (nothing
+checks that field for validity) and not worked around; `BENCH_ARTEFACT`'s
+hash check is the real provenance guarantee.
+
 ```sh
 scripts/pick-build-host.sh --status            # who is free
 HOST=$(scripts/pick-build-host.sh --acquire LABEL)
