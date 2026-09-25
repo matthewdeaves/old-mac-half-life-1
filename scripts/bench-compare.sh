@@ -54,10 +54,18 @@ done
 # Reproduced by quake2: two same-build, same-host single-round comparisons
 # read BETTER (diff 0.6, noise 0.0001) and WORSE (diff -5.1, noise 0.0001)
 # with no real change between them. Checked BEFORE the discard so a lone,
-# never-confirmed-warm round is never enough on its own, matching the
-# contract doc ("fewer than 2 rounds on either side -> INCONCLUSIVE").
-if [ "${#BASE[@]}" -lt 2 ] || [ "${#CAND[@]}" -lt 2 ]; then
-	echo "INCONCLUSIVE: fewer than 2 rounds on one side (need a warm round after discarding the cold start)"
+# never-confirmed-warm round is never enough on its own.
+#
+# build-host#116: #114's fix used `-lt 2`, but the discard below always
+# drops exactly one (the coldest) round per side, so 2 GIVEN still left
+# exactly 1 post-discard -- the identical stdev=0/0.0001-floor failure
+# #114 fixed, just one round later. Reproduced by quake3: two same-build
+# round-pairs on mini-g4 read WORSE off 1.1 fps of ordinary run-to-run
+# noise. Raised to `-lt 3` so the discard always leaves >= 2 samples per
+# side, a real stdev, matching this project's own "3 runs, median of 2
+# and 3" bench discipline.
+if [ "${#BASE[@]}" -lt 3 ] || [ "${#CAND[@]}" -lt 3 ]; then
+	echo "INCONCLUSIVE: fewer than 3 rounds on one side (need >= 2 warm rounds after discarding the cold start)"
 	exit 0
 fi
 
