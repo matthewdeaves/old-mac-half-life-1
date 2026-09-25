@@ -16,14 +16,10 @@
 
 PORT=halflife
 
-# bench-evidence.sh always does "$HOME/$INSTALL_BIN" (old-mac-build-host#107:
-# not fixed for a leading '/'). Half-Life installs at /Applications/Half-Life
-# (scripts/dmg-port.conf INSTALL_DIR), not under any user's $HOME, so this is
-# the same path-traversal value quake3's adapter uses, resolving correctly
-# rather than being a real absolute path. $HOME is /Users/<name> (2
-# components) on every active bench host, verified for quake3's identical
-# trick; switch to a plain absolute path once #107 is fixed.
-INSTALL_BIN='../../Applications/Half-Life/Half-Life.app/Contents/MacOS/xash3d.bin'
+# build-host#107 fixed 2026-09-25: an absolute INSTALL_BIN no longer gets
+# $HOME mis-prepended, so this is a plain absolute path, matching
+# scripts/dmg-port.conf's INSTALL_DIR=/Applications/Half-Life.
+INSTALL_BIN='/Applications/Half-Life/Half-Life.app/Contents/MacOS/xash3d.bin'
 
 # bench.sh's own defaults (docs/BENCHMARKING.md); override per invocation.
 BENCH_REND="${BENCH_REND:-gl}"
