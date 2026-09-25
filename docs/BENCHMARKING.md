@@ -101,6 +101,29 @@ vsynced average, because it moves more frames across the deadline.
 So quote both numbers whenever a decision turns on them, and never infer the
 on-cap figure by taking a ceiling of the off-cap one.
 
+### fps above the refresh rate on macOS 10.14+ (#44)
+
+On `imac-2019` (15.7.9, AMD Radeon Pro 580X) `gl_vsync 1` measured 62-120 fps
+against a display measured at 59.9929 Hz
+(`CVDisplayLinkGetNominalOutputVideoRefreshPeriod`), not a stable ~60 fps cap.
+`CGLGetParameter(kCGLCPSwapInterval)` read back 1 on the live process: the
+interval is set and accepted, but macOS 10.14+'s GL-on-Metal path does not
+block the swap on it.
+
+`Host_CalcFPS()` (`engine/common/host.c:495-531`) compounds this on our
+engine specifically: the host-side `fps_max` throttle (default 72) is
+deliberately disabled whenever `gl_vsync` is nonzero, trusting the driver to
+pace instead (`Host_Autosleep`, `host.c:538`). So on a Mac where the driver
+does not gate the swap, nothing bounds the fps.
+
+**On 10.14+, an fps reading above the display's refresh rate is not by
+itself evidence of tearing or a missed cap.** The WindowServer still
+presents at the display's real rate underneath a legacy GL context; fps past
+that point is render throughput, not frames actually shown. Judge vsync
+correctness on these OSes by what is on screen (or a player report), not by
+an fps counter. `imac-2019` play was reported smooth by the user at the time
+of this measurement.
+
 ### MSAA per GPU, measured on-cap (#41)
 
 2026-09-23, v1.9.19, `crossfire`, 300 frames, median of 3, each machine at its
