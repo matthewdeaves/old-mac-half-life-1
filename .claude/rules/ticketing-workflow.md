@@ -40,10 +40,14 @@ issue #6: nothing on the board sets a status on add. So file the issue, then run
 
 which adds it and sets `Triage` in one step, over REST.
 
-**Your work stops at `Review`.** That column sits between `Blocked` and `Done`.
-Moving anything to `Done`, and closing the issue, is the user's. So never write
-`Closes #12` or `Fixes #12` in a commit message: GitHub acts on those and the
-issue reads as finished while the column says otherwise. Write `Refs #12`.
+**Close your own tickets once fixed and tested.** Evidence in a closing comment
+on the issue, then move it to `Done` yourself (`user, 2026-09-22`,
+`retro-agents/briefs/_shared.md:32`). Still never write `Closes #12` or
+`Fixes #12` in a commit message: GitHub acts on those immediately, which can
+close an issue before its evidence comment is posted or before an unrelated
+commit means to touch it at all. Write `Refs #12` in commits, then close the
+issue and move the board column as a separate, deliberate step once the
+evidence is in place.
 
 **This repo is PUBLIC. `retro-server-infra` is also public now (as of
 2026-08-31, confirmed with the user).** It still describes the topology,
