@@ -14,11 +14,13 @@
 # watchdog times it out, so bench_launch here is synchronous and always
 # leaves PID empty, same shape as quake3's safebench.sh wrap.
 
+# shellcheck disable=SC2034  # read by bench-evidence.sh after it sources this file
 PORT=halflife
 
 # build-host#107 fixed 2026-09-25: an absolute INSTALL_BIN no longer gets
 # $HOME mis-prepended, so this is a plain absolute path, matching
 # scripts/dmg-port.conf's INSTALL_DIR=/Applications/Half-Life.
+# shellcheck disable=SC2034  # read by bench-evidence.sh after it sources this file
 INSTALL_BIN='/Applications/Half-Life/Half-Life.app/Contents/MacOS/xash3d.bin'
 
 # bench.sh's own defaults (docs/BENCHMARKING.md); override per invocation.
@@ -37,7 +39,7 @@ BENCH_TIMEOUT="${BENCH_TIMEOUT:-300}"
 _hl_log_path() { echo /Applications/Half-Life/last-run.log; }
 
 bench_launch() {
-	local host="$1" round="$2" workdir="$3"
+	local host="$1" workdir="$3"
 	local self_dir out rc line samples
 	self_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
