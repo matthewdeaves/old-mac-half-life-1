@@ -245,7 +245,11 @@ if [ "\$(uname -p)" = "powerpc" ] && { [ "\$(sysctl -n hw.cpusubtype 2>/dev/null
 	# flag re-applied every launch could never allow. -bpp 16 / -bpp 32 remain
 	# as bench overrides. Measured 2026-08-18 on yosemite, c0a0: 44.6 fps in
 	# 16-bit, 36.1 in 32-bit, 30.0 for v1.7.2.
-	PROFILE="-ref gl -fullscreen -width 800 -height 600 -gldepth16 -glnostencil -bilinear +r_shadows 0 +gl_singlepass 1"
+	# r_shadows ON, issue #50: fresh bench-evidence.sh/bench-compare.sh
+	# baseline on yosemite (v1.9.20, 800x600, c0a0, vsync off), 3 VALID rounds
+	# each side: off 36.126 fps mean, on 35.415 fps mean, WORSE by 0.71 fps
+	# (noise band 0.184, real). -2.0% off-cap, far clear of the G3 20fps floor.
+	PROFILE="-ref gl -fullscreen -width 800 -height 600 -gldepth16 -glnostencil -bilinear +r_shadows 1 +gl_singlepass 1"
 	MSAA_FORCE=0      # G3: OFF, and said rather than implied. Issue #8.
 else
 	# -borderless means SDL fullscreen-desktop, and on 10.7 that leaves the menu
