@@ -91,8 +91,9 @@ defaults on every launch, and the console is available everywhere without
 developer mode.
 
 Effects follow the GPU, checked at launch: model shadows and 2x multisampling
-on the G4 and G5 Radeons, model shadows only (from v1.9.21) on the G3's Rage
-128 and the Intel Lion Mac minis' GMA 950, and, from v1.9.20, 4x
+on the G4 and G5 Radeons, model shadows only on the G3's Rage 128 (from
+v1.9.21), the Intel Lion Mac minis' GMA 950 (from v1.9.21) and the Intel
+Snow Leopard Mac mini's GeForce 9400 (from v1.9.22), and, from v1.9.20, 4x
 multisampling on Intel Macs with a 4 GB+ graphics card; water ripples on the
 G5 only. From v1.9.20 the Mac mini G4's Radeon 9200 gets no multisampling:
 with it, the frame rate you see fell from a locked 60 to 42 fps
