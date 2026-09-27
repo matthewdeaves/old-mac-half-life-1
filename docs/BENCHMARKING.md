@@ -172,8 +172,12 @@ every other machine, and every other port benches on it too. Start it first
 with `scripts/shared.sh qemu-vm.sh up`, deploy with `scripts/deploy-dmg.sh
 qemu-tiger3d`, then `scripts/fleet-bench.sh -t 300 ... qemu-tiger3d` (the
 300 s timeout the Quake ports use for it; TCG emulation is slow). Check the
-first run's screenshot before quoting fps: a rendering fault seen only in the
-VM goes to the manager for qemumac, not into the engine.
+first run's picture before quoting fps, with `scripts/vm-frame-check.sh`
+(host-side `qemu-vm.sh screendump`, build-host#123), not `hw-shot.sh`: this
+VM's guest-side readback comes back solid black (halflife#51, qemu#7/#8), a
+capture-path bug distinct from whatever fps or rendering the engine actually
+produced. A rendering fault seen only in the VM goes to the manager for
+qemumac, not into the engine.
 
 ```
 scripts/fleet-bench.sh -l baseline      -r gl -W 800 -H 600 yosemite
