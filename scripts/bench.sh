@@ -20,8 +20,13 @@
 #            [-s fullscreen|borderless|windowed] [-x "cvar val; cvar val"] [-S]
 #
 #   -N  REQUIRED. The machine's ssh alias, which labels the row. There is no
-#       hostname fallback: see the note at the identity check below.
+#       hostname fallback: see the note at the identity check below. Any fleet
+#       host works the same way, including `qemu-tiger3d` (QemuMac's emulated
+#       G4 + Radeon 9700, Tiger) - start it first with
+#       `scripts/shared.sh qemu-vm.sh up`, and pass -t 300: TCG emulation is
+#       slow enough that the Quake ports' bench.sh use that timeout for it too.
 #
+
 #   -S  accept Apple's SOFTWARE GL for a `-r gl` run. Off by default: a software
 #       GL run asserts clean on every other count and returns a number 5-10x too
 #       low, which reads exactly like a renderer regression.

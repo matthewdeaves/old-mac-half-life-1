@@ -165,6 +165,16 @@ explicitly to bench whichever partitions are actually booted, since the G3 and
 the G5 answer on one IP per machine and only one OS at a time is up. `-l` tags a
 run so before/after rows diff easily:
 
+`qemu-tiger3d` (POLICY "Machines": iterative target, real hardware is for
+final testing before a release) is not in the default fleet: it is one shared
+VM on the workstation, claimed through the same `pick-bench-host.sh` lock as
+every other machine, and every other port benches on it too. Start it first
+with `scripts/shared.sh qemu-vm.sh up`, deploy with `scripts/deploy-dmg.sh
+qemu-tiger3d`, then `scripts/fleet-bench.sh -t 300 ... qemu-tiger3d` (the
+300 s timeout the Quake ports use for it; TCG emulation is slow). Check the
+first run's screenshot before quoting fps: a rendering fault seen only in the
+VM goes to the manager for qemumac, not into the engine.
+
 ```
 scripts/fleet-bench.sh -l baseline      -r gl -W 800 -H 600 yosemite
 scripts/fleet-bench.sh -l fix-invalidenum -r gl -W 800 -H 600 yosemite
@@ -214,6 +224,7 @@ direct runs until jobs grow to cover them.
 | `quad-leopard`   | Power Mac G5 quad, partition 1 | -                | 10.5    | -     |
 | `quad-tiger`     | Power Mac G5 quad, partition 2 | -                | 10.4    | -     |
 | `sawtooth`       | Power Mac G4 Sawtooth      | -                    | -       | -     |
+| `qemu-tiger3d`   | QemuMac VM (emulated G4, ppc7400) on the workstation | emulated ATI Radeon 9700 (R300) | 10.4.6 | yes |
 
 A `-` means the field is not recorded here, not that the machine lacks it. The
 quad G5 and the Sawtooth have **no rows in `results.csv`**; they are listed

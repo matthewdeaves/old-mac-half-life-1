@@ -39,6 +39,8 @@ BENCH_FRAMES="${BENCH_FRAMES:-300}"
 BENCH_RUNS="${BENCH_RUNS:-3}"
 BENCH_WARMUPS="${BENCH_WARMUPS:-1}"
 BENCH_SCREENMODE="${BENCH_SCREENMODE:-fullscreen}"
+# 300s covers qemu-tiger3d (QemuMac's emulated G4, TCG) same as the Quake
+# ports' bench.sh; every real Mac finishes well inside it.
 BENCH_TIMEOUT="${BENCH_TIMEOUT:-300}"
 # bench.sh's -x: console cvars run after map settle, before warmup, e.g.
 # "r_shadows 1". Empty by default (bench.sh's own default).
