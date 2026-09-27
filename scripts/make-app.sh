@@ -365,13 +365,11 @@ else
 		# A discrete GPU with 4 GB or more (ioreg's VRAM,totalMB, 0.15 s, fast
 		# where system_profiler is not) gets model shadows and 4x MSAA. Measured
 		# on imac-2019's Radeon Pro 580X 8 GB at 5120x2880: shadows free, both
-		# together 233 -> 199 fps, 3.3x the 60 Hz refresh. Only that class was
-		# measured: the GeForce 9400 (mini-sl) reports no VRAM,totalMB, cannot
-		# even produce a valid GL bench as currently wired (no display,
-		# BENCHMARKING.md), and Apple Silicon reports none at all, so both stay
-		# unchanged until measured. MSAA is forced, not seeded: no menu
-		# control, and a seed never reaches an install that already archived 0
-		# (issue #41). Issue #43.
+		# together 233 -> 199 fps, 3.3x the 60 Hz refresh. Apple Silicon reports
+		# no VRAM,totalMB at all, so it stays unchanged until measured (#47's
+		# window-focus bug still makes its bench untrustworthy). MSAA is
+		# forced, not seeded: no menu control, and a seed never reaches an
+		# install that already archived 0 (issue #41). Issue #43.
 		VRAM_MB="\$(ioreg -l 2>/dev/null | sed -n 's/.*"VRAM,totalMB" = \([0-9][0-9]*\).*/\1/p' | sort -n | tail -1)"
 		if [ -n "\$VRAM_MB" ] && [ "\$VRAM_MB" -ge 4096 ] 2>/dev/null; then
 			PROFILE="\$PROFILE +r_shadows 1"
@@ -383,6 +381,21 @@ else
 			# mean, WORSE by 0.61 fps (noise band 0.097, real), about -0.58%.
 			# Off-cap headroom alone (100+ fps) is 4x the 25fps floor, so
 			# turned on; no on-cap number taken, same as the G3 decision above.
+			PROFILE="\$PROFILE +r_shadows 1"
+		elif ioreg -l 2>/dev/null | grep -q 'GeForce 9400'; then
+			# GeForce 9400 (mini-sl), issue #50: the "no display, cannot
+			# produce a valid GL bench" limitation this branch used to cite
+			# (docs/BENCHMARKING.md) is gone - mini-sl now reports a real
+			# attached display (system_profiler: DP monitor, 1920x1080,
+			# Online: Yes) and bench-evidence.sh returns a hardware
+			# GL_RENDERER ("NVIDIA GeForce 9400 OpenGL Engine"), not the
+			# software-renderer fallback that note describes. Re-measured
+			# fresh on v1.9.21, 800x600/c0a0/vsync off, 3 VALID rounds each
+			# side: r_shadows on vs off, bench-compare WORSE, 247.85 ->
+			# 244.61 fps mean (noise band 0.731, real), about -1.3%. Off-cap
+			# headroom alone is ~10x the 25fps floor, so turned on; no
+			# on-cap number taken, same methodology as the G3/GMA 950
+			# decisions above.
 			PROFILE="\$PROFILE +r_shadows 1"
 		fi
 		# gl_singlepass OFF here, deliberately, and said rather than implied -

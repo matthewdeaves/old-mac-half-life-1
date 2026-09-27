@@ -256,15 +256,18 @@ PowerPC aliases are bench and test targets only. Four of the five slices
 cross-compile on the Intel Lion minis; `arm64` is built on the orchestration box.
 `docs/adr/0005`
 
-**`mini-sl` cannot produce a valid GL benchmark as currently wired.** It has no
-display attached and its NVIDIA 9400 will not hand out an accelerated context
-without one, so `GL_RENDERER` comes back `Apple Software Renderer` and the number
-is 5 to 10 times too low. `bench.sh` fails the run rather than printing it (pass
-`-S` if software GL is the point). This is not a headless rule: measured
-2026-08-08 over the same ssh path, `mini-intel2` is equally headless and its GMA
-950 gives hardware GL, while `mini-g4` has a monitor and is fine. A DVI/HDMI
-dummy EDID plug on `mini-sl` would fix it. It remains a functional test target
-for the 10.6 floor, which is what it is there for.
+**`mini-sl` now produces a valid GL benchmark.** Until issue #50, it had no
+display attached and its NVIDIA 9400 would not hand out an accelerated context
+without one, so `GL_RENDERER` came back `Apple Software Renderer` and the number
+was 5 to 10 times too low (`bench.sh` failed the run rather than printing it,
+`-S` was needed if software GL was the point). Measured 2026-09-27: `mini-sl`
+now reports a real attached display (`system_profiler`: DP monitor, 1920x1080,
+Online: Yes) and `bench-evidence.sh` returns the hardware renderer,
+`NVIDIA GeForce 9400 OpenGL Engine`, at a plausible fps for the class. This is
+not a headless rule generally: measured 2026-08-08 over the same ssh path,
+`mini-intel2` is equally headless and its GMA 950 gives hardware GL, while
+`mini-g4` has a monitor and is fine; `mini-sl` specifically needed a display
+(a dummy EDID plug or better) and now has one.
 
 ## Row labels, and the seven historical ones
 
