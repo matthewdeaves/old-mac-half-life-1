@@ -22,6 +22,7 @@ ssh "$HOST" ': > /Applications/Half-Life/last-run.log'
 ssh "$HOST" bash <<'REMOTE' &
 set -e
 cd /Applications/Half-Life
+[ ! -e valve/vmshot.cfg ] || { echo "vmshot.cfg already exists" >&2; exit 2; }
 trap 'rm -f valve/vmshot.cfg' EXIT
 {
     i=0; while [ $i -lt 600 ]; do echo wait; i=$((i+1)); done
