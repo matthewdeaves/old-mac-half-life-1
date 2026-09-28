@@ -1,4 +1,5 @@
 #!/bin/sh
+# Host framebuffer smoke capture; not the deterministic check-frames baseline.
 # Capture Half-Life gameplay from QEMU's framebuffer, bypassing qemu#7
 # guest glReadPixels. Run on the workstation with the VM installed.
 # usage: scripts/vm-frame-check.sh [readiness-timeout-seconds] [out.png]
