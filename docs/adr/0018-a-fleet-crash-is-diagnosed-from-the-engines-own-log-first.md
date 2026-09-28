@@ -123,10 +123,10 @@ already being done, and costs a file read.
 ## Related
 
 - Issue #18, and the three retractions on it.
-- `.claude/rules/working-method-and-hard-rules.md`'s "paste numbers from a
+- `CLAUDE.md`'s "paste numbers from a
   command's output" rule: measured versus inferred, and retracting the claim
   only.
-- `.claude/rules/working-method-and-hard-rules.md`: the refutation pass, for
+- `docs/WORKING-METHOD.md`: the refutation pass, for
   when a mechanism is load bearing and hard to test directly. A symbolized
   frame is cheaper than a refutation pass and should come first.
 - `.claude/rules/build-verification.md`: never trust a build's exit code. Same

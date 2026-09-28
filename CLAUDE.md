@@ -1,54 +1,29 @@
-# Half-Life old-Mac port (Agent Router)
+# Half-Life old-Mac port
 
-Half-Life 1 on Xash3D FWGS as ONE universal fat app across PowerPC and Intel Macs, from a single `Half-Life.app`.
+Half-Life 1 on Xash3D FWGS as one universal fat `Half-Life.app` (PowerPC, Intel, Apple Silicon). Fleet POLICY applies. Rules in `.claude/rules/` load when you touch a matching file.
 
-This file is a high-level router. Depending on the task at hand, **you must read the relevant files in `.claude/rules/`** to get specific context and hard rules.
+## Rules (each from a real mistake)
+- waf exits 0 on a failed task and installs stale objects: verify every build (`build-verification.md`).
+- Payload sits at the `valve/` level, not the rodir root (adr/0006).
+- Ship code, never content: no Valve or mod-author assets.
+- Commits go on `oldmac` of our own forks, pinned in `scripts/build-pins.sh`; never PR or push upstream (adr/0012).
+- Release DMG builds on a Tiger G4 only, `-format UDZO`, md5 every binary (adr/0005).
+- Before a release: `python3 tests/test-repo.py`, `tests/test-artifact.sh`.
+- A release claim is in the notes AND the publish script's `--title`: fix both (INCIDENTS "release claim").
+- A human at a console is invisible to checks: `--acquire` with a label (INCIDENTS "human at the keyboard").
+- Filing puts nothing in a column: run `board-add.sh` right after (INCIDENTS "Filing").
+- Repo is public: no addresses, keys, tokens or `.env` content from retro-server-infra.
+- Paste numbers from command output, never retype. No em dashes. No Claude co-author. Never rate or praise work.
 
-## Core Documentation Rules
-
-- **Reasoning and rejected alternatives**: `docs/adr/`.
-- **Anything that dates**: `README.md` or an issue.
-- **NEVER PR or push to upstream repos**. Changes are commits on the `oldmac` branch of our own forks.
-
-## Context Router
-
-`build-commands.md`, `legacy-mac-hardware.md`, `core-facts.md`,
-`build-verification.md` and `shipped-layout.md` carry `paths:` frontmatter and
-load themselves when you read a matching file (mostly `scripts/**`) - you don't
-need to fetch them by hand for that work. `working-method-and-hard-rules.md`
-and `ticketing-workflow.md` are always loaded.
-
-- **Build and Orchestration** (`build-commands.md`): host acquisition, build,
-  deploy, slice fusion, engine/menu/game pins. `qemu-tiger3d` iteration:
-  `scripts/pick-bench-host.sh --run qemu-tiger3d <label> -- <script>` wraps
-  `scripts/deploy-dmg.sh`/`scripts/smoke-dmg.sh` as on any Mac; for
-  `scripts/shared.sh bench-evidence.sh` the adapter never sets
-  `BENCH_ARTEFACT` (this port's own `make-dmg.sh` stage is a trap-removed
-  mktemp dir) - mount the current `dist/*.dmg`, copy out
-  `Half-Life.app/Contents/MacOS/xash3d.bin`, and export
-  `BENCH_ARTEFACT=<extracted path>` yourself; `scripts/vm-frame-check.sh`
-  self-claims for the frame capture.
-- **Fleet & Hardware** (`legacy-mac-hardware.md`): machine aliases, OS/CPU
-  targets, Lion toolchain limits.
-- **Core Architecture & Facts** (`core-facts.md`): CPU subtypes, Intel OS
-  floors, SDL2 linking, renderer defaults, the Linux server.
-- **Working Method & Hard Rules** (`working-method-and-hard-rules.md`):
-  refutation pass, build-trust, content/code/packaging hard rules.
-- **Ticketing** (`ticketing-workflow.md`): filing, board, `retro-server-infra`.
-- **Build Verification** (`build-verification.md`): artifact/cpusubtype
-  checks, launcher display profiles.
-- **Shipped Layout** (`shipped-layout.md`): required `.app` bundle structure.
-
-## Read on demand
-
-- `README.md`: Fleet matrix, per-machine config, upstream credits.
-- `docs/MODS.md`: Mods and rebuilds.
-- `docs/MOD-AUDIT.md`: The source audit.
-- `docs/ICONS.md`: Icons and the Panther size ceiling.
-- `docs/LICENSING.md`: Licensing and terms.
-- `docs/BENCHMARKING.md`: Timerefresh harness and benchmarking procedures.
-- `docs/port/POWERPC-FINDINGS.md`: Write-ups of porting findings, including
-  refuted mechanisms.
-- `docs/INCIDENTS.md`: Process incidents behind the hard rules in
-  `.claude/rules/`.
-- `docs/port/PPC-PORT-NOTES.md`: Move onto mainline, including diagnoses made and retracted.
+## Where to look
+- Build, deploy, slices, pins: `.claude/rules/build-commands.md`, then `docs/BUILD-COMMANDS.md`
+- Fleet aliases, Lion limits: `legacy-mac-hardware.md`, then `docs/FLEET-HARDWARE.md`
+- Subtypes, renderer defaults, generated configs, server: `core-facts.md`, then `docs/CORE-FACTS.md`
+- App layout: `shipped-layout.md`, then `docs/SHIPPED-LAYOUT.md`
+- Artifact checks, cpusubtype stamping, launcher profiles: `build-verification.md`
+- Bench: `docs/BENCHMARKING.md`; new Mac or G5 partition: `docs/FLEET-ONBOARDING.md`
+- qemu-tiger3d loop (`scripts/pick-bench-host.sh --run qemu-tiger3d <label> -- <script>`), frame check: `docs/VM-TIGER.md`
+- Mods: `docs/MODS.md`, `docs/MOD-AUDIT.md`; icons: `docs/ICONS.md`; terms: `docs/LICENSING.md`
+- Porting findings, refuted mechanisms: `docs/port/POWERPC-FINDINGS.md`, `docs/port/PPC-PORT-NOTES.md`, `docs/GL-OPTIMIZATION-CASE-STUDY.md`
+- Refutation pass: `docs/WORKING-METHOD.md`; why we chose X: `docs/adr/`
+- Fix history: `grep -n '#NN' BUGFIXES.md`; incidents: `docs/INCIDENTS.md`; dated facts: `README.md`

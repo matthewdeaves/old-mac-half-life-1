@@ -51,7 +51,7 @@ a straight overwrite. One generic `ppc` slice covers all three PPC machines:
 **Four slices**: `ppc`, `i386`, `x86_64`, `arm64`. The game's fifth is only the
 `ppc750`/`ppc7400` split, which these do not need.
 
-`arm64` cannot be built on a mini (`CLAUDE.md`, `docs/adr/0001` amendment):
+`arm64` cannot be built on a mini (`docs/adr/0001` amendment):
 `scripts/build-mod-arm64.sh` runs on the Apple Silicon box, `push-mod-arm64.sh`
 carries the thin slices over, and `fuse-mod-arm64.sh` adds them on the build
 host. The mod-specific consequence of Lion's toolchain: `otool` and
@@ -108,7 +108,7 @@ confirmed newer than the build start, `lipo -info` asked what is inside.
 
 ### Things that bite on these machines
 
-`CLAUDE.md` has the general Lion traps. On top of those:
+`.claude/rules/legacy-mac-hardware.md` has the general Lion traps. On top of those:
 
 - **The local mirror stays the source of truth**, even though the minis now carry
   OpenSSL 3.5.7 / curl 8.21 / git 2.55 under `~/local` and can reach GitHub.
