@@ -55,6 +55,20 @@ bench_launch() {
 	local self_dir out rc line samples
 	self_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+	# build-host#147: one game per host, whatever starts it. launch-game.sh
+	# --check lists any game already running there (whoever started it). Its
+	# detached launch mode is not used: a detached xash3d.bin on Tiger aborts
+	# in HIServices (no window-server session once the ssh session closes), so
+	# bench.sh keeps running in a held ssh session and only borrows the check.
+	local running
+	running="$("$self_dir/shared.sh" launch-game.sh --check "$host" 2>&1)"
+	if [ $? -ne 0 ] || [ -n "$running" ]; then
+		printf 'launch-game.sh --check: refusing to start, game already running or probe failed: %s\n' "$running" > "$workdir/log.txt"
+		echo "EXIT=3"
+		echo "PID="
+		return 0
+	fi
+
 	if [ "$host" = workstation ]; then
 		cp "$self_dir/bench.sh" /tmp/bench.sh && chmod +x /tmp/bench.sh
 		out="$(/tmp/bench.sh -N "$host" -r "$BENCH_REND" -W "$BENCH_W" -H "$BENCH_H" \

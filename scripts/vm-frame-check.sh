@@ -13,8 +13,14 @@ if [ "${RETRO_BENCH_LOCK:-}" != "$HOST" ]; then
     exec scripts/shared.sh pick-bench-host.sh --run "$HOST" vm-frame-check -- "$0" "$@"
 fi
 case "$SECS" in ''|*[!0-9]*|0) echo 'timeout must be positive' >&2; exit 2;; esac
-if ssh "$HOST" 'ps -axc -o ucomm | grep -E "^(xash3d|xash3d.bin|quakespasm|ioquake3|quake2|Aleph One) *$"'; then
-    echo 'A game is already running; quit it before capturing.' >&2
+# build-host#147: the shared launch guard's game list decides whether a game
+# already runs. Its detached launch mode is not used: a detached xash3d.bin on
+# Tiger aborts in HIServices (see the comment below on the held ssh session).
+RUNNING="$(scripts/shared.sh launch-game.sh --check "$HOST")" || {
+    echo "[vm-frame-check] game probe failed: $RUNNING" >&2; exit 2;
+}
+if [ -n "$RUNNING" ]; then
+    echo "A game is already running; quit it before capturing: $RUNNING" >&2
     exit 2
 fi
 ssh "$HOST" ': > /Applications/Half-Life/last-run.log'
