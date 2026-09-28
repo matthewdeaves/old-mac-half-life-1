@@ -1,5 +1,11 @@
 # GL/GPU renderer optimization case study: Power Mac G3 (ATI Rage 128)
 
+Summary: the G3 is GPU fillrate bound (about 81% of each frame blocked in the buffer
+flush), so the only lever is less overdraw. Drawing world surfaces in one multitexture
+pass instead of two gave +30% on the G3 and gained on every machine (Step 3); doing
+the same for brush models gave about +9.6% more (Step 4). Method, profiles and
+numbers below; the shipped record is `docs/port/POWERPC-FINDINGS.md` entry 6.
+
 A measured study of making Half-Life (Xash3D FWGS, GL renderer) render faster on
 the weakest machine in the fleet: **yosemite**, a Power Mac G3, 450 MHz PPC750,
 **ATI Rage 128** (OpenGL **1.1**, **2 texture units**, 16 MB VRAM), 640 MB RAM,

@@ -131,4 +131,4 @@ already being done, and costs a file read.
   frame is cheaper than a refutation pass and should come first.
 - `.claude/rules/build-verification.md`: never trust a build's exit code. Same
   shape of failure, one stage earlier.
-- `scripts/test-text-input.sh`, and `BUGFIXES.md` for the fix itself.
+- `scripts/test-text-input.sh`, and `BUGFIXES.md` (`grep -n '#18'`) for the fixes themselves.

@@ -1,6 +1,10 @@
 # Mod support
 
-How Half-Life mods run on the old-Mac port, and how to rebuild them.
+How Half-Life mods run on the old-Mac port, and how to rebuild them. We ship game code
+only: one fat dylib per role (`ppc`, `i386`, `x86_64`, `arm64`) built from each mod's own
+source branch, while the user supplies the content and the installer app fetches it.
+Sections cover the dylib layout, switching mods, the build and its traps, naming, what the
+installer copies and skips, and the Custom Game menu. The source audit is `docs/MOD-AUDIT.md`.
 
 ## Credit where it belongs
 
@@ -60,17 +64,9 @@ on, so the answer is different, and only meaningful, on each.
 
 ## Switching mods: fork before you exec
 
-Picking a mod in Custom Game re-execs the engine with a new `-game`.
-
-**Darwin refuses `execve()` from a process with more than one thread**, returning
-`ENOTSUP` (errno 45) rather than replacing the image. Measured on a G4 under
-10.4.11:
-
-```
-threads created: 0 -> exec succeeded
-threads created: 4 -> execv FAILED: Operation not supported (errno 45)
-```
-
+Picking a mod in Custom Game re-execs the engine with a new `-game`. Darwin refuses
+`execve()` from a multi-threaded process (`ENOTSUP`, errno 45); symptom, cause and
+measurement are `docs/port/POWERPC-FINDINGS.md` entry 2. The fix:
 `Sys_NewInstance()` runs after `Host_Shutdown`, but SDL's helper threads are still
 alive, so a direct exec is refused. `Sys_RestartExec()`, one commit on our engine
 branch (`mods: fork before exec so "change game" can actually restart the
@@ -88,11 +84,9 @@ PowerPC included. Mainline carries the endian work: save/restore swaps centrally
 and `dlls/nodes.cpp` / `dlls/nodes_compat.h` are fully handled. All 25 mod branches
 carry it.
 
-**No studio-model byte swap is applied to a mod tree.** The engine already swaps
-studio animation offsets and values as it loads the model, so a swap in the
-client's `StudioModelRenderer.cpp` on top of that is a second swap, and a second
-swap is the identity undone; adding one crashes the base game on map load.
-`docs/port/PPC-PORT-NOTES.md`.
+**No studio-model byte swap is applied to a mod tree**: the engine already swaps
+studio animation data, and a second swap crashes the base game on map load.
+`docs/port/PPC-PORT-NOTES.md`, "The map-load crash was our own byte swap".
 
 ## Building
 

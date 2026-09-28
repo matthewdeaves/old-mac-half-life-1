@@ -2,6 +2,12 @@
 
 Read this if you touch `scripts/make-icon.py` or regenerate `Half-Life.icns`.
 
+Summary: three app icons (game, Mods installer, System Report) and the installer About
+picture are cut from the `*-new.png` busts with `make-icon-mask.py` and assembled by
+`scripts/make-icon.py`. The `.icns` files stop at 256px (`ic08`) because Panther shows
+the generic icon for anything larger. Provenance of the shipped artwork is not fully
+recorded (see Provenance).
+
 ## Current icons
 
 Four pieces of artwork, four uses, no repeats: three apps ship side by side and
@@ -38,7 +44,7 @@ the new crowbar art, so the button frame goes from 124x240 to 135x220 points.
 Without that the image is forced into the old frame and stretched, the same
 defect that was fixed once before at 147x240.
 
-### Sizes shipped, and the Panther ceiling
+## Sizes shipped, and the Panther ceiling
 
 Both `.icns` carry the legacy chunks (16/32/48/128) **plus `ic08`, a 256×256
 PNG**, so 10.5 and later render 256 natively instead of upscaling the 128×128
@@ -66,7 +72,7 @@ a rebuild is not byte-for-byte.
 for compositing onto a grey window rather than a rounded tile. Task #45 covers why
 it had to be a border flood-fill, not a colour key.
 
-### Two things that are NOT optional for this artwork
+## Two things that are NOT optional for this artwork
 
 **1. Crop to square first.** `make-icon.py` resizes with `img.resize((size,size))`,
 a non-uniform squash: a 3:4 portrait compresses Gordon horizontally by a third.
@@ -122,7 +128,7 @@ seeded punch.
 hair or shoulders, no black fringe. Then render the `.icns` back with `sips` and
 check 128 and 64.
 
-### The new-artwork game icon (icon-source-halflife-new.png)
+## The new-artwork game icon (icon-source-halflife-new.png)
 
 The 2026-08 regeneration from the new HEV bust shipped with the shoulders eaten
 through again, reported from the G3 Finder and obvious over magenta: 2503
@@ -184,22 +190,18 @@ of this artwork comes out or gets replaced on request. A rights-clean stand-in
 is recoverable from git history (`MacOSX/icon-wiki.icns`,
 `MacOSX/icon-source-wiki.png`).
 
-### Files
+## Superseded sources
+
+The shipped `.icns` files and the `*-new.png` artwork of record are the table under
+Current icons. Kept as artwork of record only:
 
 | File | What |
 |---|---|
-| `MacOSX/Half-Life.icns` | shipped game icon |
-| `MacOSX/Half-Life-Mods.icns` | shipped installer icon |
-| `MacOSX/Half-Life-SysReport.icns` | shipped System Report icon |
-| `MacOSX/icon-source-halflife-new.png` | game artwork of record, what ships |
-| `MacOSX/icon-source-mods-new.png` | installer icon artwork of record, what ships |
-| `MacOSX/icon-source-sysreport-new.png` | System Report artwork of record, what ships |
-| `MacOSX/icon-source-gordon-crowbar-new.png` | installer About-box artwork, what ships |
 | `MacOSX/icon-source-lrz.png` | superseded game artwork, 1169×1346 (black bg) |
 | `MacOSX/icon-source-gordon-gravity-gun.png` | superseded installer artwork, 1086×1448 (black bg) |
 | `MacOSX/icon-source-gordon-crowbar.png` | superseded About-box artwork, same |
 
-### Where each is consumed
+## Where each is consumed
 
 - `Half-Life.icns`: `make-dmg.sh` copies it into the staged bundle on every
   release, so an icon change reaches the DMG **without** a full engine rebuild.

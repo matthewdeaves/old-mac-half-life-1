@@ -1,10 +1,14 @@
 # PowerPC findings
 
-What running Half-Life on a 1999 Power Mac actually costs, one entry per finding.
+What running Half-Life on a 1999 Power Mac actually costs, one numbered entry per
+finding: tree and function, symptom, change, machines verified on. Sections: Engine (OS,
+GPU, diagnosis), Menu, What was got wrong (retractions and refuted mechanisms), the
+perf-ppc work, Still open. `git log <upstream>..oldmac` is the complete record.
 
-Every change this port makes is a commit on our own branch of an upstream tree,
-so `git log <upstream>..oldmac` is the complete record and this file is the
-readable version of it. Most of them sit on the engine branch. The count is
+## How to read this file
+
+Every change this port makes is a commit on our own branch of an upstream tree, and
+this file is the readable version of that record. Most of them sit on the engine branch. The count is
 deliberately not written down here: git already knows it, and a number kept by
 hand is a second source of truth that goes stale the next time the branch moves.
 
@@ -18,7 +22,9 @@ PowerPC build simply reached first. Where that is true it is said so, because
 change does, and the machines it was verified on. Nothing here is inferred from
 reading code alone; where something is unmeasured it says so.
 
-The fleet referred to throughout:
+## Fleet
+
+The fleet referred to throughout (aliases and full table: `docs/BENCHMARKING.md`):
 
 | name | machine | CPU | GPU | OS |
 |---|---|---|---|---|
@@ -275,14 +281,10 @@ Recorded in `PPC-PORT-NOTES.md`. Kept there rather than restated here.
 
 ### 12. The studio model byteswap that was applied twice
 
-Mod game code carried a swap of the studio animation offsets in the client
-renderer, on the theory that PowerPC needed it. The engine already swaps that
-data, in `Mod_LoadCacheFile` and `R_StudioLoadHeader`, and does so for mods
-exactly as for the base game. Applying it again is the identity undone: the
-offsets go back to little-endian and the pointer arithmetic in
-`StudioCalcBonePosition` walks off the model. It crashed the base game on every
-PowerPC machine as soon as a real map loaded a studio model. The graft was
-removed rather than fixed.
+Mod game code carried a swap of the studio animation offsets that the engine already
+does, so the second swap undid the first and crashed the base game on every PowerPC
+machine at map load. The graft was removed rather than fixed. Full diagnosis:
+`PPC-PORT-NOTES.md`, "The map-load crash was our own byte swap, applied twice".
 
 ### 13. The single-pass world draw, three times, and then withdrawn
 

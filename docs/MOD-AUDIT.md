@@ -1,12 +1,10 @@
 # Mod source audit, 2026-07-26
 
 A source-level audit of all 25 shipped mods for big-endian (PowerPC) correctness,
-prompted by the "Escape from the Darkness" segfault on the G5.
-
-**24 of the 25 are clean on endian**; `sohl1.2` was added later and is not covered.
-One endian bug was found in a mod (DMC) and two more in code shared by `valve` and
-every mod. The rest was arch-neutral: unbounded `sprintf`s, an unchecked downcast,
-a wrong save-field type.
+prompted by the "Escape from the Darkness" segfault on the G5. **24 of the 25 are
+clean on endian**; `sohl1.2` was added later and is not covered. One endian bug was
+found in a mod (DMC) and two more in code shared by `valve` and every mod; the rest
+(unbounded `sprintf`s, an unchecked downcast, a wrong save-field type) is arch-neutral.
 
 The `#NN` numbers below are this project's own task IDs, **not** GitHub issues.
 

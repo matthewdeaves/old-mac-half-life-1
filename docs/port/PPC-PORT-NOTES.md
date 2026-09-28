@@ -2,7 +2,12 @@
 
 Running notes on the port, so the commits that come out of it can explain
 themselves. Method: compile mainline for `ppc` against the 10.3.9 SDK and fix
-whatever the compiler and the hardware object to.
+whatever the compiler and the hardware object to. Sections: two upstream fixes we
+dropped as unneeded, first light on hardware, the map-load crash that was our own double
+byte swap, and the "corrupted glyphs" that were background art. Two diagnoses made and
+retracted; the numbered findings are `docs/port/POWERPC-FINDINGS.md`.
+
+## Base
 
 Engine base: `FWGS/xash3d-fwgs` @ `f0ea3a194ab06d56032c5d26578254698e361655`, the
 same commit the Intel build already uses, so the project drops from two engine
