@@ -304,7 +304,19 @@ else
 			# spend at its own refresh rate, so it is the only one that gets
 			# water ripples. Issue #9.
 			if [ "\$(sysctl -n hw.cpusubtype 2>/dev/null)" = "100" ]; then
+				# A G5 provisioned before these pins existed can have BOTH keys
+				# archived at their pre-pin value (0/0), which a seed-if-absent
+				# write never reaches; measured stale on g5-panther, issue #54.
+				# gl_msaa_samples gets the RV280 branch's own FORCE treatment
+				# above, because mainui has no control for it to fight. r_ripple
+				# is different: mainui DOES expose a "Water ripples" checkbox
+				# (below), so forcing it every launch would silently and
+				# permanently undo a player's own uncheck. It gets
+				# RIPPLE_CATCHUP instead, a ONE-TIME correction gated on a
+				# marker file, applied where r_ripple is written below.
 				RIPPLE_DEFAULT=1
+				RIPPLE_CATCHUP=1
+				MSAA_FORCE=2
 			fi
 		else
 			# Same position as Intel and arm64 below: nothing measured, so
@@ -488,13 +500,16 @@ if [ -d "\$XASH3D_BASEDIR/valve" ]; then
 	fi
 fi
 
-# Water ripples, on a FRESH install only, same mechanism and the same reason.
+# Water ripples: seeded on a FRESH install, same mechanism and the same reason,
+# plus a one-time catch-up for a G5 that already archived a stale value (below).
 #
 # r_ripple is FCVAR_GLCONFIG like gl_msaa_samples, so it is archived and only an
 # install that has never run can be seeded. It is NOT set through the launch
 # profile above, unlike r_shadows: a value on the command line would be re-applied
 # every launch, and mainui gives the player a "Water ripples" checkbox
-# (menus/VideoOptions.cpp:211) whose setting that would silently undo.
+# (menus/VideoOptions.cpp:211) whose setting that would silently undo - which is
+# also why the catch-up below is gated on a marker rather than forced every
+# launch like gl_msaa_samples: issue #54.
 #
 # Only the G5 asks for it, and only because it is the one machine measured to
 # have headroom at its own refresh rate: 60.007 fps capped against 181.6
@@ -505,6 +520,28 @@ if [ -n "\${RIPPLE_DEFAULT:-}" ] && [ -d "\$XASH3D_BASEDIR/valve" ]; then
 	RCFG="\$XASH3D_BASEDIR/valve/opengl.cfg"
 	if ! grep -q '^r_ripple ' "\$RCFG" 2>/dev/null; then
 		printf 'r_ripple "%s"\n' "\$RIPPLE_DEFAULT" >> "\$RCFG" 2>/dev/null
+		# A genuinely fresh install is seeded correctly by construction, so it
+		# is exempt from the catch-up below from its very first launch. Without
+		# this, a player who unchecks "Water ripples" in their first session,
+		# before a second launch ever runs, archives r_ripple "0" - which looks
+		# IDENTICAL to a pre-pin stale value and would get silently reverted
+		# once by the catch-up. Marking it seeded here is what tells the two
+		# apart.
+		[ -n "\${RIPPLE_CATCHUP:-}" ] && touch "\$XASH3D_BASEDIR/valve/.hl-g5-ripple-catchup" 2>/dev/null
+	elif [ -n "\${RIPPLE_CATCHUP:-}" ]; then
+		# ONE-TIME correction for a G5 that archived a stale 0 before issue
+		# #54's pins existed. Gated on a marker so it runs exactly once per
+		# install: a player's own later uncheck of "Water ripples" must never
+		# be touched again after this catches the pre-pin value up.
+		CATCHUP_MARKER="\$XASH3D_BASEDIR/valve/.hl-g5-ripple-catchup"
+		if [ ! -f "\$CATCHUP_MARKER" ]; then
+			if grep -q '^r_ripple "0"' "\$RCFG" 2>/dev/null; then
+				sed "s/^r_ripple \"0\"/r_ripple \"\$RIPPLE_DEFAULT\"/" "\$RCFG" > "\$RCFG.hlnew" 2>/dev/null &&
+					cat "\$RCFG.hlnew" > "\$RCFG" 2>/dev/null
+				rm -f "\$RCFG.hlnew" 2>/dev/null
+			fi
+			touch "\$CATCHUP_MARKER" 2>/dev/null
+		fi
 	fi
 fi
 

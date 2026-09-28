@@ -32,6 +32,21 @@ not for every commit. Deep engine writeups live in
 
 ## Launcher and config
 
+- A G5 provisioned before the `gl_msaa_samples`/`r_ripple` seed pins existed
+  kept MSAA and water ripples off with no error, issue #54. Both cvars are
+  `FCVAR_GLCONFIG`, so the launcher's "seed if absent" write never reaches an
+  install that already archived the pre-pin value into `opengl.cfg`. Found by
+  reading the live config on two G5s: `imac-g5` was already correct,
+  `g5-panther` had both archived at `0`. Fix, split by whether the cvar has a
+  player-facing control: `gl_msaa_samples` has none (mainui's own note says
+  so), so it is now FORCED every launch, the same mechanism already used for
+  the G3 and the Radeon 9200 mini G4. `r_ripple` DOES have one, the "Water
+  ripples" checkbox (`menus/VideoOptions.cpp:211`), so forcing it every launch
+  would silently and permanently undo a player's own uncheck; it instead gets
+  a ONE-TIME catch-up gated on a marker file
+  (`valve/.hl-g5-ripple-catchup`), written at seed time on a fresh install and
+  at first catch-up on an existing one, so a player's choice is never touched
+  a second time. `make-app.sh`.
 - "macOS is blocking Half-Life" privacy dialog fired even though the game's
   real folder was already outside Desktop/Documents/Downloads. Reproduced on
   imac-2019/Sequoia: the folder lived at `~/Half-Life`, reached via a
