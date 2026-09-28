@@ -1,3 +1,11 @@
+---
+description: Architecture choices (CPU subtypes, Intel OS floors, SDL2 linking), renderer default behavior, the Linux dedicated server
+paths:
+  - "scripts/**"
+  - "configs/**"
+  - "server/**"
+---
+
 # Core Facts & Mechanisms
 
 - `dyld` grades a fat by **CPU subtype alone**, never the OS, so a slice exists

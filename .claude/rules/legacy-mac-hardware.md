@@ -1,3 +1,10 @@
+---
+description: The fleet's machine aliases and multi-boot traps, and the Lion build-box toolchain traps
+paths:
+  - "scripts/**"
+  - "ssh_config"
+---
+
 # Legacy Mac Hardware & Build Traps
 
 ## Machines

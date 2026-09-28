@@ -12,45 +12,24 @@ This file is a high-level router. Depending on the task at hand, **you must read
 
 ## Context Router
 
-When you encounter specific problems, consult the following specialized context files before proceeding:
+`build-commands.md`, `legacy-mac-hardware.md`, `core-facts.md`,
+`build-verification.md` and `shipped-layout.md` carry `paths:` frontmatter and
+load themselves when you read a matching file (mostly `scripts/**`) - you don't
+need to fetch them by hand for that work. `working-method-and-hard-rules.md`
+and `ticketing-workflow.md` are always loaded.
 
-### 1. Build and Orchestration (`.claude/rules/build-commands.md`)
-Read this for:
-- Finding the exact commands to acquire a host, build, or deploy.
-- Understanding how slices (`x86_64`, `i386`, `ppc`, `arm64`) are built and fused.
-- Modifying engine, menu, or game code pins.
-
-### 2. Fleet & Hardware (`.claude/rules/legacy-mac-hardware.md`)
-Read this for:
-- Navigating the specifics of the fleet (`yosemite`, `mini-intel`, the dual/quad G5s).
-- Understanding OS targets and CPU capabilities.
-- Lion build-box limitations (e.g. `strings`, `lipo`, older toolchains).
-
-### 3. Core Architecture & Facts (`.claude/rules/core-facts.md`)
-Read this for:
-- Understanding architecture choices (CPU subtypes, Intel OS floors, SDL2 linking).
-- Renderer default behavior (`gl_vsync`, `FCVAR_GLCONFIG`, `FCVAR_ARCHIVE`).
-- The Linux dedicated server builds.
-
-### 4. Working Method & Hard Rules (`.claude/rules/working-method-and-hard-rules.md`)
-Read this for:
-- Understanding the refutation pass.
-- Verification steps (e.g. trusting `done`, codebase layout rules).
-- Hard rules about content, code, and packaging.
-
-### 5. Issue Tracking & Workflows (`.claude/rules/ticketing-workflow.md`)
-Read this for:
-- How to file and triage issues correctly.
-- Managing project board transitions.
-- Understanding constraints when interacting with `retro-server-infra`.
-
-### 6. Build Verification (`.claude/rules/build-verification.md`)
-Read this for:
-- Procedures on verifying built artifacts, cpusubtype stamping, and the launcher's display profiles.
-
-### 7. Shipped Layout (`.claude/rules/shipped-layout.md`)
-Read this for:
-- Understanding the required structure of the shipped `.app` bundle and where payload must sit.
+- **Build and Orchestration** (`build-commands.md`): host acquisition, build,
+  deploy, slice fusion, engine/menu/game pins.
+- **Fleet & Hardware** (`legacy-mac-hardware.md`): machine aliases, OS/CPU
+  targets, Lion toolchain limits.
+- **Core Architecture & Facts** (`core-facts.md`): CPU subtypes, Intel OS
+  floors, SDL2 linking, renderer defaults, the Linux server.
+- **Working Method & Hard Rules** (`working-method-and-hard-rules.md`):
+  refutation pass, build-trust, content/code/packaging hard rules.
+- **Ticketing** (`ticketing-workflow.md`): filing, board, `retro-server-infra`.
+- **Build Verification** (`build-verification.md`): artifact/cpusubtype
+  checks, launcher display profiles.
+- **Shipped Layout** (`shipped-layout.md`): required `.app` bundle structure.
 
 ## Read on demand
 
@@ -60,5 +39,8 @@ Read this for:
 - `docs/ICONS.md`: Icons and the Panther size ceiling.
 - `docs/LICENSING.md`: Licensing and terms.
 - `docs/BENCHMARKING.md`: Timerefresh harness and benchmarking procedures.
-- `docs/port/POWERPC-FINDINGS.md`: Write-ups of porting findings.
+- `docs/port/POWERPC-FINDINGS.md`: Write-ups of porting findings, including
+  refuted mechanisms.
+- `docs/INCIDENTS.md`: Process incidents behind the hard rules in
+  `.claude/rules/`.
 - `docs/port/PPC-PORT-NOTES.md`: Move onto mainline, including diagnoses made and retracted.

@@ -1,3 +1,10 @@
+---
+description: Exact commands to acquire a host, build, deploy, bench and release; how slices are fused
+paths:
+  - "scripts/**"
+  - "docs/BENCHMARKING.md"
+---
+
 # Build Commands and Orchestration
 
 The build drivers run **locally on a build mini** and do no ssh of their own, so

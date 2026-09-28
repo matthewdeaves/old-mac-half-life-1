@@ -84,7 +84,7 @@ Concretely, for any fleet crash:
 3. Only then read the source, and only then say what the mechanism is.
 
 **A claim about a crash mechanism cites a symbolized frame or is labelled
-inferred.** This is `.claude/skills/claim-hygiene` applied to crashes
+inferred.** This is "paste numbers, never retype them" applied to crashes
 specifically. "The register shape suggests a dispatch table" is not a frame.
 
 **A test that cannot reach its assertion is a broken test, not a failing
@@ -123,8 +123,9 @@ already being done, and costs a file read.
 ## Related
 
 - Issue #18, and the three retractions on it.
-- `.claude/skills/claim-hygiene`: measured versus inferred, and retracting the
-  claim only.
+- `.claude/rules/working-method-and-hard-rules.md`'s "paste numbers from a
+  command's output" rule: measured versus inferred, and retracting the claim
+  only.
 - `.claude/rules/working-method-and-hard-rules.md`: the refutation pass, for
   when a mechanism is load bearing and hard to test directly. A symbolized
   frame is cheaper than a refutation pass and should come first.

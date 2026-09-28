@@ -4,45 +4,38 @@
 
 Work solo by default. Agents are a tool for when they pay, not a ritual.
 
-A **refutation pass** is handing a fresh agent the diff plus the unpatched
-upstream file and telling it to **refute** the fix, not approve it. It is worth
-doing when a claim is load-bearing and hard to test directly: a mechanism about
-endianness, the frame loop, save/restore or `dlopen`, or any "this is why it
-broke" that is about to be written down as fact. Three mechanisms were published
-as fact and retracted in one session; that is the failure it exists for.
-
-**Do not run one automatically.** Judge whether it earns its cost, and when it
-does, say so and ask before running it. A build-script change or a mechanical
-port that the compiler and the hardware already check is not a candidate: the
-build and the bench boxes are the stronger evidence.
-
-Brief every agent: read-only unless told otherwise, label each claim measured or
-inferred. A partial result from a killed agent is a lead, never a finding.
+A **refutation pass**: hand a fresh agent the diff plus the unpatched upstream
+file and have it refute the fix, not approve it. Worth it for a load-bearing,
+hard-to-test claim (endianness, the frame loop, save/restore, `dlopen`, any
+"this is why it broke" about to be written down as fact) - not for a
+build-script change or mechanical port the compiler and hardware already
+check: the build and bench boxes are the stronger evidence there. Don't run
+one automatically: judge whether it earns its cost, say so, and ask before
+running it. Brief every agent read-only unless told otherwise, and label each
+claim measured or inferred. A partial result from a killed agent is a lead,
+never a finding. Refuted porting mechanisms: `docs/port/POWERPC-FINDINGS.md`.
 
 ## Hard rules
 
 - **NEVER trust a build's "done" or exit 0.** waf exits 0 on a failed task and
-  then installs stale objects. Procedure, cpusubtype stamping and the launcher's
-  display profiles: `.claude/rules/build-verification.md`.
+  then installs stale objects. Procedure, cpusubtype stamping and the
+  launcher's display profiles: `.claude/rules/build-verification.md`.
 - **Payload sits at the `valve/` level**, not the rodir root, or the engine's
   pre-flight check misses it. `.claude/rules/shipped-layout.md`, `docs/adr/0006`
 - **We ship code, not content.** No Valve assets, no mod author's content, ever.
 - **Never PR or push to upstream repos.** Changes are commits on the `oldmac`
-  branch of **our own fork** of each, pinned in `scripts/build-pins.sh`. The only
-  patch scripts left are the five applied to each mod's own source tree, which is
-  not ours to fork. `docs/adr/0012`
+  branch of **our own fork** of each, pinned in `scripts/build-pins.sh`. The
+  only patch scripts left are the five applied to each mod's own source tree,
+  which is not ours to fork. `docs/adr/0012`
 - **Build the release DMG only on a Tiger G4**, never the G3 or Lion, `-format
   UDZO`; md5 every binary, `hdiutil verify` is not enough. `docs/adr/0005`
 - Before a release run `python3 tests/test-repo.py` and `tests/test-artifact.sh`.
-- **A release claim lives in two places, and correcting one does not correct the
-  other.** `v1.9.9` went out on 2026-08-28 with a body that correctly listed the
-  microphone fix as withdrawn, and a TITLE that still said "permissions asked up
-  front", because the title was baked into the publish script before the revert.
-  It was public and wrong for about a minute. When what shipped changes, re-read
-  the title, the notes AND the `--title` argument in whatever script publishes
-  them. The same applies to a release that is re-cut under an existing version
-  number: the artifacts change, the prose usually does not, and nothing checks
-  that they still agree.
+- **A release claim lives in two places, and correcting one does not correct
+  the other.** When what shipped changes, re-read the title, the notes AND the
+  `--title` argument in whatever script publishes them - the same applies to a
+  release re-cut under an existing version number. Story: `docs/INCIDENTS.md`.
+- **Paste numbers from a command's output; never retype them.** A retyped
+  count, line number or hash is exactly the kind of claim that turns out wrong.
 - **No em dashes anywhere**, prose or shipped strings.
 - **Never rate or praise work**, ours or upstream's; attribution is a fact.
 - **No Claude co-author** on commits.
