@@ -19,7 +19,15 @@ need to fetch them by hand for that work. `working-method-and-hard-rules.md`
 and `ticketing-workflow.md` are always loaded.
 
 - **Build and Orchestration** (`build-commands.md`): host acquisition, build,
-  deploy, slice fusion, engine/menu/game pins.
+  deploy, slice fusion, engine/menu/game pins. `qemu-tiger3d` iteration:
+  `scripts/pick-bench-host.sh --run qemu-tiger3d <label> -- <script>` wraps
+  `scripts/deploy-dmg.sh`/`scripts/smoke-dmg.sh` as on any Mac; for
+  `scripts/shared.sh bench-evidence.sh` the adapter never sets
+  `BENCH_ARTEFACT` (this port's own `make-dmg.sh` stage is a trap-removed
+  mktemp dir) - mount the current `dist/*.dmg`, copy out
+  `Half-Life.app/Contents/MacOS/xash3d.bin`, and export
+  `BENCH_ARTEFACT=<extracted path>` yourself; `scripts/vm-frame-check.sh`
+  self-claims for the frame capture.
 - **Fleet & Hardware** (`legacy-mac-hardware.md`): machine aliases, OS/CPU
   targets, Lion toolchain limits.
 - **Core Architecture & Facts** (`core-facts.md`): CPU subtypes, Intel OS
