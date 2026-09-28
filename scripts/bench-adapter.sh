@@ -55,32 +55,42 @@ bench_launch() {
 	local self_dir out rc line samples
 	self_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-	# build-host#147: one game per host, whatever starts it. launch-game.sh
-	# --check lists any game already running there (whoever started it). Its
-	# detached launch mode is not used: a detached xash3d.bin on Tiger aborts
-	# in HIServices (no window-server session once the ssh session closes), so
-	# bench.sh keeps running in a held ssh session and only borrows the check.
-	local running
-	running="$("$self_dir/shared.sh" launch-game.sh --check "$host" 2>&1)"
-	if [ $? -ne 0 ] || [ -n "$running" ]; then
-		printf 'launch-game.sh --check: refusing to start, game already running or probe failed: %s\n' "$running" > "$workdir/log.txt"
-		echo "EXIT=3"
-		echo "PID="
-		return 0
-	fi
-
+	# build-host#147: only one game may run on a host, whatever starts it.
+	# bench.sh runs ON the host and starts the engine itself, so the guard goes
+	# around bench.sh: launch-game.sh refuses if any game is already running,
+	# starts bench.sh over a held ssh session with a watchdog, and --stop TERMs
+	# it if this adapter is interrupted. bench.sh's own output lands in
+	# launch-game's guest log, read back below.
+	local bargs lg gpid waited max
+	bargs="-N $host -r $BENCH_REND -W $BENCH_W -H $BENCH_H -f $BENCH_FRAMES -n $BENCH_RUNS -w $BENCH_WARMUPS -t $BENCH_TIMEOUT -m $BENCH_MAP -s $BENCH_SCREENMODE"
+	max=$((BENCH_TIMEOUT + 180))
 	if [ "$host" = workstation ]; then
 		cp "$self_dir/bench.sh" /tmp/bench.sh && chmod +x /tmp/bench.sh
-		out="$(/tmp/bench.sh -N "$host" -r "$BENCH_REND" -W "$BENCH_W" -H "$BENCH_H" \
-			-f "$BENCH_FRAMES" -n "$BENCH_RUNS" -w "$BENCH_WARMUPS" -t "$BENCH_TIMEOUT" \
-			-m "$BENCH_MAP" -s "$BENCH_SCREENMODE" ${BENCH_EXTRA:+-x "$BENCH_EXTRA"} 2>&1)"
-		rc=$?
 	else
 		scp -q -o BatchMode=yes -o ConnectTimeout=15 "$self_dir/bench.sh" "$host:/tmp/bench.sh" 2>/dev/null
 		ssh -o BatchMode=yes -o ConnectTimeout=15 "$host" 'chmod +x /tmp/bench.sh' 2>/dev/null
-		out="$(ssh -o BatchMode=yes -o ConnectTimeout=90 "$host" \
-			"/tmp/bench.sh -N $host -r $BENCH_REND -W $BENCH_W -H $BENCH_H -f $BENCH_FRAMES -n $BENCH_RUNS -w $BENCH_WARMUPS -t $BENCH_TIMEOUT -m $BENCH_MAP -s $BENCH_SCREENMODE${BENCH_EXTRA:+ -x \"$BENCH_EXTRA\"}" 2>&1)"
-		rc=$?
+	fi
+	lg="$("$self_dir/shared.sh" launch-game.sh "$host" xash3d --max-secs "$max" -- \
+		/tmp/bench.sh $bargs ${BENCH_EXTRA:+-x "$BENCH_EXTRA"} 2>&1)"
+	rc=$?
+	gpid="$(printf '%s\n' "$lg" | sed -n 's/^PID \([0-9][0-9]*\)$/\1/p' | head -1)"
+	if [ "$rc" -ne 0 ] || [ -z "$gpid" ]; then
+		out="launch-game.sh refused or failed (rc=$rc): $lg"
+		[ "$rc" -eq 0 ] && rc=1
+	else
+		trap '"$self_dir/shared.sh" launch-game.sh --stop "$host" "$gpid" >/dev/null 2>&1' INT TERM
+		waited=0
+		while [ "$waited" -lt "$((max + 60))" ]; do
+			if [ "$host" = workstation ]; then kill -0 "$gpid" 2>/dev/null || break
+			else ssh -o BatchMode=yes -o ConnectTimeout=15 "$host" "kill -0 $gpid" >/dev/null 2>&1 \
+				|| { ssh -o BatchMode=yes -o ConnectTimeout=15 "$host" "kill -0 $gpid" >/dev/null 2>&1 || break; }
+			fi
+			sleep 5; waited=$((waited + 5))
+		done
+		trap - INT TERM
+		if [ "$host" = workstation ]; then out="$(cat /tmp/launch-game-xash3d.log 2>&1)"
+		else out="$(ssh -o BatchMode=yes -o ConnectTimeout=30 "$host" 'cat /tmp/launch-game-xash3d.log' 2>&1)"; fi
+		rc=0
 	fi
 	printf '%s\n' "$out" > "$workdir/log.txt"
 
@@ -98,6 +108,7 @@ bench_launch() {
 	# and exits non-zero to match; belt-and-braces in case a transport hiccup
 	# (dropped ssh, empty output) left rc looking clean with no row at all.
 	[ -n "$line" ] || rc=1
+	case "$line" in *,ERR,*) rc=1 ;; esac
 
 	echo "EXIT=$rc"
 	echo "PID="
