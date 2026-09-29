@@ -20,7 +20,7 @@ Half-Life 1 on Xash3D FWGS as one universal fat `Half-Life.app` (PowerPC, Intel,
 - Fleet aliases, Lion limits: `legacy-mac-hardware.md`, then `docs/FLEET-HARDWARE.md`
 - Subtypes, renderer defaults, generated configs, server: `core-facts.md`, then `docs/CORE-FACTS.md`
 - App layout: `shipped-layout.md`, then `docs/SHIPPED-LAYOUT.md`
-- Artifact checks, cpusubtype stamping, launcher profiles: `build-verification.md`
+- Artifact checks, cpusubtype stamping, launcher profiles: `build-verification.md`, then `docs/BUILD-VERIFICATION.md`
 - Bench: `docs/BENCHMARKING.md`; new Mac or G5 partition: `docs/FLEET-ONBOARDING.md`
 - qemu-tiger3d loop (`scripts/pick-bench-host.sh --run qemu-tiger3d <label> -- <script>`), frame check: `docs/VM-TIGER.md`
 - Mods: `docs/MODS.md`, `docs/MOD-AUDIT.md`; icons: `docs/ICONS.md`; terms: `docs/LICENSING.md`
