@@ -1,5 +1,9 @@
 # 0012. The port is commits on our own forks, not scripts run over somebody else's tree
 
+Recorded decision: Every change this port makes is a commit on the `oldmac` branch of our own fork of the relevant upstream.
+Record status: accepted. Replaces the patching half of ADR 0002.. Date: 2026-07-31.
+Sections: Context, Decision, Consequences, Related.
+
 Date: 2026-07-31
 Status: accepted. Replaces the patching half of ADR 0002.
 

@@ -9,10 +9,7 @@ in `docs/FLEET-ONBOARDING.md`.
 
 ## Roles
 
-The Apple Silicon dev box is orchestration only. ALL THREE slices cross-compile on an Intel
-Lion mini; the PowerPC boxes are bench and test targets, NOT build hosts. The drivers RUN ON
-the mini: `build-lion.sh`, `build-ppc-panther.sh` (G3 slice), `build-ppc-tiger.sh` (G4 and
-G5 slices), fused by `make-universal.sh` and `make-app.sh`. `docs/adr/0005`
+Legacy PowerPC and Intel build drivers run on the Intel minis; PowerPC machines are test targets and Tiger G4 packaging hosts. The local Apple Silicon host builds arm64 with `build-arm64.sh`, `build-mod-arm64.sh --all`, `build-installer-arm64.sh` and `build-sysreport-arm64.sh`, then pushes those slices before the mini's `build-all.sh`. See `docs/BUILD-COMMANDS.md` and `docs/adr/0005`.
 
 ## The two Intel build minis are not one class
 
@@ -53,25 +50,8 @@ being off. Switching (`bless` plus reboot) and onboarding a partition:
 
 ## Lion build-box traps
 
-- **Git is Xcode 4's 1.7, which has no `git -C`.** Use `( cd DIR && git ... )`. Modern git,
-  curl, OpenSSL and **ssh** live under `~/local`, and the scripts prefer them silently.
-  Lion's own OpenSSL cannot do TLS 1.2 and its OpenSSH is 5.6, which has no ed25519 and can
-  only sign `ssh-rsa` under SHA-1, which GitHub stopped accepting in 2022.
-- **All six forks are private.** Each mini has its own key at `~/.ssh/id_ed25519_github`,
-  wired in by `core.sshCommand` plus an `url."git@github.com:".insteadOf` rewrite, so
-  `build-pins.sh` can keep naming plain https URLs. Without that a fetch fails with "could
-  not read Username".
-- **There is no `pkill` on 10.7, 10.4 or 10.3.** Kill by PID out of `ps`.
-- **Lion's `strings` cannot read a modern x86_64 Mach-O** and reports zero matches, which
-  looks exactly like a missing fix. Verify strings on the dev box.
-- **Panther's `lipo` cannot name the x86_64 slice** and prints
-  `cputype (16777223) cpusubtype (-2147483645)`. That is a correct fat binary.
-- The hlsdk-specific traps (`--disable-altivec` is an ENGINE option and breaks hlsdk's
-  configure; hlsdk assumes darwin means clang and hands gcc a `-Wl,--no-undefined` Apple's
-  ld rejects; gcc-4.0 is stricter than the x86_64 clang) are in `docs/MODS.md`, "Things that
-  bite on these machines", with the script that handles each.
+See `docs/LION-TRAPS.md`.
 
 ## The dev box shell
 
-The dev box runs zsh, where an **unquoted `$var` does not word-split**. Use an array. A
-`git rm $LIST` once silently became one long pathspec that matched nothing.
+See `docs/LION-TRAPS.md`.

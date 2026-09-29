@@ -1,13 +1,10 @@
 # Half-Life Mods.app
 
-A native Cocoa installer that puts Half-Life mods onto a PowerPC or Intel Mac
-running anything from **Mac OS X 10.3.9 Panther** to modern macOS, and makes them
-work with the port's `Half-Life.app`.
-
-One fat `ppc + i386 + x86_64 + arm64` binary, no nibs, no frameworks beyond
-Cocoa itself.
-
-![The app on startup](../docs/img/screenshots/g5-01-ready.png)
+A native Cocoa installer that puts Half-Life mods onto a PowerPC or Intel Mac running
+anything from **Mac OS X 10.3.9 Panther** to modern macOS, and makes them work with the
+port's `Half-Life.app`. One fat `ppc + i386 + x86_64 + arm64` binary, no nibs, no
+frameworks beyond Cocoa itself. ![The app on
+startup](../docs/img/screenshots/g5-01-ready.png)
 
 ## Minimum specs
 

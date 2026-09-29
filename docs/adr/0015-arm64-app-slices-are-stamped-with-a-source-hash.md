@@ -1,5 +1,9 @@
 # 15. The arm64 app slices carry a source hash, not a commit id
 
+Recorded decision: Both arm64 app drivers write a `BUILD-STAMP` beside their slice, and both fuses refuse to fuse unless it matches the source they are compiling.
+Record status: accepted. Date: 2026-08-22.
+Sections: Context, Decision, Why not a commit id, given the engine uses one, What is hashed, and what is deliberately not, The two rules inherited from old-mac-quake2, Consequences, Proved in both directions.
+
 Date: 2026-08-22
 Status: accepted
 

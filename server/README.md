@@ -1,5 +1,11 @@
 # Half-Life dedicated server, Linux
 
+The headless Linux Half-Life server builds from the same component pins as the Mac app.
+It ships for one Linux architecture, without separately installed packages.
+The sections below cover build inputs, deployment, operation and limits.
+
+## Overview
+
 A headless Half-Life server built from the same pins as the Mac fat binary.
 One Linux architecture, no packages to install.
 

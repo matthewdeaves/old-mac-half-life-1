@@ -15,34 +15,11 @@ paths:
 
 # Build Commands and Orchestration
 
-Build drivers run **locally on a build mini** (repo at `~/oldmac`) and do no ssh
+Legacy build drivers run **locally on a build mini** (repo at `~/oldmac`) and do no ssh
 of their own: claim a host, then run them there.
 
-```sh
-scripts/pick-build-host.sh --status
-HOST=$(scripts/pick-build-host.sh --acquire LABEL)
-scripts/sync-build-host.sh $HOST               # FIRST, the mini does not pull
-ssh $HOST 'cd oldmac && scripts/build-all.sh'  # the whole build; never chain steps
-scripts/pick-build-host.sh --release $HOST
+Commands, including all four local arm64 drivers: `docs/BUILD-COMMANDS.md`.
 
-# arm64 is the one slice a mini cannot build: run HERE, before build-all
-scripts/build-arm64.sh                         # engine
-scripts/build-mod-arm64.sh --all               # 25 mod dylib pairs
-scripts/build-installer-arm64.sh
-scripts/build-sysreport-arm64.sh
-scripts/push-arm64-slice.sh $HOST
-scripts/push-mod-arm64.sh $HOST
-
-scripts/build-server-x86_64.sh                 # Linux server, adr/0013
-scripts/build-server-linux.sh --arch aarch64
-scripts/make-dmg.sh [version-label]            # hdiutil step: Tiger G4 ONLY
-scripts/pick-bench-host.sh --status
-scripts/deploy-dmg.sh HOST [version]
-scripts/smoke-dmg.sh HOST                      # smoke/bench flow: docs/BENCHMARKING.md
-scripts/fleet-bench.sh -l LABEL [host]
-scripts/shared.sh <name>.sh [args]             # bench-evidence, bench-compare,
-                                               # gui-precondition, clear-launch-quarantine
-```
 
 - `shared.sh` scripts come from the `shared-scripts.pin` revision; `bench-evidence.sh`
   needs `BENCH_ADAPTER="$REPO_ROOT/scripts/bench-adapter.sh"` set explicitly.

@@ -5,6 +5,8 @@ dylibs are built from Valve's Half-Life 1 SDK and keep Valve's free-distribution
 terms, so they are not GPL. No Valve or mod-author content ships. Whether the GPL
 engine and those dylibs form one work is a stated grey area, not a settled one.
 
+## Context
+
 This project is **GPL-3.0-or-later**; the full text is in [`LICENSE`](../LICENSE).
 
 It combines code under several different sets of terms, and one of them is not an

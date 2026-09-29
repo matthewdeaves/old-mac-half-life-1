@@ -1,5 +1,9 @@
 # 5. Cross-compile on Intel Lion, package the disk image on a Tiger G4
 
+Recorded decision: Every slice a Lion mini can build cross-compiles there.
+Record status: accepted. Date: 2026-07-27.
+Sections: Context, Decision, Alternatives rejected, Consequences.
+
 Date: 2026-07-27
 Status: accepted
 

@@ -15,9 +15,7 @@ Alias, CPU, GPU and OS tables: `docs/BENCHMARKING.md` ("Machines (SSH aliases)")
 
 ## Machines
 
-- **The dev box is orchestration only.** ALL THREE slices cross-compile on an Intel
-  Lion mini; PowerPC boxes are bench and test targets, NOT build hosts. The drivers
-  RUN ON the mini. `docs/adr/0005`
+- **Legacy slices build on Intel minis; arm64 builds locally** using the four drivers in `docs/BUILD-COMMANDS.md`. PowerPC boxes are bench/test targets and Tiger G4 DMG hosts. Legacy drivers run on the mini. `docs/adr/0005`
 - **`mini-intel` and `mini-intel2` build alike but bench differently** (different
   CPU, RAM and cache, same model and OS). Never pool them into one "Intel" class for
   a measurement. Ask `scripts/pick-build-host.sh` (`--status`, `--acquire LABEL`,
@@ -35,9 +33,7 @@ Alias, CPU, GPU and OS tables: `docs/BENCHMARKING.md` ("Machines (SSH aliases)")
 
 - **No `git -C`** (Xcode git 1.7): use `( cd DIR && git ... )`. Modern git, curl and
   ssh live under `~/local`; the scripts prefer them.
-- **All six forks are private**: each mini authenticates with its own
-  `~/.ssh/id_ed25519_github`, so a fetch failing with "could not read Username"
-  means that wiring is missing.
+- **Fork visibility is not established by an authentication failure.** Each mini uses `~/.ssh/id_ed25519_github`; check the URL and SSH wiring when a fetch cannot authenticate. See `docs/FLEET-HARDWARE.md`.
 - **No `pkill` on 10.7, 10.4 or 10.3.** Kill by PID out of `ps`.
 - **Lion's `strings` reports zero matches on a modern x86_64 Mach-O**, which looks
   like a missing fix. Verify strings on the dev box.

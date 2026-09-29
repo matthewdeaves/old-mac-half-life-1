@@ -1,5 +1,9 @@
 # 1. Slices are chosen by CPU capability, not by OS version
 
+Recorded decision: Ship five slices: `ppc750`, `ppc7400`, `i386`, `x86_64`, `arm64`.
+Record status: accepted. Date: 2026-07-27.
+Sections: Context, Decision, Evidence, Consequences, Notes, Amendment, 2026-08-08: two more slices, and the evidence that they are safe.
+
 Date: 2026-07-27
 Status: accepted
 

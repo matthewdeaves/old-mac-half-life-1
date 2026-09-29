@@ -1,12 +1,10 @@
 # Icon pipeline - Half-Life old-Mac port
 
-Read this if you touch `scripts/make-icon.py` or regenerate `Half-Life.icns`.
-
-Summary: three app icons (game, Mods installer, System Report) and the installer About
-picture are cut from the `*-new.png` busts with `make-icon-mask.py` and assembled by
-`scripts/make-icon.py`. The `.icns` files stop at 256px (`ic08`) because Panther shows
-the generic icon for anything larger. Provenance of the shipped artwork is not fully
-recorded (see Provenance).
+Read this if you touch `scripts/make-icon.py` or regenerate `Half-Life.icns`. Summary: three app icons (game,
+Mods installer, System Report) and the installer About picture are cut from the `*-new.png` busts with
+`make-icon-mask.py` and assembled by `scripts/make-icon.py`. The `.icns` files stop at 256px (`ic08`) because
+Panther shows the generic icon for anything larger. Provenance of the shipped artwork is not fully recorded (see
+Provenance).
 
 ## Current icons
 

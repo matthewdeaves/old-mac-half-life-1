@@ -1,5 +1,9 @@
 # 13. The dedicated server is Linux, built in a container from the same pins
 
+Recorded decision: Build a headless Linux server with `scripts/build-server-linux.sh`, on this box, in a Debian 11 container, from `scripts/build-pins.sh`.
+Record status: accepted. Date: 2026-08-20.
+Sections: Context, Decision, Alternatives rejected, Consequences, Related.
+
 Date: 2026-08-20
 Status: accepted
 

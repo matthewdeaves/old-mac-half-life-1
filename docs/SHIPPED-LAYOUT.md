@@ -1,12 +1,10 @@
 # Shipped layout: where everything sits and why it cannot move
 
-The disk image carries three app bundles and no `valve/` folder. Our payload lives inside
-`Half-Life.app` at the `valve/` level of the engine's read-only root, and the player's own
-retail `valve/` sits beside the app. This page holds the mechanisms behind the one-line rules
-in `.claude/rules/shipped-layout.md`: the deployed-folder shape, why loose dylibs beat the
-bundle, why the payload level matters, and how phantom Custom Game entries appear.
-Engine file and line references were recorded against the engine pin at the time; grep the
-function names, the line numbers drift.
+The disk image carries three app bundles and no `valve/` folder. Our payload lives inside `Half-Life.app` at the `valve/` level of the engine's
+read-only root, and the player's own retail `valve/` sits beside the app. This page holds the mechanisms behind the one-line rules in
+`.claude/rules/shipped-layout.md`: the deployed-folder shape, why loose dylibs beat the bundle, why the payload level matters, and how phantom
+Custom Game entries appear. Engine file and line references were recorded against the engine pin at the time; grep the function names, the line
+numbers drift.
 
 ## What ships, and where the engine looks
 

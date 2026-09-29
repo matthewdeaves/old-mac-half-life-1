@@ -1,11 +1,10 @@
 # Porting the PowerPC build onto mainline Xash3D FWGS
 
-Running notes on the port, so the commits that come out of it can explain
-themselves. Method: compile mainline for `ppc` against the 10.3.9 SDK and fix
-whatever the compiler and the hardware object to. Sections: two upstream fixes we
-dropped as unneeded, first light on hardware, the map-load crash that was our own double
-byte swap, and the "corrupted glyphs" that were background art. Two diagnoses made and
-retracted; the numbered findings are `docs/port/POWERPC-FINDINGS.md`.
+Running notes on the port, so the commits that come out of it can explain themselves. Method: compile mainline for
+`ppc` against the 10.3.9 SDK and fix whatever the compiler and the hardware object to. Sections: two upstream fixes we
+dropped as unneeded, first light on hardware, the map-load crash that was our own double byte swap, and the "corrupted
+glyphs" that were background art. Two diagnoses made and retracted; the numbered findings are
+`docs/port/POWERPC-FINDINGS.md`.
 
 ## Base
 

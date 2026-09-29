@@ -1,5 +1,9 @@
 # 11. Each mod is fetched from its own publisher, and the installer carries its own TLS
 
+Recorded decision: Fetch each mod from its own public release, one at a time, and never fetch a Valve product at all.
+Record status: accepted. Date: 2026-07-29.
+Sections: Context, Decision, Alternatives rejected, Consequences.
+
 Date: 2026-07-29
 Status: accepted
 

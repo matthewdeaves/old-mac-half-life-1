@@ -1,5 +1,9 @@
 # 6. We ship code, not content, and the code lives inside the app bundle
 
+Recorded decision: No content of any kind ships.
+Record status: accepted. Date: 2026-07-27.
+Sections: Context, Decision, Alternatives rejected, Consequences, Notes.
+
 Date: 2026-07-27
 Status: accepted
 

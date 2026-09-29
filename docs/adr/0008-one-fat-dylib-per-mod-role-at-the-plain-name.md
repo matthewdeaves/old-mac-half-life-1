@@ -1,5 +1,9 @@
 # 8. Mod game code ships as one fat dylib per role, at the plain name
 
+Recorded decision: Build each mod's code once per architecture, `lipo` the slices into one fat `ppc + i386 + x86_64 + arm64` file per role, and install it at the plain name from `liblist.gam`.
+Record status: accepted. Date: 2026-07-27.
+Sections: Context, Decision, Alternatives rejected, Consequences, Notes.
+
 Date: 2026-07-27
 Status: accepted
 

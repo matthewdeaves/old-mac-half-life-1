@@ -1,5 +1,11 @@
 # Half-Life on old Macs
 
+Half-Life 1 uses Xash3D FWGS in one universal app for PowerPC, Intel and Apple Silicon.
+The app supports Mac OS X 10.3.9 onward and 25 mods; it ships no retail game content.
+Installation, supported machines and build details are in the sections below.
+
+## Overview
+
 Half-Life 1 for PowerPC, Intel and Apple Silicon Macs as one universal
 `Half-Life.app`, using the open-source
 [Xash3D FWGS](https://github.com/FWGS/xash3d-fwgs) engine in place of the retail

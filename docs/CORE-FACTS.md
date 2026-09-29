@@ -1,11 +1,10 @@
 # Core facts and mechanisms
 
-Long-form detail behind `.claude/rules/core-facts.md`. Read a section with
-`grep -n '^## '` then `sed -n`. Covers how a renderer default reaches a machine,
-why generated configs are never copied between machines, why `compat-include/`
-stays off modern compilers, and the arm64 build and stale-slice procedure. The
-slice set, Intel floor, SDL2 linking, dylib names, server and vendoring live in
-the ADRs and the build scripts, listed in the last section.
+Long-form detail behind `.claude/rules/core-facts.md`. Read a section with `grep -n '^## '` then `sed -n`. Covers
+how a renderer default reaches a machine, why generated configs are never copied between machines, why
+`compat-include/` stays off modern compilers, and the arm64 build and stale-slice procedure. The slice set, Intel
+floor, SDL2 linking, dylib names, server and vendoring live in the ADRs and the build scripts, listed in the last
+section.
 
 ## A renderer default reaches a machine by one of three routes
 

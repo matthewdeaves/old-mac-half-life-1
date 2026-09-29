@@ -1,5 +1,9 @@
 # 18. A fleet crash is diagnosed from the engine's own log, symbolized, before any mechanism is proposed
 
+Recorded decision: Before proposing any mechanism for a crash on a fleet machine, pull that machine's `last-run.log` and symbolize every frame it names.
+Record status: accepted. Date: 2026-08-28.
+Sections: Context, Decision, Consequences, Related.
+
 Date: 2026-08-28
 Status: accepted
 

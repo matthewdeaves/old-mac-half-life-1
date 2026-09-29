@@ -1,5 +1,9 @@
 # 10. The System Report app targets lower floors than the game
 
+Recorded decision: Build for the oldest OS each architecture supports at all, not for the game's floors (`scripts/build-sysreport.sh:29-31`):
+Record status: accepted. Date: 2026-07-27.
+Sections: Context, Decision, Alternatives rejected, Consequences, Notes.
+
 Date: 2026-07-27
 Status: accepted
 

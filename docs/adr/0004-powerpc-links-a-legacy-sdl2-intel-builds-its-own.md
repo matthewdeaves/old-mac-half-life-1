@@ -1,5 +1,9 @@
 # 4. PowerPC links a legacy SDL2 statically, Intel builds its own
 
+Recorded decision: Both PowerPC slices link `panther-sdl2` 2.0.3, built from source and linked statically.
+Record status: accepted. Date: 2026-07-27.
+Sections: Context, Decision, Alternatives rejected, Consequences.
+
 Date: 2026-07-27
 Status: accepted
 

@@ -1,5 +1,9 @@
 # 3. Every slice builds from one tree per component
 
+Recorded decision: One tree per component, and every slice builds from it.
+Record status: accepted. The original decision, that PowerPC and Intel build from. Date: 2026-07-27, rewritten 2026-08-04.
+Sections: Context, Decision, Rejected: a separate tree per architecture, Consequences, Notes.
+
 Date: 2026-07-27, rewritten 2026-08-04
 Status: accepted. The original decision, that PowerPC and Intel build from
 different upstream trees, was reversed and is recorded below as rejected.

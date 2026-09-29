@@ -1,5 +1,9 @@
 # 9. The mod installer is a native Cocoa app written for 10.3
 
+Recorded decision: `Half-Life Mods.app`: native Cocoa, one fat `ppc + i386 + x86_64 + arm64` binary, `LSMinimumSystemVersion 10.3.0`, no nibs and no frameworks beyond Cocoa itself (`docs/MODS.md`, `installer/README.md`).
+Record status: accepted. Date: 2026-07-27.
+Sections: Context, Decision, Alternatives rejected, Consequences, Notes.
+
 Date: 2026-07-27
 Status: accepted
 

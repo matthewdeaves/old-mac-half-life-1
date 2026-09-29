@@ -1,5 +1,9 @@
 # 7. The bundle's executable is a shell launcher, not the engine
 
+Recorded decision: `Contents/MacOS/xash3d` is a `bash` script; the Mach-O is `xash3d.bin` beside it (`scripts/make-app.sh:97` opens the heredoc that writes it).
+Record status: accepted. Date: 2026-07-27.
+Sections: Context, Decision, Alternatives rejected, Consequences.
+
 Date: 2026-07-27
 Status: accepted
 

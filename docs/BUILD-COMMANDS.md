@@ -1,7 +1,7 @@
 # Build commands: the long-form notes
 
-The one-page command list and one-line rules are `.claude/rules/build-commands.md`
-(loads when you touch the build scripts). This page holds the stories and
+The command reference below covers legacy and local arm64 builds.
+Scoped reminders are in `.claude/rules/build-commands.md`. This page holds the stories and
 measured facts behind them: how the shared scripts changed under the pin, when
 to release a build-host lock, why a `;` group hides a failed step, and how
 `make-dmg.sh` can stage from `imac-2019`. Read a section, not the file.
@@ -114,3 +114,31 @@ INPUT to `build-installer.sh`.
 `lipo` and `strings` checks belong on **this** box, never on Lion.
 **All build output lives under `~/oldmac/dist/`**, never at the repo root and never
 on a Desktop; `~/Desktop/Half-Life` is a deployed game, not a build directory.
+
+## Command reference
+
+```sh
+scripts/pick-build-host.sh --status
+HOST=$(scripts/pick-build-host.sh --acquire LABEL)
+scripts/sync-build-host.sh $HOST               # FIRST, the mini does not pull
+ssh $HOST 'cd oldmac && scripts/build-all.sh'  # the whole build; never chain steps
+scripts/pick-build-host.sh --release $HOST
+
+# arm64 is the one slice a mini cannot build: run HERE, before build-all
+scripts/build-arm64.sh                         # engine
+scripts/build-mod-arm64.sh --all               # 25 mod dylib pairs
+scripts/build-installer-arm64.sh
+scripts/build-sysreport-arm64.sh
+scripts/push-arm64-slice.sh $HOST
+scripts/push-mod-arm64.sh $HOST
+
+scripts/build-server-x86_64.sh                 # Linux server, adr/0013
+scripts/build-server-linux.sh --arch aarch64
+scripts/make-dmg.sh [version-label]            # hdiutil step: Tiger G4 ONLY
+scripts/pick-bench-host.sh --status
+scripts/deploy-dmg.sh HOST [version]
+scripts/smoke-dmg.sh HOST                      # smoke/bench flow: docs/BENCHMARKING.md
+scripts/fleet-bench.sh -l LABEL [host]
+scripts/shared.sh <name>.sh [args]             # bench-evidence, bench-compare,
+                                               # gui-precondition, clear-launch-quarantine
+```

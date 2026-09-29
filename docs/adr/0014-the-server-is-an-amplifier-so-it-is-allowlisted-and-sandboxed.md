@@ -1,5 +1,9 @@
 # 14. The server is a UDP amplifier, so it is allowlisted, hardened and sandboxed
 
+Recorded decision: Defend it operationally at the firewall, harden the binary, and confine the process, rather than moving the engine pin.
+Record status: accepted. Date: 2026-08-20.
+Sections: Context, Decision, Alternatives rejected, Evidence, Consequences, Related.
+
 Date: 2026-08-20
 Status: accepted
 
